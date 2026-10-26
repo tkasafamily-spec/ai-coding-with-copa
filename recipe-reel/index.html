@@ -242,11 +242,13 @@ h2{ font-size:22px; font-weight:700; }
   .step-card .thumb{ width:100%; }
 }
 @media (max-width:699px){
-  .step-card .thumb{ width:120px; }
+  .step-card .media-set{ flex-direction:column; align-items:stretch; gap:10px; }
+  .step-card .thumb{ width:100%; aspect-ratio:16/9; }
+  .step-card .media-meta{ flex-direction:row; align-items:center; justify-content:space-between; gap:10px; }
   .step-card .media-slot{ min-height:84px; align-items:flex-start; }
 }
 @media (max-width:420px){ .media-slot{ flex-direction:column; align-items:flex-start; gap:12px; } }
-.media-meta .btn{ min-height:48px; padding:0 16px; font-size:16px; }
+.media-meta .btn{ min-height:48px; padding:0 16px; font-size:16px; white-space:nowrap; }
 @media (min-width:700px){ .step-card .media-meta{ flex-direction:row; align-items:center; justify-content:space-between; flex-wrap:wrap; } }
 
 .empty-steps{ text-align:center; padding:34px 22px 28px; }
@@ -331,6 +333,10 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
 .sb.t-step-text span{ background:rgba(42,30,22,.08); color:#2A1E16; }
 .sb.t-step-clip, .sb.t-step-photo{ background-color:#6E5848; }
 .sb .spd{ position:absolute; right:4px; top:4px; font-size:11px; font-weight:800; background:var(--mustard); color:#2A1E16; padding:2px 5px; border-radius:5px; }
+.sb-legend{ display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:10px; font-size:13px; color:var(--ink-2); font-weight:600; }
+.sb-legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+.sb.tight span{ visibility:hidden; }
+.sb.tight .spd{ display:none; }
 .sb-axis{ display:flex; justify-content:space-between; font-size:13px; color:var(--ink-3); margin-top:6px; font-variant-numeric:tabular-nums; padding:0 4px; }
 .sb-empty{ flex:1; display:grid; place-items:center; color:rgba(255,255,255,.6); font-size:15px; font-weight:600; }
 .make-cta{ margin-top:18px; }
@@ -474,6 +480,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.4"/></symbol>
     <symbol id="i-vol-lo" viewBox="0 0 24 24"><path d="M11 5L6.5 9H3.5v6h3l4.5 4z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/></symbol>
     <symbol id="i-portrait" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 5.5h3"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9.5l6 6 6-6"/></symbol>
     <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
     <symbol id="logo" viewBox="0 0 48 48"><circle cx="24" cy="26" r="19" fill="#E4572E"/><path d="M24 7.5c-2.6-3.3-7.4-3.6-9.6-1.6 3.3.5 6.1 2.1 7.6 4.6zM24 7.5c2.6-3.3 7.4-3.6 9.6-1.6-3.3.5-6.1 2.1-7.6 4.6z" fill="#4E8B4A"/><rect x="22.6" y="4" width="2.8" height="7" rx="1.4" fill="#4E8B4A"/><g fill="#FFD9C8" opacity=".85"><circle cx="24" cy="15" r="3.2"/><circle cx="34.5" cy="22.6" r="3.2"/><circle cx="30.5" cy="35" r="3.2"/><circle cx="17.5" cy="35" r="3.2"/><circle cx="13.5" cy="22.6" r="3.2"/></g><path d="M21.2 21.5v9l7.6-4.5z" fill="#FFF7EE"/></symbol>
   </defs>
@@ -605,6 +612,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
           <div class="est-sub" id="estSub"></div>
           <div class="storyboard" id="storyboard" data-testid="storyboard" aria-label="Storyboard"></div>
           <div class="sb-axis"><span>0:00</span><span id="sbEnd">0:00</span></div>
+          <div class="sb-legend" aria-hidden="true"><span><i style="background:linear-gradient(160deg,#A3361A,#2A0D07)" id="lgTitle"></i>Title</span><span><i style="background:#D99A2B"></i>Ingredients</span><span><i style="background:#8A6A52"></i>Steps</span><span><i style="background:#3F7A3A"></i>The end</span></div>
           <div class="make-cta">
             <button class="btn primary" type="button" data-testid="make-video" data-make="1"><svg class="ico"><use href="#i-sparkle"/></svg>Edit my video</button>
             <p class="fine">It takes about as long as the video itself.</p>
@@ -635,7 +643,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
               <option value="90">90 seconds</option>
               <option value="180">3 minutes</option>
             </select>
-            <svg class="ico chev"><use href="#i-down"/></svg>
+            <svg class="ico chev"><use href="#i-chev"/></svg>
           </div>
         </div>
 
@@ -656,7 +664,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
                 <option value="happy">Happy</option>
                 <option value="mine">My own song</option>
               </select>
-              <svg class="ico chev"><use href="#i-down"/></svg>
+              <svg class="ico chev"><use href="#i-chev"/></svg>
             </div>
             <button class="btn listen" type="button" id="listenBtn" data-testid="music-listen" aria-pressed="false"><svg class="ico"><use href="#i-headphones"/></svg><span>Listen</span></button>
           </div>
@@ -691,7 +699,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
               <option value="1080">Full HD 1080p</option>
               <option value="720">HD 720p (smaller file)</option>
             </select>
-            <svg class="ico chev"><use href="#i-down"/></svg>
+            <svg class="ico chev"><use href="#i-chev"/></svg>
           </div>
         </div>
       </div>
@@ -1976,7 +1984,21 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       d.title = (label === 'End' ? 'The end' : (/^\d+$/.test(label) ? 'Step ' + label : label)) + ' · ' + (Math.round(sg.dur * 10) / 10) + ' s';
       if (!reuse) sb.appendChild(d);
     });
+    fitStoryboardLabels();
   }
+  function fitStoryboardLabels() {
+    // hide labels that would be cut off; the legend + tooltips explain the colours
+    function measure() {
+      $('storyboard').querySelectorAll('.sb').forEach(function (d) {
+        var sp = d.querySelector('span');
+        d.classList.toggle('tight', !!sp && (sp.scrollWidth > sp.clientWidth + 1 || d.clientWidth < 16));
+      });
+    }
+    requestAnimationFrame(measure);
+    clearTimeout(fitStoryboardLabels.t);
+    fitStoryboardLabels.t = setTimeout(measure, 520);   // after the width animation settles
+  }
+  window.addEventListener('resize', function () { if (current === 'make') fitStoryboardLabels(); });
   function updateSupport() {
     var box = $('unsupported');
     if (!hasEngine()) { box.hidden = true; return; }
