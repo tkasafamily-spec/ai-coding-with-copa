@@ -487,6 +487,14 @@ body.dropping .app::after{
         <p class="hint">How long Oreo waits after you stop talking before it answers. Tap the orb to make it answer straight away.</p>
       </div>
 
+      <div class="row">
+        <div class="field">
+          <span class="label">Cut in by talking</span>
+          <span id="bargeHint"></span>
+        </div>
+        <label class="switch"><input type="checkbox" id="bargeIn" aria-label="Cut in by talking"><span></span></label>
+      </div>
+
       <div class="field">
         <span class="label">If the mic won't work</span>
         <p class="hint" id="micHelp">Use Safari on iPad, or Chrome or Edge on a computer. Allow the microphone when it asks. To stop Safari asking every time: tap aA in the address bar → Website Settings → Microphone → Allow. Dictation must be on: Settings → General → Keyboard → Enable Dictation.</p>
@@ -1029,7 +1037,7 @@ void main(){
   /* ---------- the ear: "Hey Oreo" wake word ---------- */
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   const WAKE_RE = /\b(?:(?:hey|hi|hay|ok|okay|yo)[\s,]+)?(?:oreo|oreos|orio|oro|oriel|o'reo)\b[\s,.!:;-]*/i;
-  const ear = { armed: false, awake: false, paused: false, rec: null, all: "", wakeAt: 0, cmd: "", base: "", fails: 0, netErrs: 0, quietT: 0, wakeT: 0 };
+  const ear = { armed: false, awake: false, paused: false, rec: null, all: "", wakeAt: 0, cmd: "", base: "", fails: 0, netErrs: 0, quietT: 0, wakeT: 0, barge: false, saying: "", interrupted: false };
   /* Browsers that have the speech feature but can't actually use it (they need Google's or Apple's speech servers). */
   const SR_BROKEN = /OPR\/|Opera|Vivaldi|DuckDuckGo|YaBrowser/.test(navigator.userAgent) || !!navigator.brave;
   const SR_HELP = "This browser can't turn your voice into words. On a computer, open Oreo in Chrome or Edge. On iPad, use Safari. You can still type to me below.";
@@ -1078,7 +1086,7 @@ void main(){
     if (r) { r.onresult = r.onerror = r.onend = null; try { r.abort(); } catch {} }
   }
   function startRec() {
-    if (!ear.armed || ear.paused || ear.rec || !SR) return;
+    if (!ear.armed || (ear.paused && !ear.barge) || ear.rec || !SR) return;
     let r;
     try { r = new SR(); } catch { micProblem("This browser can't listen. Open Oreo in Safari."); return; }
     ear.rec = r; ear.all = "";
@@ -1105,7 +1113,7 @@ void main(){
     r.onend = () => {
       if (ear.rec !== r) return;
       ear.rec = null;
-      if (!ear.armed || ear.paused) return;
+      if (!ear.armed || (ear.paused && !ear.barge)) return;
       /* Browsers end listening sessions now and then; only quick back-to-back endings mean trouble. */
       if (Date.now() - startedAt < 1500) ear.fails++; else ear.fails = 0;
       if (ear.fails > 5) { micProblem("Listening stopped. Tap the orb to start again."); return; }
@@ -1153,7 +1161,9 @@ void main(){
     killRec(); setTimeout(startRec, 200);   // fresh session, so old words are forgotten
   }
   function onHeard(all, final) {
-    if (!ear.armed || ear.paused) return;
+    if (!ear.armed) return;
+    if (ear.barge) return bargeHeard(all);
+    if (ear.paused) return;
     ear.all = all;
     if (!ear.awake) {
       const m = WAKE_RE.exec(all);
@@ -1187,11 +1197,47 @@ void main(){
     syncMicButton();
     if (q) ask(q); else dozeOff();
   }
-  function pauseEar() { ear.paused = true; ear.awake = false; clearTimeout(ear.quietT); clearTimeout(ear.wakeT); killRec(); syncMicButton(); }
+  /* While Oreo thinks or talks, keep half an ear open for "Hey Oreo" or "stop" so you can cut in. */
+  function pauseEar() {
+    ear.awake = false; clearTimeout(ear.quietT); clearTimeout(ear.wakeT);
+    if (ear.armed && SR && state.settings.bargeIn !== false) {
+      if (!ear.barge) { ear.barge = true; ear.paused = true; killRec(); startRec(); }   // fresh start, so the question itself isn't heard again
+    } else { ear.paused = true; ear.barge = false; killRec(); }
+    syncMicButton();
+  }
   function resumeEar() {
     if (!ear.armed) return;
-    ear.paused = false; ear.fails = 0;
+    const wasBarge = ear.barge;
+    ear.barge = false; ear.paused = false; ear.fails = 0;
+    if (ear.awake) return;                 // already listening for a new question
+    if (wasBarge) killRec();               // forget everything heard while Oreo was talking
     idleStatus(); startRec();
+  }
+  const STOP_RE = /\b(stop|wait|hold on|hang on|shut up|be quiet|quiet|pause|enough|never ?mind|cancel)\b/i;
+  function bargeHeard(all) {
+    const said = (ear.saying || "").toLowerCase();
+    const m = WAKE_RE.exec(all);
+    let after = -1, hit = false;
+    if (m && !/\boreo\b/.test(said)) { hit = true; after = m.index + m[0].length; }
+    else { const s = STOP_RE.exec(all); if (s && !said.includes(s[0].toLowerCase())) hit = true; }   // ignore Oreo hearing its own words
+    if (!hit) { if (all.length > 400) { killRec(); startRec(); } return; }
+    interruptNow(all, after);
+  }
+  function interruptNow(all, after) {
+    ear.interrupted = true;
+    talk.cancel(); stopGoogleVoice(); stopSpeaking();
+    if (state.busy && state.ctl) { try { state.ctl.abort(); } catch {} }
+    ear.barge = false; ear.paused = false;
+    if (after >= 0) { ear.all = all; ear.wakeAt = after; wake(false); onHeard(all, false); }   // keep words said after "Hey Oreo"
+    else { killRec(); ear.all = ""; wake(true); startRec(); }
+  }
+  /* Tap the orb or the screen while Oreo is thinking or talking. */
+  function interruptByTap() {
+    if (ear.armed) return interruptNow("", -1);
+    ear.interrupted = true;
+    talk.cancel(); stopGoogleVoice(); stopSpeaking();
+    if (state.busy && state.ctl) { try { state.ctl.abort(); } catch {} }
+    doneSpeaking();
   }
   function doneSpeaking() { restOrb(); if (!state.busy) resumeEar(); }
   document.addEventListener("visibilitychange", () => {
@@ -1846,51 +1892,106 @@ void main(){
     throw e;
   }
 
-  /* ---------- talking while the answer is still arriving ---------- */
+  /* ---------- talking while the answer is still arriving, with the words appearing as they're said ---------- */
   const talk = (() => {
-    let on = false, said = 0, pending = 0, ended = false, guard = 0, lastActivity = 0;
+    let on = false, said = 0, ended = false, guard = 0, lastActivity = 0, gen = 0;
+    let items = [], full = "", shown = 0, finalMd = "", tick = 0, startT = 0, cancelling = false;
+    let rate = Number(state.settings.speechRate) || 14;      // characters per second, learned as Oreo talks
+    const show = n => {
+      n = Math.min(full.length, Math.max(shown, Math.round(n)));
+      if (n < full.length) { const sp = full.indexOf(" ", n); n = sp < 0 ? full.length : sp; }  // whole words only
+      if (n !== shown) { shown = n; renderAnswer(full.slice(0, shown)); }
+    };
     function done() {
       if (!on) return;
-      on = false; clearInterval(guard);
+      on = false; clearInterval(guard); clearInterval(tick); clearTimeout(startT);
+      renderAnswer(finalMd || full);
       doneSpeaking();
     }
-    function say(chunk) {
-      const plain = toSpeech(chunk);
-      if (!plain) return;
+    function revealAll() { clearInterval(tick); shown = full.length; renderAnswer(finalMd && ended ? finalMd : full); }
+    function speakItem(it) {
+      const g = gen;
       try {
-        const u = new SpeechSynthesisUtterance(plain);
+        const u = new SpeechSynthesisUtterance(it.plain);
         const v = currentVoice();
         if (v) { u.voice = v; u.lang = v.lang; }
         u.rate = 1; u.pitch = 1;
-        pending++;
-        u.onstart = () => { lastActivity = Date.now(); setOrb("speaking"); };
-        u.onend = u.onerror = () => { pending = Math.max(0, pending - 1); lastActivity = Date.now(); if (ended && !pending) done(); };
+        u.onstart = () => {
+          if (g !== gen) return;
+          clearTimeout(startT);
+          it.status = "speaking"; it.t0 = performance.now(); lastActivity = Date.now(); setOrb("speaking");
+          talkingStatus();
+          clearInterval(tick);
+          tick = setInterval(() => {                                  // words appear at speaking speed
+            const secs = (performance.now() - it.t0) / 1000;
+            show(it.start + Math.min(1, secs * rate / Math.max(1, it.plain.length)) * (it.end - it.start));
+          }, 80);
+        };
+        u.onboundary = e => {                                          // exact word timing, where the browser gives it
+          if (g !== gen || typeof e.charIndex !== "number") return;
+          show(it.start + (e.charIndex / Math.max(1, it.plain.length)) * (it.end - it.start));
+        };
+        u.onend = () => {
+          if (g !== gen) return;
+          const secs = it.t0 ? (performance.now() - it.t0) / 1000 : 0;
+          if (secs > 0.5 && it.plain.length > 20) { rate = Math.min(22, Math.max(9, rate * 0.6 + (it.plain.length / secs) * 0.4)); state.settings.speechRate = Math.round(rate * 10) / 10; }
+          it.status = "done"; lastActivity = Date.now();
+          show(it.end);
+          if (ended && items.every(x => x.status === "done")) done();
+        };
+        u.onerror = e => {
+          if (g !== gen || cancelling) return;
+          /* Some devices stop talking when the mic listens at the same time: switch voice-interrupt off and carry on. */
+          if (ear.barge && /interrupt|cancel/.test(e.error || "")) return voiceClash(it);
+          it.status = "done"; show(it.end);
+          if (ended && items.every(x => x.status === "done")) done();
+        };
         speechSynthesis.speak(u);
         lastActivity = Date.now();
-      } catch {}
+      } catch { it.status = "done"; show(it.end); }
     }
-    /* Speak every finished sentence that hasn't been spoken yet. */
-    function flush(text, all) {
-      const rest = text.slice(said);
+    function voiceClash(it) {
+      state.settings.bargeIn = false; state.settings.bargeAuto = true; persist();
+      ear.barge = false; killRec();
+      cancelling = true; try { speechSynthesis.cancel(); } catch {} cancelling = false;
+      for (const x of items) if (x.status !== "done") { x.status = "queued"; speakItem(x); }
+    }
+    function say(display, start) {
+      const plain = toSpeech(display);
+      const it = { display, plain, start, end: start + display.length, status: "queued", t0: 0 };
+      if (!plain) { it.status = "done"; show(it.end); return; }
+      items.push(it);
+      speakItem(it);
+      /* If speech hasn't started soon, don't keep the words hidden. */
+      clearTimeout(startT);
+      if (!items.some(x => x.t0)) startT = setTimeout(() => { if (on && !items.some(x => x.t0)) revealAll(); }, 1500);
+    }
+    /* Speak every finished phrase that hasn't been spoken yet. */
+    function flush(all) {
+      const rest = full.slice(said);
       let cut = -1;
       if (all) cut = rest.length;
       else {
         const re = /[.!?…]["'”’)\]*]*\s+/g; let m; while ((m = re.exec(rest))) cut = m.index + m[0].length;
         if (cut < 0 && said === 0) { const c = /^[^]{30,}?[,;:]\s/.exec(rest); if (c) cut = c[0].length; }   // start talking at the first pause
       }
-      if (cut > 0) { say(rest.slice(0, cut)); said += cut; }
+      if (cut > 0) { const s = said; said += cut; say(rest.slice(0, cut), s); }
     }
     return {
       start() {
+        gen++; clearInterval(guard); clearInterval(tick); clearTimeout(startT);
         on = !!state.settings.speak && canSpeak();
-        said = 0; pending = 0; ended = false;
+        said = 0; ended = false; items = []; full = ""; shown = 0; finalMd = "";
         if (on) { pauseEar(); stopSpeaking(); }
+        return on;
       },
-      feed(text) { if (on) flush(text, false); },
-      end(text) {
+      get on() { return on; },
+      feed(text) { if (!on) return; full = text; flush(false); },
+      end(text, md) {
         if (!on) { doneSpeaking(); return; }
-        flush(text, true); ended = true;
-        if (!pending) { done(); return; }
+        full = text; finalMd = md || text;
+        flush(true); ended = true;
+        if (!items.length || items.every(x => x.status === "done")) { done(); return; }
         /* Safety net in case the browser never reports that speech ended. */
         clearInterval(guard);
         guard = setInterval(() => {
@@ -1898,9 +1999,19 @@ void main(){
           if (!talking && Date.now() - lastActivity > 1500) done();
         }, 500);
       },
-      cancel() { if (on) { stopSpeaking(); pending = 0; done(); } }
+      /* Stop talking now and show the whole answer. */
+      cancel() {
+        if (!on) return;
+        gen++; cancelling = true; stopSpeaking(); cancelling = false;
+        revealAll(); on = false; clearInterval(guard); clearTimeout(startT);
+        if (ended && finalMd) renderAnswer(finalMd);
+      }
     };
   })();
+  function talkingStatus() {
+    if (state.busy) return;
+    setStatus(ear.armed && ear.barge ? "Say “stop” or tap to cut in" : "Tap to cut in");
+  }
 
   /* ---------- the studio voice (Google text-to-speech) ---------- */
   const TTS_MODELS = ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"];
@@ -2156,7 +2267,7 @@ void main(){
     if (ear.armed && ear.paused) resumeEar();
   }
   function finish(md, say) {
-    renderAnswer(md); idleStatus();
+    renderAnswer(md); idleStatus(); ear.saying = md;
     state.turns.push({ role: "assistant", content: md });
     persist(); renderHistory();
     sayAnswer(say || md);
@@ -2178,6 +2289,7 @@ void main(){
   async function ask(raw) {
     const text = String(raw || "").trim();
     if (!text || state.busy) return;
+    ear.interrupted = false; ear.saying = "";
     pauseEar(); unlockSpeech(); stopSpeaking(); stopGoogleVoice(); chime.prime();
     qEl.value = ""; autosize(); qEl.blur();
     showReplyView(text);
@@ -2212,9 +2324,10 @@ void main(){
       /* Google: show the answer while it streams in. With the iPad voice, speak it as it arrives too;
          the natural voice speaks the whole answer in one smooth go once the words are in. */
       let natural = state.settings.speak && useNatural(), answerDone = false, raw = "";
+      let finalMd = "";
       const toDevice = () => {               // studio voice failed before it started: device voice takes over
         natural = false; talk.start(); talk.feed(streamed);
-        if (answerDone) talk.end(streamed);
+        if (answerDone) talk.end(streamed, finalMd);
       };
       if (natural) studio.begin({ onFail: toDevice }); else talk.start();
       let first = true, streamed = "";
@@ -2228,24 +2341,28 @@ void main(){
         if (first) { first = false; setStatus(""); }
         raw = partial;
         streamed = stripTags(partial);
-        renderAnswer(streamed);
-        if (natural) studio.feed(raw); else talk.feed(streamed);
+        ear.saying = streamed;
+        if (natural) { renderAnswer(streamed); studio.feed(raw); }
+        else if (talk.on) talk.feed(streamed);
+        else renderAnswer(streamed);
       }, extra);
       setBusy(false);
       if (!answer) { talk.cancel(); stopGoogleVoice(); fail("Oreo came up blank. Try asking a different way.", text); return; }
       const src = cites.slice(0, 3).map(c => `[${c.title.replace(/[\[\]]/g, "")}](${c.url})`).join(", ");
       const md = stripTags(answer).trim() + (src ? "\n\nSources: " + src : "");
-      renderAnswer(md); idleStatus();
+      ear.saying = finalMd = md;
+      if (natural || !talk.on) renderAnswer(md);
+      idleStatus();
       state.turns.push({ role: "assistant", content: md });
       persist(); renderHistory();
       answerDone = true;
       if (!streamed) streamed = stripTags(answer);
-      if (natural) studio.end(raw || answer); else talk.end(streamed);
+      if (natural) studio.end(raw || answer); else talk.end(streamed, md);
       fileHelp(text, extra);
     } catch (e) {
       setBusy(false);
       talk.cancel(); stopGoogleVoice();
-      if (e && e.name === "AbortError") { showError("Stopped."); state.turns.pop(); persist(); renderHistory(); restOrb(); resumeEar(); return; }
+      if (e && e.name === "AbortError") { if (ear.interrupted) { answerEl.className = "answer"; answerEl.textContent = ""; } else showError("Stopped."); state.turns.pop(); persist(); renderHistory(); restOrb(); resumeEar(); return; }
       fail(String(e && e.message || "Something went wrong."), text);
     }
   }
@@ -2270,12 +2387,16 @@ void main(){
   orbBtn.addEventListener("click", () => {
     unlockSpeech(); chime.prime();
     if (FS_OK && disk.list.length) allowFolders();
-    if (Orb.state === "speaking" && !state.busy) { talk.cancel(); stopGoogleVoice(); stopSpeaking(); doneSpeaking(); return; }
-    if (state.busy) return;
+    if (Orb.state === "speaking" || state.busy) { interruptByTap(); return; }
     if (!ear.armed) { arm(true); return; }
     if (ear.awake) { if (ear.cmd.length > 1) { clearTimeout(ear.quietT); sendHeard(); } else dozeOff(); return; }
     if (ear.paused) resumeEar();
     wake(true);
+  });
+  document.querySelector(".stage").addEventListener("click", e => {
+    if (e.target.closest("a,button,.orb")) return;
+    if (String(window.getSelection ? window.getSelection() : "").length) return;
+    if (Orb.state === "speaking" || state.busy) interruptByTap();
   });
   micBtn.addEventListener("click", () => { if (ear.armed) disarm(); else arm(false); });
   $("home").addEventListener("click", goHome);
@@ -2290,7 +2411,7 @@ void main(){
     close();
     openSheet = $(id); openSheet.hidden = false; scrim.hidden = false;
     if (id === "historySheet") { renderHistory(); const l = $("histList"); l.lastElementChild && l.lastElementChild.scrollIntoView({ block: "end" }); }
-    if (id === "settingsSheet") { showVoiceMode(); showKey(); renderFolders(); }
+    if (id === "settingsSheet") { showVoiceMode(); showKey(); renderFolders(); showBarge(); }
     const btn = openSheet.querySelector("[data-close]"); if (btn) btn.focus();
   }
   function close() { if (openSheet) { openSheet.hidden = true; openSheet = null; } scrim.hidden = true; resetClear(); }
@@ -2406,6 +2527,15 @@ void main(){
     persist(); stopGoogleVoice(); stopSpeaking();
     showVoiceMode();
   });
+  const bargeEl = $("bargeIn"), bargeHint = $("bargeHint");
+  function showBarge() {
+    bargeEl.checked = state.settings.bargeIn !== false;
+    bargeHint.textContent = state.settings.bargeAuto && state.settings.bargeIn === false
+      ? "Turned off because this device stops talking when it listens at the same time. Tapping the screen still cuts in."
+      : "Say “Hey Oreo” or “stop” while Oreo is talking or thinking to cut in. Tapping the screen always works too.";
+  }
+  bargeEl.addEventListener("change", () => { state.settings.bargeIn = bargeEl.checked; state.settings.bargeAuto = false; persist(); showBarge(); });
+  showBarge();
   const PATIENCE = { quick: 0.6, normal: 1, long: 1.7 };
   $({ quick: "patQuick", normal: "patNormal", long: "patLong" }[state.settings.patience] || "patNormal").checked = true;
   document.querySelectorAll('input[name="patience"]').forEach(r => r.addEventListener("change", () => { if (r.checked) { state.settings.patience = r.value; persist(); } }));
