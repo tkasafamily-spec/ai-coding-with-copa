@@ -414,6 +414,17 @@ body.dropping .app::after{
         <p class="hint">Used when you ask about the weather without saying where.</p>
       </div>
 
+      <div class="field" id="foldersField" hidden>
+        <span class="label">Folders Oreo can look in</span>
+        <div class="voices" id="folderList"></div>
+        <div class="inline-row"><button class="text-btn" id="addFolderBtn" type="button">Add a folder</button></div>
+        <p class="hint">Add folders like Downloads, Documents or Desktop. Then ask “Hey Oreo, what did I download last?” or “read my notes”. Oreo only looks in these folders, and only when you ask about files. Each new visit, tap the orb once so the browser lets it look again.</p>
+      </div>
+      <div class="field" id="foldersNo" hidden>
+        <span class="label">Your files</span>
+        <p class="hint">On this device, Oreo can only see files you show it: tap the paperclip next to the text box. To let Oreo look through folders by itself, open it on a computer in Chrome or Edge.</p>
+      </div>
+
       <div class="row">
         <div class="field">
           <span class="label">Talk back</span>
@@ -1418,8 +1429,8 @@ void main(){
     });
   }
   /* What gets sent to the brain: the question plus everything Oreo can see. */
-  function withFiles(text) {
-    const ready = files.items.filter(x => !x.busy);
+  function withFiles(text, more) {
+    const ready = files.items.filter(x => !x.busy).concat(more || []);
     if (!ready.length) return text;
     let body = text + "\n\n[The user is showing you: " + ready.map(x => x.kind === "folder" ? "the folder \"" + x.name + "\"" : x.name).join(", ") + "]";
     for (const x of ready) if (x.text) body += "\n\n--- " + (x.kind === "folder" ? "Folder: " : "File: ") + x.name + " ---\n" + x.text;
@@ -1468,6 +1479,140 @@ void main(){
     else { const plain = entries.filter(en => en.isFile).map(en => loose.find(f => f.name === en.name)).filter(Boolean); if (plain.length) addFiles(plain); }
   });
 
+  /* ---------- folders on this computer Oreo can look in (Chrome and Edge) ---------- */
+  const FS_OK = typeof window.showDirectoryPicker === "function";
+  const idb = (() => {
+    let dbp = null;
+    const db = () => dbp || (dbp = new Promise((ok, bad) => {
+      const r = indexedDB.open("oreo", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("folders");
+      r.onsuccess = () => ok(r.result); r.onerror = () => bad(r.error);
+    }));
+    const tx = async (mode, fn) => { const d = await db(); return new Promise((ok, bad) => { const t = d.transaction("folders", mode); const out = fn(t.objectStore("folders")); t.oncomplete = () => ok(out && out.result !== undefined ? out.result : out); t.onerror = () => bad(t.error); }); };
+    return {
+      async all() {
+        const d = await db();
+        return new Promise((ok, bad) => {
+          const out = [], req = d.transaction("folders").objectStore("folders").openCursor();
+          req.onsuccess = () => { const c = req.result; if (c) { out.push({ id: c.key, handle: c.value }); c.continue(); } else ok(out); };
+          req.onerror = () => bad(req.error);
+        });
+      },
+      put: (id, h) => tx("readwrite", s => s.put(h, id)),
+      del: id => tx("readwrite", s => s.delete(id))
+    };
+  })();
+  const disk = { list: [], snap: null, snapAt: 0 };
+  async function hasPerm(h) { try { return (await h.queryPermission({ mode: "read" })) === "granted"; } catch { return false; } }
+  async function askPerm(h) { try { return (await h.requestPermission({ mode: "read" })) === "granted"; } catch { return false; } }
+  /* Called from a tap (the orb or Settings): browsers only show the "allow" prompt after a tap. */
+  async function allowFolders() {
+    for (const f of disk.list) if (!(await hasPerm(f.handle))) { try { const st = await f.handle.queryPermission({ mode: "read" }); if (st === "prompt") await askPerm(f.handle); } catch {} }
+    disk.snapAt = 0;
+  }
+  async function scanDir(dir, path, depth, rows) {
+    let count = 0;
+    try {
+      for await (const [name, h] of dir.entries()) {
+        if (rows.length > 4000 || ++count > 1500) break;
+        if (name.startsWith(".") || SKIP_DIR.test(name) || /^desktop\.ini$|^thumbs\.db$/i.test(name)) continue;
+        if (h.kind === "file") {
+          try { const f = await h.getFile(); rows.push({ path: path + "/" + name, name, size: f.size, modified: f.lastModified, handle: h, folder: false }); } catch {}
+        } else {
+          rows.push({ path: path + "/" + name, name, size: 0, modified: 0, handle: h, folder: true });
+          if (depth < 1) await scanDir(h, path + "/" + name, depth + 1, rows);
+        }
+      }
+    } catch {}
+  }
+  async function diskSnapshot() {
+    if (disk.snap && Date.now() - disk.snapAt < 20000) return disk.snap;
+    const rows = [];
+    let allowed = 0;
+    for (const f of disk.list) {
+      if (!(await hasPerm(f.handle))) continue;
+      allowed++;
+      await scanDir(f.handle, f.handle.name, 0, rows);
+    }
+    const files = rows.filter(r => !r.folder).sort((a, b) => b.modified - a.modified);
+    disk.snap = { files, folders: rows.filter(r => r.folder), allowed };
+    disk.snapAt = Date.now();
+    return disk.snap;
+  }
+  const FILE_INTENT = /\b(files?|download(s|ed)?|documents?|docs?|desktop|folders?|pc|computer|laptop|photos?|pictures?|pics?|screenshots?|saved|notes?|essays?|homework|assignments?|pdfs?|zips?|mods?|worlds?|minecraft|videos?|songs?|music|installers?|exe|recent(ly)?)\b/i;
+  const STOP = new Set(["what", "whats", "where", "when", "which", "that", "this", "these", "those", "have", "with", "from", "about", "file", "files", "folder", "folders", "download", "downloads", "downloaded", "document", "documents", "latest", "last", "newest", "recent", "recently", "find", "open", "read", "show", "tell", "look", "inside", "there", "were", "your", "mine", "please", "oreo", "computer", "laptop", "called", "named", "thing", "things", "stuff", "photo", "photos", "picture", "pictures", "into", "does", "doing", "make", "made", "just", "some", "much", "many", "today", "yesterday"]);
+  /* Turn a file on disk into something Oreo can look at. */
+  async function readForOreo(f, name) {
+    const kind = kindOf(f);
+    if (kind === "image") { const im = await shrinkImage(f, 1600); return { name, kind: "image", data: im.data, mime: im.mime }; }
+    if (kind === "pdf" && f.size < MAX_PDF) return { name, kind: "pdf", data: await readB64(f), mime: "application/pdf" };
+    if (kind === "docx") return { name, kind: "text", text: clip(await docxText(f)) };
+    if (kind === "text") { const t = await f.text(); if (!looksBinary(t)) return { name, kind: "text", text: clip(t) }; }
+    return null;
+  }
+  /* What Oreo is told about the user's folders for a question about their files. */
+  async function diskContext(question) {
+    const snap = await diskSnapshot();
+    if (!snap.allowed) return { text: "[Oreo has folders connected on this computer but the browser hasn't given permission to look right now. Tell the user to tap the orb (or Settings → Folders → Allow) and ask again.]", attach: [] };
+    const when = ms => new Date(ms).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+    const fmt = r => r.path + " | " + prettySize(r.size) + " | " + when(r.modified);
+    let text = "[Files in the folders the user connected on this computer, newest first (" + snap.files.length + " files; folders: " +
+      disk.list.map(f => f.handle.name).join(", ") + "):\n" + snap.files.slice(0, 60).map(fmt).join("\n");
+    const words = (question.toLowerCase().match(/[a-z0-9][a-z0-9_.-]{2,}/g) || []).filter(w => !STOP.has(w));
+    const hits = words.length ? snap.files.filter(r => words.some(w => r.name.toLowerCase().includes(w))).slice(0, 25) : [];
+    if (hits.length) text += "\n\nFiles whose names match the question:\n" + hits.map(fmt).join("\n");
+    const subHits = words.length ? snap.folders.filter(r => words.some(w => r.name.toLowerCase().includes(w))).slice(0, 10) : [];
+    if (subHits.length) text += "\n\nFolders whose names match:\n" + subHits.map(r => r.path + "/").join("\n");
+    text += "]";
+    const attach = [];
+    const wantsInside = /\b(read|open|what'?s in|what is in|what does .* say|look at|look inside|show me|summari[sz]e|explain|check|describe|see)\b/i.test(question);
+    const pick = hits[0] || (/\b(latest|last|newest|recent|most recent)\b/i.test(question) ? snap.files[0] : null);
+    if (wantsInside && pick) {
+      try {
+        const item = await readForOreo(await pick.handle.getFile(), pick.path);
+        if (item) { attach.push(item); text += "\n[Oreo opened " + pick.path + " so you can see what's in it.]"; }
+      } catch {}
+    }
+    return { text, attach };
+  }
+  async function loadFolders() {
+    if (!FS_OK) return;
+    try { disk.list = await idb.all(); } catch { disk.list = []; }
+  }
+  async function renderFolders() {
+    $("foldersField").hidden = !FS_OK; $("foldersNo").hidden = FS_OK;
+    if (!FS_OK) return;
+    const box = $("folderList"); box.innerHTML = "";
+    if (!disk.list.length) { const p = document.createElement("p"); p.className = "hint"; p.textContent = "No folders yet. Add Downloads to start."; box.append(p); }
+    for (const f of disk.list) {
+      const ok = await hasPerm(f.handle);
+      const row = document.createElement("div"); row.className = "voice";
+      const nm = document.createElement("span"); nm.className = "voice-name";
+      const b = document.createElement("b"); b.textContent = f.handle.name;
+      const sm = document.createElement("small"); sm.textContent = ok ? "Oreo can look in here" : "Needs your OK";
+      nm.append(b, sm); row.append(nm);
+      if (!ok) {
+        const allow = document.createElement("button"); allow.type = "button"; allow.className = "text-btn"; allow.textContent = "Allow";
+        allow.addEventListener("click", async () => { await askPerm(f.handle); disk.snapAt = 0; renderFolders(); });
+        row.append(allow);
+      }
+      const rm = document.createElement("button"); rm.type = "button"; rm.className = "play"; rm.innerHTML = X_SVG; rm.setAttribute("aria-label", "Stop Oreo looking in " + f.handle.name);
+      rm.addEventListener("click", async () => { try { await idb.del(f.id); } catch {} disk.list = disk.list.filter(x => x !== f); disk.snapAt = 0; renderFolders(); });
+      row.append(rm);
+      box.append(row);
+    }
+  }
+  if (FS_OK) $("addFolderBtn").addEventListener("click", async () => {
+    let h;
+    try { h = await window.showDirectoryPicker({ id: "oreo", mode: "read", startIn: "downloads" }); } catch { return; }
+    for (const f of disk.list) { try { if (await f.handle.isSameEntry(h)) return renderFolders(); } catch {} }
+    const id = "f" + Date.now();
+    try { await idb.put(id, h); } catch {}
+    disk.list.push({ id, handle: h }); disk.snapAt = 0;
+    renderFolders();
+  });
+  loadFolders();
+
 
   /* ---------- what Oreo is told before every question ---------- */
   function rules() {
@@ -1490,6 +1635,9 @@ void main(){
       "- Use Google Search for anything that changes over time (weather, prices, best-sellers, rankings, news, sport results, opening hours, who holds a job, release dates) and answer from what you find, not from memory.",
       "- A website: search for it and share the most interesting facts about it in your own words.",
       "- Files: when the user shows you files (photos, screenshots, documents, PDFs, code or a whole folder), they come with their message. Look at them properly and answer about them directly. \"This\", \"it\", \"my file\" or \"my folder\" means those files. For code or game files, explain simply and point out anything useful.",
+      FS_OK
+        ? "- Files on this computer: if the message includes a list of files from the user's folders, use it (\"latest download\" = the newest file in their Downloads folder; give its name and when it arrived). If they ask about files and no list is included, tell them to connect folders in Oreo's Settings → Folders (for example Downloads), or tap the paperclip to show you one file. Never just say you can't."
+        : "- Files: on this device you only see files the user shows you with the paperclip button. If they ask about files on their device and none are attached, tell them to tap the paperclip and pick it, or to open Oreo on a computer in Chrome or Edge to let it look through folders. Never just say you can't.",
       "- \"x by y by z\" means multiply. Double-check any maths.",
       ...(state.settings.speak && useNatural() ? [
         "- A very natural human voice reads your words out. Write exactly how a relaxed person talks: contractions, short sentences, commas and dashes for little pauses, and the odd \"so\", \"yeah\" or \"honestly\" where it fits naturally. No lists, symbols or abbreviations.",
@@ -1604,7 +1752,7 @@ void main(){
     return { ok: true, out: { text: text.trim(), cites } };
   }
 
-  async function callGemini(key, question, onText) {
+  async function callGemini(key, question, onText, extra) {
     const ctl = new AbortController(); state.ctl = ctl;
     const hist = historyMessages().slice(-7);
     const q = hist.length ? hist[hist.length - 1].content : "";
@@ -1639,7 +1787,8 @@ void main(){
     for (const step of plan) {
       if (gone.has(step.model)) continue;
       if (lastErr) setStatus("Still thinking", true);
-      const body = { model: step.model, system_instruction: rules(), input: withFiles(step.note ? input + NO_SEARCH_NOTE : input) };
+      const textIn = (step.note ? input + NO_SEARCH_NOTE : input) + (extra && extra.text ? "\n\n" + extra.text : "");
+      const body = { model: step.model, system_instruction: rules(), input: withFiles(textIn, extra && extra.attach) };
       if (step.search) body.tools = [{ type: "google_search" }];
       const level = brain === "genius" && THINK[step.model] ? "medium" : THINK[step.model];
       if (level) body.generation_config = { thinking_level: level };
@@ -1729,10 +1878,10 @@ void main(){
     normal: "warm, natural and conversational, like chatting with a good friend",
     brisk: "upbeat, energetic and conversational, speaking a bit quickly"
   };
-  /* Sound tags the natural voice can perform (like <chuckle>). Hidden on screen and from the iPad voice. */
+  /* Sound tags the studio voice can perform (like <chuckle>). Hidden on screen and from the device voice. */
   const VOICE_TAGS = /<\s*(?:argh|breath|heavy breath|exhales|cackle|cheer|chuckles?|cough|cry|gasp|giggle|groan|growl|grunt|grr|hiss|laugh|laughter|moan|pant|pff|phew|scream|shout|shriek|sighs?|sneeze|snicker|snort|sob|throat-clearing|tsk|whimper|whispers|whispering|yawn|short pause|long pause)\s*>/gi;
   const stripTags = s => String(s || "").replace(VOICE_TAGS, "").replace(/[ \t]{2,}/g, " ").replace(/ +([,.!?])/g, "$1");
-  const gtts = { why: state.settings.ttsWhy || "", sources: [], ctl: null, endT: 0, gen: 0 };
+  const gtts = { why: state.settings.ttsWhy || "", sources: [], ctls: [], gen: 0 };
   const b64bytes = s => { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; };
   function ttsDownUntil() { return Number(state.settings.ttsDown) || 0; }
   function useNatural() {
@@ -1740,140 +1889,202 @@ void main(){
   }
   function stopGoogleVoice() {
     gtts.gen++;
-    try { if (gtts.ctl) gtts.ctl.abort(); } catch {}
-    gtts.ctl = null; clearTimeout(gtts.endT);
+    for (const c of gtts.ctls) { try { c.abort(); } catch {} }
+    gtts.ctls = [];
     for (const s of gtts.sources) { try { s.stop(); } catch {} }
     gtts.sources = [];
   }
-  /* Find base64 audio anywhere in a non-streamed reply. */
-  function findAudio(data) {
-    for (const s of (data && Array.isArray(data.steps) ? data.steps : [])) {
-      for (const c of (Array.isArray(s.content) ? s.content : [])) if (c && c.type === "audio" && c.data) return { data: c.data, mime: c.mime_type || "" };
-    }
-    return null;
-  }
-  /* Speak text in a natural Google voice. Resolves true once audio has started; false means use the iPad voice. */
-  async function googleSay(text, voiceName) {
-    const key = (state.settings.gemKey || "").trim();
-    chime.prime();
-    const ctx = chime.ctx;
-    const plain = toSpeech(text);
-    if (!key || !ctx || !plain) return false;
-    stopGoogleVoice(); stopSpeaking(); pauseEar();
-    const gen = gtts.gen, ctl = new AbortController(); gtts.ctl = ctl;
-    try { if (ctx.state === "suspended") await ctx.resume(); } catch {}
-    if (ctx.state !== "running") return false;   // the browser hasn't allowed sound yet: use the iPad voice
-    let lastStatus = 0;
-    /* Naming who's speaking keeps Google on one steady voice for the whole answer. */
-    const who = (GV_GENDER[voiceName || currentGVoice()] || oreoGender()) === "f" ? "one young woman" : "one young man";
-    const style = who + ", the same voice throughout; " + (STYLES[state.settings.pace] || STYLES.normal);
-    const attempts = [];
-    for (const model of TTS_MODELS) { attempts.push({ model, styled: true }); attempts.push({ model, styled: false }); }
-    for (const { model, styled } of attempts) {
-      const item = { type: "text", text: plain };
-      if (styled) item.annotations = [{ type: "speech_metadata", style }];
-      let res;
-      try {
-        res = await fetch(GEMINI_URL, {
-          method: "POST", signal: ctl.signal,
-          headers: { "content-type": "application/json", "x-goog-api-key": key },
-          body: JSON.stringify({
-            model, stream: true,
-            input: [{ type: "user_input", content: [item] }],
-            response_format: { type: "audio", mime_type: "audio/l16", sample_rate: 24000 },
-            generation_config: { speech_config: [{ voice: voiceName || currentGVoice() }] }
-          })
-        });
-      } catch (e) { return false; }
-      if (gen !== gtts.gen) return true;            // someone stopped us: don't fall back either
-      if (!res.ok) {
-        lastStatus = res.status;
-        if (styled && res.status === 400) continue;  // try the same voice without the style hint
-        if (styled) { const i = attempts.findIndex(a => a.model === model && !a.styled); if (i >= 0) attempts.splice(i, 1); }
-        continue;
-      }
-      /* Smooth playback: buffer ~0.35 s before starting, then play in ~0.2 s blocks,
-         with a soft start and end so there are no clicks. */
-      let t = 0, got = false, carry = null, pend = [], pendN = 0;
-      const schedule = final => {
-        if (gen !== gtts.gen || !pendN) return;
-        if (!final && pendN < (got ? 4800 : 8400)) return;
-        const buf = ctx.createBuffer(1, pendN, 24000), ch = buf.getChannelData(0);
-        let o = 0; for (const p of pend) { ch.set(p, o); o += p.length; }
-        pend = []; pendN = 0;
-        if (!got) { const f = Math.min(120, ch.length); for (let i = 0; i < f; i++) ch[i] *= i / f; }
-        if (final) { const f = Math.min(240, ch.length); for (let i = 0; i < f; i++) ch[ch.length - 1 - i] *= i / f; }
-        const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
-        if (!got || t < ctx.currentTime + 0.01) t = ctx.currentTime + 0.05;
-        src.start(t); t += buf.duration; gtts.sources.push(src);
-        if (!got) { got = true; setOrb("speaking"); }
-      };
-      const playBytes = bytes => {
-        if (gen !== gtts.gen) return;
-        if (carry) { const m = new Uint8Array(carry.length + bytes.length); m.set(carry); m.set(bytes, carry.length); bytes = m; carry = null; }
-        if (bytes.length % 2) { carry = bytes.slice(-1); bytes = bytes.slice(0, -1); }
-        const n = bytes.length / 2; if (!n) return;
-        const f = new Float32Array(n);
-        const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.length);
-        for (let i = 0; i < n; i++) f[i] = dv.getInt16(i * 2, true) / 32768;
-        pend.push(f); pendN += n;
-        schedule(false);
-      };
-      try {
-        const type = res.headers.get("content-type") || "";
-        if (res.body && /event-stream/i.test(type)) {
-          const reader = res.body.getReader(), dec = new TextDecoder(); let buf = "";
-          for (;;) {
-            const { value, done } = await reader.read();
-            if (done || gen !== gtts.gen) break;
-            buf += dec.decode(value, { stream: true }).replace(/\r\n/g, "\n");
-            let i;
-            while ((i = buf.indexOf("\n\n")) >= 0) {
-              const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
-              const d = chunk.split("\n").filter(l => l.startsWith("data:")).map(l => l.slice(5).trim()).join("\n");
-              if (!d || d === "[DONE]") continue;
-              let ev; try { ev = JSON.parse(d); } catch { continue; }
-              const dl = ev && ev.delta;
-              if (ev && ev.event_type === "step.delta" && dl && dl.type === "audio") {
-                const b = dl.data || (dl.audio && dl.audio.data);
-                if (b) playBytes(b64bytes(b));
-              }
-            }
-          }
-        } else {
-          const audio = findAudio(await res.json().catch(() => null));
-          if (audio) {
-            const bytes = b64bytes(audio.data);
-            if (bytes[0] === 0x52 && bytes[1] === 0x49) {          // a WAV file: let the browser decode it
-              const ab = await ctx.decodeAudioData(bytes.buffer.slice(0));
-              const src = ctx.createBufferSource(); src.buffer = ab; src.connect(ctx.destination);
-              t = ctx.currentTime + 0.05;
-              src.start(t); t += ab.duration; gtts.sources.push(src); got = true; setOrb("speaking");
-            } else playBytes(bytes);
-          }
-        }
-      } catch (e) { if (gen !== gtts.gen) return true; }
-      schedule(true);
-      if (gen !== gtts.gen) return true;
-      if (!got) continue;
-      gtts.endT = setTimeout(() => { if (gen === gtts.gen) { gtts.sources = []; doneSpeaking(); } }, Math.max(0, (t - ctx.currentTime) * 1000) + 150);
-      return true;
-    }
-    /* Google's voice isn't available right now: use the device voice (same guy/girl) for a while. */
-    const limit = lastStatus === 429;
+  function markTtsDown(status) {
+    const limit = status === 429;
     state.settings.ttsDown = Date.now() + (limit ? 30 : 10) * 60 * 1000;
     gtts.why = state.settings.ttsWhy = limit
       ? "Google's free studio voice limit ran out for now, so Oreo is using the device voice below (still a " + (oreoGender() === "f" ? "girl" : "guy") + "). It tries the studio voice again every 30 minutes."
       : "The studio voice didn't work just now, so Oreo is using the device voice below for a little while.";
     persist();
-    return false;
+  }
+
+  /* Speaks while the answer is still arriving: the first sentence goes to Google straight away,
+     the rest follows on the same timeline, so there's no wait for the whole answer. */
+  const studio = (() => {
+    let gen = -1, segs = [], cur = 0, t = 0, started = false, closed = false, said = 0;
+    let voice = "", onFail = null, onStart = null, endT = 0;
+    const alive = g => g === gen && g === gtts.gen;
+
+    function begin(opts) {
+      stopGoogleVoice(); stopSpeaking(); pauseEar(); chime.prime();
+      clearTimeout(endT);
+      gen = gtts.gen; segs = []; cur = 0; t = 0; started = false; closed = false; said = 0;
+      voice = (opts && opts.voice) || currentGVoice();
+      onFail = (opts && opts.onFail) || null; onStart = (opts && opts.onStart) || null;
+    }
+    function style() {
+      const who = (GV_GENDER[voice] || oreoGender()) === "f" ? "one young woman" : "one young man";
+      return who + ", the same voice throughout; " + (STYLES[state.settings.pace] || STYLES.normal);
+    }
+    function addPcm(seg, bytes) {
+      if (seg.carry) { const m = new Uint8Array(seg.carry.length + bytes.length); m.set(seg.carry); m.set(bytes, seg.carry.length); bytes = m; seg.carry = null; }
+      if (bytes.length % 2) { seg.carry = bytes.slice(-1); bytes = bytes.slice(0, -1); }
+      const n = bytes.length / 2; if (!n) return;
+      const f = new Float32Array(n), dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.length);
+      for (let i = 0; i < n; i++) f[i] = dv.getInt16(i * 2, true) / 32768;
+      seg.pend.push(f); seg.n += n; seg.got = true;
+    }
+    async function fetchSeg(seg, g) {
+      const key = (state.settings.gemKey || "").trim(), ctx = chime.ctx;
+      try { if (ctx && ctx.state === "suspended") await ctx.resume(); } catch {}
+      if (!key || !ctx || ctx.state !== "running") { seg.failed = true; seg.noAudio = true; return pump(g); }
+      let lastStatus = 0;
+      const attempts = [];
+      for (const model of TTS_MODELS) { attempts.push({ model, styled: true }); attempts.push({ model, styled: false }); }
+      for (let a = 0; a < attempts.length; a++) {
+        const { model, styled } = attempts[a];
+        const item = { type: "text", text: seg.plain };
+        if (styled) item.annotations = [{ type: "speech_metadata", style: style() }];
+        let res;
+        try {
+          res = await fetch(GEMINI_URL, {
+            method: "POST", signal: seg.ctl.signal,
+            headers: { "content-type": "application/json", "x-goog-api-key": key },
+            body: JSON.stringify({
+              model, stream: true,
+              input: [{ type: "user_input", content: [item] }],
+              response_format: { type: "audio", mime_type: "audio/l16", sample_rate: 24000 },
+              generation_config: { speech_config: [{ voice }] }
+            })
+          });
+        } catch { if (!alive(g)) return; break; }
+        if (!alive(g)) return;
+        if (!res.ok) {
+          lastStatus = res.status;
+          if (!(styled && res.status === 400)) { const i = attempts.findIndex((x, k) => k > a && x.model === model && !x.styled); if (i >= 0) attempts.splice(i, 1); }
+          continue;
+        }
+        try {
+          const type = res.headers.get("content-type") || "";
+          if (res.body && /event-stream/i.test(type)) {
+            const reader = res.body.getReader(), dec = new TextDecoder(); let buf = "";
+            for (;;) {
+              const { value, done } = await reader.read();
+              if (done || !alive(g)) break;
+              buf += dec.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+              let i;
+              while ((i = buf.indexOf("\n\n")) >= 0) {
+                const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+                const d = chunk.split("\n").filter(l => l.startsWith("data:")).map(l => l.slice(5).trim()).join("\n");
+                if (!d || d === "[DONE]") continue;
+                let ev; try { ev = JSON.parse(d); } catch { continue; }
+                const dl = ev && ev.delta;
+                if (ev && ev.event_type === "step.delta" && dl && dl.type === "audio") {
+                  const b = dl.data || (dl.audio && dl.audio.data);
+                  if (b) { addPcm(seg, b64bytes(b)); pump(g); }
+                }
+              }
+            }
+          } else {
+            const data = await res.json().catch(() => null);
+            for (const s of (data && Array.isArray(data.steps) ? data.steps : [])) for (const c of (Array.isArray(s.content) ? s.content : [])) {
+              if (c && c.type === "audio" && c.data) {
+                let bytes = b64bytes(c.data);
+                if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes.length > 44) bytes = bytes.slice(44);   // WAV header
+                addPcm(seg, bytes);
+              }
+            }
+          }
+        } catch { if (!alive(g)) return; }
+        if (!alive(g)) return;
+        if (seg.got) { seg.done = true; return pump(g); }
+      }
+      seg.failed = true; seg.status = lastStatus;
+      pump(g);
+    }
+    function push(text, g) {
+      const plain = toSpeech(text);
+      if (!plain) return;
+      const seg = { text, plain, pend: [], n: 0, got: false, done: false, failed: false, carry: null, ctl: new AbortController() };
+      gtts.ctls.push(seg.ctl);
+      segs.push(seg);
+      fetchSeg(seg, g);
+    }
+    function scheduleBuf(seg, final, last) {
+      const ctx = chime.ctx;
+      const buf = ctx.createBuffer(1, seg.n, 24000), ch = buf.getChannelData(0);
+      let o = 0; for (const p of seg.pend) { ch.set(p, o); o += p.length; }
+      seg.pend = []; seg.n = 0;
+      const fin = Math.min(started ? 48 : 120, ch.length); for (let i = 0; i < fin; i++) ch[i] *= i / fin;
+      if (final) { const f = Math.min(last ? 240 : 48, ch.length); for (let i = 0; i < f; i++) ch[ch.length - 1 - i] *= i / f; }
+      const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
+      if (!started || t < ctx.currentTime + 0.01) t = ctx.currentTime + 0.05;
+      src.start(t); t += buf.duration; gtts.sources.push(src);
+      if (!started) { started = true; setOrb("speaking"); const f = onStart; onStart = null; if (f) f(); }
+    }
+    function pump(g) {
+      if (!alive(g)) return;
+      while (cur < segs.length) {
+        const s = segs[cur];
+        if (s.failed && !s.n) return giveUp();
+        const isLast = closed && cur === segs.length - 1;
+        if (s.n && (s.done || s.failed || s.n >= (started ? 4800 : 8400))) scheduleBuf(s, s.done || s.failed, isLast);
+        if ((s.done || s.failed) && !s.n) { if (s.failed) return giveUp(); cur++; continue; }
+        return;
+      }
+      if (closed) {
+        clearTimeout(endT);
+        const ctx = chime.ctx, wait = ctx ? Math.max(0, (t - ctx.currentTime) * 1000) : 0;
+        endT = setTimeout(() => { if (alive(g)) { gtts.sources = []; if (!started) { const f = onFail; onFail = null; if (f) return f(); } doneSpeaking(); } }, wait + 150);
+      }
+    }
+    /* Google's voice stopped working: finish with the device voice (same guy/girl). */
+    function giveUp() {
+      const s = segs[cur];
+      if (!s.noAudio) markTtsDown(s.status);
+      for (const x of segs.slice(cur)) { try { x.ctl.abort(); } catch {} }
+      gen = -1;
+      if (!started) { const f = onFail; onFail = null; if (f) f(); else doneSpeaking(); return; }
+      const rest = segs.slice(cur).map(x => x.text).join(" ");
+      const ctx = chime.ctx, wait = ctx ? Math.max(0, (t - ctx.currentTime) * 1000) : 0;
+      const g = gtts.gen;
+      setTimeout(() => { if (g === gtts.gen) speak(stripTags(rest)); }, wait);
+    }
+    return {
+      begin,
+      /* Feed the answer so far; the first full sentence starts speaking right away. */
+      feed(raw) {
+        if (gen < 0 || segs.length || closed) return;
+        const re = /[.!?…]["'”’)\]]*\s+/g; let m, cut = -1;
+        while ((m = re.exec(raw))) { if (m.index + m[0].length >= 25) { cut = m.index + m[0].length; break; } }
+        if (cut < 0 && raw.length > 160) { const c = raw.lastIndexOf(", ", 160); if (c > 60) cut = c + 2; }
+        if (cut > 0) { said = cut; push(raw.slice(0, cut), gen); }
+      },
+      end(raw) {
+        if (gen < 0) return;
+        const rest = String(raw || "").slice(said).trim();
+        if (rest) push(rest, gen);
+        closed = true;
+        pump(gen);
+      },
+      get active() { return gen >= 0 && gen === gtts.gen; }
+    };
+  })();
+
+  /* Say something in the studio voice. Resolves true once it starts, false if it can't. */
+  function googleSay(text, voiceName) {
+    return new Promise(resolve => {
+      studio.begin({ voice: voiceName, onStart: () => resolve(true), onFail: () => { resolve(false); doneSpeaking(); } });
+      studio.end(text);
+    });
   }
   /* Say a finished answer in the best voice available. */
-  async function sayAnswer(text) {
+  function sayAnswer(text) {
     if (!state.settings.speak) { doneSpeaking(); return; }
-    if (useNatural() && await googleSay(text)) return;
+    if (useNatural()) {
+      studio.begin({ onFail: () => speak(stripTags(text)) });
+      studio.end(text);
+      return;
+    }
     speak(stripTags(text));
   }
+
+
 
   /* Questions Oreo can answer on the spot, with no brain needed. */
   function localAnswer(text) {
@@ -1969,26 +2180,39 @@ void main(){
       }
       /* Google: show the answer while it streams in. With the iPad voice, speak it as it arrives too;
          the natural voice speaks the whole answer in one smooth go once the words are in. */
-      const natural = state.settings.speak && useNatural();
-      if (!natural) talk.start();
+      let natural = state.settings.speak && useNatural(), answerDone = false, raw = "";
+      const toDevice = () => {               // studio voice failed before it started: device voice takes over
+        natural = false; talk.start(); talk.feed(streamed);
+        if (answerDone) talk.end(streamed);
+      };
+      if (natural) studio.begin({ onFail: toDevice }); else talk.start();
       let first = true, streamed = "";
+      let extra = null;
+      if (FS_OK && disk.list.length && FILE_INTENT.test(text)) {
+        setStatus("Looking in your folders", true);
+        extra = await diskContext(text).catch(() => null);
+        setStatus("Thinking", true);
+      }
       const { text: answer, cites } = await callGemini(gem, text, partial => {
         if (first) { first = false; setStatus(""); }
+        raw = partial;
         streamed = stripTags(partial);
         renderAnswer(streamed);
-        if (!natural) talk.feed(streamed);
-      });
+        if (natural) studio.feed(raw); else talk.feed(streamed);
+      }, extra);
       setBusy(false);
-      if (!answer) { talk.cancel(); fail("Oreo came up blank. Try asking a different way.", text); return; }
+      if (!answer) { talk.cancel(); stopGoogleVoice(); fail("Oreo came up blank. Try asking a different way.", text); return; }
       const src = cites.slice(0, 3).map(c => `[${c.title.replace(/[\[\]]/g, "")}](${c.url})`).join(", ");
       const md = stripTags(answer).trim() + (src ? "\n\nSources: " + src : "");
       renderAnswer(md); idleStatus();
       state.turns.push({ role: "assistant", content: md });
       persist(); renderHistory();
-      if (natural) sayAnswer(answer); else talk.end(streamed || stripTags(answer));
+      answerDone = true;
+      if (!streamed) streamed = stripTags(answer);
+      if (natural) studio.end(raw || answer); else talk.end(streamed);
     } catch (e) {
       setBusy(false);
-      talk.cancel();
+      talk.cancel(); stopGoogleVoice();
       if (e && e.name === "AbortError") { showError("Stopped."); state.turns.pop(); persist(); renderHistory(); restOrb(); resumeEar(); return; }
       fail(String(e && e.message || "Something went wrong."), text);
     }
@@ -2013,6 +2237,7 @@ void main(){
   /* ---------- the orb and mic button ---------- */
   orbBtn.addEventListener("click", () => {
     unlockSpeech(); chime.prime();
+    if (FS_OK && disk.list.length) allowFolders();
     if (Orb.state === "speaking" && !state.busy) { talk.cancel(); stopGoogleVoice(); stopSpeaking(); doneSpeaking(); return; }
     if (state.busy) return;
     if (!ear.armed) { arm(true); return; }
@@ -2033,7 +2258,7 @@ void main(){
     close();
     openSheet = $(id); openSheet.hidden = false; scrim.hidden = false;
     if (id === "historySheet") { renderHistory(); const l = $("histList"); l.lastElementChild && l.lastElementChild.scrollIntoView({ block: "end" }); }
-    if (id === "settingsSheet") { showVoiceMode(); showKey(); }
+    if (id === "settingsSheet") { showVoiceMode(); showKey(); renderFolders(); }
     const btn = openSheet.querySelector("[data-close]"); if (btn) btn.focus();
   }
   function close() { if (openSheet) { openSheet.hidden = true; openSheet = null; } scrim.hidden = true; resetClear(); }
