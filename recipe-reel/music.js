@@ -904,13 +904,12 @@
     var shape = [0, 2, 4, 3, 1, 3, 4, 2];
     for (var s = 0; s < 16; s++) PAT_C.push([s, shape[s % 8], s % 2 ? 0.42 : 0.68]);
   })();
-  var D_MAJOR = [2, 4, 6, 7, 9, 11, 1];
-  function thirdBelow(m) {
-    var pc = ((m % 12) + 12) % 12, idx = D_MAJOR.indexOf(pc);
-    if (idx < 0) return m - 3;
-    var below = D_MAJOR[(idx + 5) % 7];               // two scale steps down
-    var d = (pc - below + 12) % 12;
-    return m - d;
+  // harmony voice: the highest chord tone at least a minor third below the melody note
+  function harmonyBelow(m, tones) {
+    for (var p = m - 3; p > m - 12; p--) {
+      for (var i = 0; i < tones.length; i++) { if ((tones[i] - p) % 12 === 0) return p; }
+    }
+    return m - 12;
   }
   function happyFilterCurve(sec, pos) {
     if (sec === 2) {
@@ -1046,7 +1045,8 @@
             at(E, nn[0], 0.002, function (t, t0) { P.pluck(t, nn[1], v, t0 + nn[2] * q - 0.04 - t); }, nn[2] > 3);
             at(E, nn[0], 0.004, function (t, t0) { P.bell(t, nn[1] + 12, v * 0.6, t0 + nn[2] * q - 0.04 - t); }, nn[2] > 3);
             if (sec === 3) {
-              at(E, nn[0], 0.012, function (t, t0) { P.pluck(t, thirdBelow(nn[1]), v * 0.6, t0 + nn[2] * q - 0.05 - t); }, nn[2] > 3);
+              var hm = harmonyBelow(nn[1], chordAt(nn[0]).arp);
+              at(E, nn[0], 0.012, function (t, t0) { P.pluck(t, hm, v * 0.6, t0 + nn[2] * q - 0.05 - t); }, nn[2] > 3);
             }
           })(hk[i], 0.85 * (0.9 + 0.2 * R()));
         }
