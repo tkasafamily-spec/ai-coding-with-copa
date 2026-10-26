@@ -2238,9 +2238,31 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     try { canShare = !!(result.file && navigator.canShare && navigator.share && navigator.canShare({ files: [result.file] })); } catch (e) {}
     $('saveHint').hidden = !canShare;
     $('saveBtn').querySelector('use').setAttribute('href', canShare ? '#i-share' : '#i-download');
+    if (claudeDownloads) {
+      $('saveHint').textContent = 'On iPad: tap Save video. If it goes to the Files app, open it there and tap Share, then “Save Video” to put it in Photos.';
+      $('saveHint').hidden = false;
+    }
     showScreen('result');
   }
-  function downloadNow() { $('dlLink').click(); }
+  // When the app runs as a claude.ai page, plain downloads are blocked inside its frame,
+  // so saves go through the page's "downloads" capability instead (null everywhere else).
+  var claudeDownloads = null;
+  try {
+    if (window.claude && typeof window.claude.use === 'function') {
+      window.claude.use('downloads').then(function (d) { claudeDownloads = d || null; }, function () {});
+    }
+  } catch (e) {}
+  function claudeSave() {
+    var blob = result.file;
+    if (!claudeDownloads || !blob) return false;
+    claudeDownloads.save({ filename: result.name, data: blob }).then(function () {}, function (e) {
+      var code = e && e.code;
+      if (code === 'declined' || code === 'rate_limited') return;
+      toast('That didn’t save. Try again in a moment.');
+    });
+    return true;
+  }
+  function downloadNow() { if (!claudeSave()) $('dlLink').click(); }
   $('saveBtn').addEventListener('click', function () {
     var f = result.file, ok = false;
     try { ok = !!(f && navigator.canShare && navigator.share && navigator.canShare({ files: [f] })); } catch (e) {}
@@ -2249,7 +2271,10 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     try { p = navigator.share({ files: [f] }); } catch (e) { downloadNow(); return; }
     if (p && p.then) p.then(function () {}, function (e) { if (e && e.name === 'AbortError') return; downloadNow(); });
   });
-  $('dlLink').addEventListener('click', function (e) { if (!result.url) e.preventDefault(); });
+  $('dlLink').addEventListener('click', function (e) {
+    if (!result.url) { e.preventDefault(); return; }
+    if (claudeDownloads) { e.preventDefault(); claudeSave(); }
+  });
   $('changeBtn').addEventListener('click', function () { showScreen('steps'); });
   $('againBtn').addEventListener('click', function () { startRender(); });
 
