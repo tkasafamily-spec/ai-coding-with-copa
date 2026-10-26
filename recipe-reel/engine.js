@@ -767,7 +767,7 @@
     var blurA = null, blurB = null, blurBG = null, liveTiny = null;
     var titleTiny = null, lastTiny = null, lastTinyValid = false;
     var vignette = null, topScrim = null, noisePattern = null;
-    var BW = Math.max(12, Math.round(W / 20)), BH = Math.max(12, Math.round(H / 20));
+    var BW = Math.max(12, Math.round(W / 30)), BH = Math.max(12, Math.round(H / 30));
 
     function setupCanvases() {
       snap = mkCanvas(W, H); snapG = snap.getContext('2d');
@@ -811,7 +811,7 @@
       tg.imageSmoothingEnabled = true;
       try { tg.imageSmoothingQuality = 'high'; } catch (e) { /* ignore */ }
       tg.drawImage(src, (BW - dw) / 2, (BH - dh) / 2, dw, dh);
-      for (var pass = 0; pass < 2; pass++) {
+      for (var pass = 0; pass < 3; pass++) {
         blurBG.globalAlpha = 1;
         blurBG.clearRect(0, 0, BW, BH);
         blurBG.drawImage(target, 0, 0);
@@ -863,9 +863,9 @@
       }
     }
 
-    function drawMedia(src, sw, sh, zoom, panX, panY, tinyBg) {
+    function drawMedia(src, sw, sh, zoom, panX, panY, tinyBg, forceCover) {
       zoom = zoom || 1;
-      if (framing(sw, sh) === 'cover') {
+      if (forceCover || framing(sw, sh) === 'cover') {
         var s = Math.max(W / sw, H / sh) * zoom, dw = sw * s, dh = sh * s;
         var ox = (W - dw) / 2 + (panX || 0) * (dw - W) / 2;
         var oy = (H - dh) / 2 + (panY || 0) * (dh - H) / 2;
@@ -1013,11 +1013,11 @@
     var M = (function () {
       if (shape === 'tall') {
         return { maxW: 0.84, capBottom: 0.80, capMax: 64, capMin: 40, pill: 32, titleMax: 150, titleLines: 4,
-          textMax: 96, textLines: 6, outroMax: 180, centerY: 0.47, barY: 0.032, listTop: 0.10, listBottom: 0.84 };
+          textMax: 112, textLines: 6, outroMax: 180, centerY: 0.47, barY: 0.032, listTop: 0.10, listBottom: 0.84 };
       }
       if (shape === 'square') {
         return { maxW: 0.84, capBottom: 0.90, capMax: 56, capMin: 36, pill: 30, titleMax: 130, titleLines: 3,
-          textMax: 84, textLines: 4, outroMax: 160, centerY: 0.5, barY: 0.045, listTop: 0.07, listBottom: 0.94 };
+          textMax: 92, textLines: 4, outroMax: 160, centerY: 0.5, barY: 0.045, listTop: 0.07, listBottom: 0.94 };
       }
       return { maxW: 0.70, capBottom: 0.90, capMax: 54, capMin: 34, pill: 30, titleMax: 124, titleLines: 3,
         textMax: 80, textLines: 4, outroMax: 160, centerY: 0.5, barY: 0.05, listTop: 0.07, listBottom: 0.94 };
@@ -1095,7 +1095,7 @@
       var seg = v.seg, D = v.dur, k = Math.min(1, D / 2.5), t = tc / k;
       var L = v.L || (v.L = layoutTitle(seg));
       var p = clamp(tc / D, 0, 1);
-      if (hasTitleBg) { drawTiny(titleTiny, 1.14 - 0.1 * easeOut(p)); dim(0.42); }
+      if (hasTitleBg) { drawTiny(titleTiny, 1.14 - 0.1 * easeOut(p)); dim(0.48); }
       else paintGradient(tc);
       drawVignette();
       g.textAlign = 'center';
@@ -1149,10 +1149,35 @@
       g.globalAlpha = 1;
     }
 
+    // Chips laid out down the columns (col-major). One column: chips as wide as the widest item.
+    function listLayout(items, cols, s, maxW) {
+      var colGap = 22 * u, rowGap = 14 * u;
+      var colW = (maxW - colGap * (cols - 1)) / cols;
+      g.font = fnt(700, s, FONT_TEXT);
+      var padX = s * 0.62, padY = s * 0.42, dot = s * 0.5;
+      var textX = padX + dot * 2 + s * 0.45;
+      var textW = colW - textX - padX;
+      var perCol = Math.ceil(items.length / cols), rows = [], colH = [], widest = 0;
+      for (var c = 0; c < cols; c++) colH.push(0);
+      for (var i = 0; i < items.length; i++) {
+        var c2 = Math.floor(i / perCol);
+        var lines = truncate(wrapLines(items[i], textW), 2, textW);
+        for (var k = 0; k < lines.length; k++) widest = Math.max(widest, mw(lines[k]));
+        var h = lines.length * s * 1.18 + padY * 2;
+        rows.push({ col: c2, lines: lines, h: h, y: colH[c2] });
+        colH[c2] += h + rowGap;
+      }
+      if (cols === 1) colW = Math.min(colW, Math.max(W * 0.5, widest + textX + padX));
+      return {
+        cols: cols, colW: colW, colGap: colGap, size: s, padX: padX, padY: padY, dot: dot, textX: textX, rows: rows,
+        h: Math.max.apply(null, colH) - rowGap, fullW: cols * colW + (cols - 1) * colGap
+      };
+    }
+
     function layoutIngredients(seg) {
       var items = seg.items || [], n = items.length;
       var maxW = W * (shape === 'wide' ? 0.80 : 0.86);
-      var L = { items: [] };
+      var L = {};
       L.kick = spaced('YOU’LL NEED', FONT_TEXT, 800, 30 * u, 0.26);
       var headSize = (shape === 'tall' ? 108 : 92) * u;
       g.font = fnt(800, headSize, FONT_DISPLAY);
@@ -1161,48 +1186,27 @@
       var availTop = H * M.listTop, availBottom = H * M.listBottom;
       var gapAfterHead = 40 * u;
       var availH = availBottom - availTop - L.headH - gapAfterHead;
-      var colOpts;
       var oneMax = shape === 'tall' ? 7 : (shape === 'square' ? 5 : 4);
-      colOpts = n <= oneMax ? [1, 2, 3] : [2, 3];
-      if (n === 1) colOpts = [1];
-      var chosen = null;
+      var colOpts = n <= 1 ? [1] : (n <= oneMax ? [1, 2, 3] : [2, 3]);
+      var chosen = null, smallest = null;
       for (var ci = 0; ci < colOpts.length && !chosen; ci++) {
         var cols = colOpts[ci];
-        var colGap = 22 * u, rowGap = 14 * u;
-        var colW = (maxW - colGap * (cols - 1)) / cols;
-        var sMax = (cols === 1 ? 50 : (cols === 2 ? 42 : 34)) * u;
-        var sMin = (cols === 1 ? 38 : (cols === 2 ? 28 : 22)) * u;
-        if (ci === colOpts.length - 1) sMin = Math.min(sMin, 20 * u);
-        for (var s = sMax; ; s = Math.max(sMin, Math.floor(s * 0.94))) {
-          g.font = fnt(700, s, FONT_TEXT);
-          var padX = s * 0.5, padY = s * 0.42, dot = s * 0.5;
-          var textX = padX + dot * 2 + s * 0.45;
-          var textW = colW - textX - padX;
-          var perCol = Math.ceil(n / cols), rows = [], colH = [];
-          for (var c = 0; c < cols; c++) colH.push(0);
-          for (var i = 0; i < n; i++) {
-            var c2 = Math.floor(i / perCol);
-            var lines = truncate(wrapLines(items[i], textW), 2, textW);
-            var h = lines.length * s * 1.18 + padY * 2;
-            rows.push({ col: c2, lines: lines, h: h, y: colH[c2] });
-            colH[c2] += h + rowGap;
-          }
-          var maxH = Math.max.apply(null, colH) - rowGap;
-          var last = s <= sMin;
-          if (maxH <= availH || (last && ci === colOpts.length - 1)) {
-            if (maxH <= availH || last) {
-              chosen = { cols: cols, colW: colW, colGap: colGap, size: s, padX: padX, padY: padY, dot: dot, textX: textX, rows: rows, h: Math.min(maxH, availH) };
-            }
-            break;
-          }
-          if (last) break;
+        var sMax = (cols === 1 ? (n <= 3 ? 64 : (n <= 5 ? 58 : 52)) : (cols === 2 ? 42 : 34)) * u;
+        var sMin = (cols === 1 ? 38 : (cols === 2 ? 28 : 20)) * u;
+        for (var s = sMax; ;) {
+          var lay = listLayout(items, cols, s, maxW);
+          smallest = lay;
+          if (lay.h <= availH) { chosen = lay; break; }
+          if (s <= sMin) break;
+          s = Math.max(sMin, Math.floor(s * 0.94));
         }
       }
-      L.list = chosen;
-      var groupH = L.headH + gapAfterHead + chosen.h;
+      L.list = chosen || smallest; // (very long lists: smallest layout, clipped)
+      var listH = Math.min(L.list.h, availH);
+      var groupH = L.headH + gapAfterHead + listH;
       L.top = availTop + Math.max(0, (availBottom - availTop - groupH) / 2);
       L.listTop = L.top + L.headH + gapAfterHead;
-      L.listX = (W - maxW) / 2;
+      L.listX = (W - L.list.fullW) / 2;
       L.listBottom = availBottom;
       // pop-in timing
       var D = seg.dur || 4;
@@ -1215,11 +1219,11 @@
       // background
       if (v.slot) {
         var el = v.slot.pool.el;
-        if (el.readyState >= 2 && el.videoWidth) { drawMedia(el, el.videoWidth, el.videoHeight, 1); dim(0.52); }
+        if (el.readyState >= 2 && el.videoWidth) { drawMedia(el, el.videoWidth, el.videoHeight, 1.02 + 0.05 * p, 0, 0, null, true); dim(0.56); }
         else if (snapValid) { g.drawImage(snap, 0, 0); dim(0.5); } else paintGradient(tc);
       } else if (v.img) {
-        drawMedia(v.img.canvas, v.img.w, v.img.h, 1 + 0.06 * easeInOut(p), 0, 0, v.img.tiny);
-        dim(0.52);
+        drawMedia(v.img.canvas, v.img.w, v.img.h, 1.02 + 0.06 * easeInOut(p), 0, 0, null, true);
+        dim(0.56);
       } else paintGradient(tc);
       drawVignette();
       // heading
@@ -1388,8 +1392,11 @@
 
     function rasterize(img) {
       var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
-      var s = framing(iw, ih) === 'cover' ? Math.max(W / iw, H / ih) * 1.18 : Math.min(W / iw, H / ih) * 1.12;
-      s = Math.min(1, s);
+      // Big enough to fill the frame with a slow zoom, never bigger than the photo,
+      // and capped in memory (iPad Safari has a tight total canvas budget).
+      var s = Math.min(1, Math.max(W / iw, H / ih) * 1.18);
+      var maxPx = W * H * 2.2;
+      if (iw * s * ih * s > maxPx) s = Math.sqrt(maxPx / (iw * ih));
       var c = mkCanvas(iw * s, ih * s);
       var cg = c.getContext('2d');
       cg.imageSmoothingEnabled = true;
@@ -1671,6 +1678,7 @@
     function stopRecorder() {
       stopping = true;
       stopT = now();
+      if (pauseBegan) { pausedMs += stopT - pauseBegan; pauseBegan = 0; }
       if (rec && rec.state !== 'inactive') {
         try { rec.stop(); } catch (e) { recStopped.resolve(); }
       } else recStopped.resolve();
@@ -1747,7 +1755,7 @@
           }
         }
         if (v.slot && !v.held && v.dur - tc <= 0.1 && !v.fadingOut) { v.fadingOut = true; v.slot.ramp.to(0, 0.08); }
-        if (tc >= v.dur) { finishView(v, 'end'); return; }
+        if (tc >= v.dur - 0.5 / FPS) { finishView(v, 'end'); return; }
       }
       v.local = local;
       if (v.i === lastIndex) {
@@ -1963,6 +1971,7 @@
     }
 
     function startView(v) {
+      dbg('segment', v.i, v.type, 'starts at clock', clock.toFixed(3), 'plan start', v.seg.start, 'wall', ((now() - recStartT) / 1000).toFixed(3));
       v.start = clock;
       v.local = 0;
       v.done = deferred();
@@ -1988,6 +1997,7 @@
     }
 
     function endView(v, reason) {
+      dbg('segment', v.i, 'ended:', reason, 'clock', clock.toFixed(3), 'shown for', (clock - v.start).toFixed(3), 'planned', v.dur);
       if (v.slot) {
         var el = v.slot.pool.el;
         v.slot.ramp.to(0, 0.03);
@@ -2110,7 +2120,7 @@
           if (fadeOutStart == null) startFadeOut(0.4);
           var d = deferred();
           tailWait = { until: fadeOutStart + fadeOutDur + TAIL, d: d };
-          return guard(d.promise, 8000).catch(function (e) { if (aborted) throw aborted; });
+          return guard(d.promise, 60000).catch(function (e) { if (aborted) throw aborted; });
         })
         .then(function () {
           checkAbort();
@@ -2220,11 +2230,8 @@
       if (finished || cancelled) return;
       cancelled = true;
       abort(mkErr('cancelled', 'Stopped.'));
-      if (!runPromise) cleanup();
-      else {
-        // stop sound and recording right away; run() rejects with code 'cancelled'
-        cleanup();
-      }
+      // Stop sound + recording right away. If run() is in flight it rejects with code 'cancelled'.
+      cleanup();
     }
 
     function setMonitor(on) {

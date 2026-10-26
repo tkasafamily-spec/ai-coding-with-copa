@@ -82,7 +82,7 @@
   function irBuf(ctx) {
     var r = res(ctx);
     if (!r.ir) {
-      var sr = ctx.sampleRate, secs = 1.7, len = Math.floor(sr * secs), pre = Math.floor(sr * 0.014);
+      var sr = ctx.sampleRate, secs = 1.3, len = Math.floor(sr * secs), pre = Math.floor(sr * 0.014);
       var b = ctx.createBuffer(2, len, sr);
       for (var ch = 0; ch < 2; ch++) {
         var d = b.getChannelData(ch), R = rng(777 + ch * 31), lp = 0;
@@ -92,7 +92,7 @@
           lp = lp * c + (R() * 2 - 1) * (1 - c);
           var fadeIn = Math.min(1, t / 0.004);
           var fadeOut = Math.min(1, (len - i) / (sr * 0.08));
-          d[i] = lp * Math.exp(-t * 4.0) * fadeIn * fadeOut * (1 + 1.6 * c);
+          d[i] = lp * Math.exp(-t * 4.6) * fadeIn * fadeOut * (1 + 1.6 * c);
         }
       }
       r.ir = b;
@@ -126,9 +126,10 @@
 
   var WAVES = {
     cos:   { re: [0, 1], im: [0, 0] },                                   // cosine (phase-mod EP)
-    sub:   { re: null, im: [0, 1, 0.42, 0.15, 0.05] },                    // warm sub bass
+    sub:   { re: null, im: [0, 1, 0.5, 0.2, 0.07] },                    // warm sub bass
     flute: { re: null, im: [0, 1, 0.16, 0.06, 0.025] },                   // soft lead
-    pbass: { re: null, im: [0, 1, 0.55, 0.32, 0.2, 0.12, 0.07, 0.04] }   // pluck bass
+    pbass: { re: null, im: [0, 1, 0.55, 0.32, 0.2, 0.12, 0.07, 0.04] },  // pluck bass
+    pluck: { re: null, im: [0, 1, 0.55, 0.36, 0.26, 0.2, 0.16, 0.13, 0.11, 0.09, 0.08, 0.07, 0.06] }  // bright pluck
   };
   function setWave(ctx, osc, name) {
     var r = res(ctx);
@@ -205,16 +206,23 @@
     this.out = ctx.createGain();
     this.out.gain.value = this.level;
     this.comp = ctx.createDynamicsCompressor();
-    this.comp.threshold.value = -20;
-    this.comp.knee.value = 12;
-    this.comp.ratio.value = 3.5;
-    this.comp.attack.value = 0.005;
-    this.comp.release.value = 0.2;
+    this.comp.threshold.value = -24;
+    this.comp.knee.value = 10;
+    this.comp.ratio.value = 4;
+    this.comp.attack.value = 0.003;
+    this.comp.release.value = 0.15;
     this.nodes.push(this.comp);
     this.mix = this.gain(1);
     var hp = this.filter('highpass', 32, -3);
     this.tone = this.filter('lowpass', style.tone, -3);
-    this.mix.connect(hp); hp.connect(this.tone); this.tone.connect(this.comp); this.comp.connect(this.out);
+    var last = hp;
+    this.mix.connect(hp);
+    for (var e = 0; e < style.eq.length; e++) {        // gentle tone shaping: [freq, gainDb, Q]
+      var pk = this.filter('peaking', style.eq[e][0], style.eq[e][2]);
+      pk.gain.value = style.eq[e][1];
+      last.connect(pk); last = pk;
+    }
+    last.connect(this.tone); this.tone.connect(this.comp); this.comp.connect(this.out);
 
     // shared reverb
     this.rev = this.gain(1);
@@ -305,10 +313,11 @@
     mod.frequency.value = f;
     setWave(ctx, mod, 'cos');
     var bright = clamp(1.15 - (midi - 55) * 0.03, 0.45, 1.3);
-    var b0 = (0.7 + 1.3 * vel) * bright, b1 = 0.16 * bright;
-    mg.gain.setValueAtTime(b0 * f, t);
-    mg.gain.exponentialRampToValueAtTime(b1 * f, t + 0.8);
-    var peak = 0.12 * (0.3 + 0.7 * vel) * clamp(1.25 - (midi - 48) * 0.012, 0.8, 1.25);
+    var b0 = (0.8 + 1.5 * vel) * bright, b1 = 0.22 * bright;
+    mg.gain.setValueAtTime(b0 * 2.6 * f, t);                 // short bright "bark" ...
+    mg.gain.exponentialRampToValueAtTime(b0 * f, t + 0.09);
+    mg.gain.exponentialRampToValueAtTime(b1 * f, t + 1.1);   // ... mellowing into a round tone
+    var peak = 0.14 * (0.3 + 0.7 * vel) * clamp(1.25 - (midi - 48) * 0.012, 0.8, 1.25);
     var end = held(a.gain, t, peak, 0.004, 0.35, 0.5, 2.6, t + len, 0.075);
     mod.connect(mg); mg.connect(car.frequency); car.connect(a); a.connect(bus || this.b.ep);
     car.start(t); mod.start(t); car.stop(end + 0.02); mod.stop(end + 0.02);
@@ -442,7 +451,7 @@
     if (f * 4 < 9000) {
       var o2 = ctx.createOscillator(), g2 = ctx.createGain();
       o2.frequency.value = f * 3.98;
-      var e2 = perc(g2.gain, t, 0.075 * vel, 0.0008, tau * 0.13);
+      var e2 = perc(g2.gain, t, 0.1 * vel, 0.0008, tau * 0.18);
       o2.connect(g2); g2.connect(this.b.mar);
       o2.start(t); o2.stop(e2 + 0.02);
       srcs.push(o2); nodes.push(o2, g2);
@@ -465,6 +474,22 @@
     o1.start(t); o2.start(t); o3.start(t);
     o1.stop(end + 0.02); o2.stop(Math.min(end, e2) + 0.02); o3.stop(Math.min(end, e3) + 0.02);
     this.track([o1, o2, o3], [o1, o2, o3, g1, g2, g3], end);
+  };
+
+  // Bright filtered pluck (happy hook)
+  GenPlayer.prototype.pluck = function (t, midi, vel, len) {
+    var ctx = this.ctx, f = mtof(midi), o = ctx.createOscillator(), lp = ctx.createBiquadFilter(), a = ctx.createGain();
+    setWave(ctx, o, 'pluck');
+    o.frequency.value = f;
+    o.detune.value = (this.R() - 0.5) * 6;
+    lp.type = 'lowpass';
+    lp.Q.value = 3;
+    lp.frequency.setValueAtTime(Math.min(f * 9, 7000), t);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(f * 2.2, 700), t + 0.35);
+    var end = held(a.gain, t, 0.085 * vel, 0.003, 0.18, 0.5, 0.9, t + len, 0.07);
+    o.connect(lp); lp.connect(a); a.connect(this.b.pluck);
+    o.start(t); o.stop(end + 0.02);
+    this.track([o], [o, lp, a], end);
   };
 
   // Soft pad note (slow attack)
@@ -681,7 +706,7 @@
 
   var CHILL = {
     id: 'chill', name: 'Chill', bpm: 84, swing: 0.17, seed: 8411, tone: 9000,
-    outGain: 0.5, reverb: 0.9, previewBar: 9,
+    outGain: 0.36, reverb: 0.9, previewBar: 9, eq: [[320, -2, 0.9], [2200, 3, 0.7]],
     build: function (P) {
       var ctx = P.ctx;
       // tape bus: gentle pitch "wow" from a slowly modulated short delay
@@ -689,7 +714,7 @@
       P.nodes.push(wow);
       wow.delayTime.value = 0.006;
       P.lfo(0.32, 0.0016, wow.delayTime);
-      var tapeOut = P.filter('lowpass', 6500, -3);
+      var tapeOut = P.filter('lowpass', 10000, -3);
       tape.connect(wow); wow.connect(tapeOut); tapeOut.connect(P.mix);
       var tapeSend = P.gain(0.32); tapeOut.connect(tapeSend); tapeSend.connect(P.rev);
 
@@ -703,15 +728,15 @@
       P.lv.ep = epLv; P.b.ep = epIn;
       P.b.vibe = epIn;
 
-      P.bus('lead', 0.9, null, -0.2, 0.25, tape);
-      P.bus('bass', 1.0, [P.filter('lowpass', 900, -3)], 0, 0);
-      P.bus('kick', 0.9, null, 0, 0);
+      P.bus('lead', 1.0, null, -0.2, 0.25, tape);
+      P.bus('bass', 0.42, [P.filter('lowpass', 900, -3)], 0, 0);
+      P.bus('kick', 0.55, null, 0, 0);
       P.bus('knock', 0.5, [P.filter('lowpass', 2200, -3)], 0, 0, P.lv.kick);   // follows the kick level
-      P.bus('snare', 0.55, [P.filter('bandpass', 1900, 0.8), P.filter('lowpass', 7000, -3)], 0.05, 0.3);
-      P.bus('body', 0.5, null, 0.05, 0.12);
-      P.bus('rim', 0.4, [P.filter('bandpass', 2600, 2.2)], 0.1, 0.25);
-      P.bus('hat', 0.32, [P.filter('highpass', 6500, -3), P.filter('peaking', 9000, 1)], 0.28, 0.05);
-      P.bus('brush', 0.24, [P.filter('bandpass', 5200, 0.6)], 0.28, 0.1);
+      P.bus('snare', 1.15, [P.filter('bandpass', 1900, 0.8), P.filter('lowpass', 7000, -3)], 0.05, 0.3);
+      P.bus('body', 0.6, null, 0.05, 0.12);
+      P.bus('rim', 0.7, [P.filter('bandpass', 2600, 2.2)], 0.1, 0.25);
+      P.bus('hat', 0.5, [P.filter('highpass', 6000, -3), P.filter('lowpass', 11000, -3)], 0.28, 0.05);
+      P.bus('brush', 0.38, [P.filter('bandpass', 5200, 0.6)], 0.28, 0.1);
       // vinyl hiss + crackle, very quiet
       var vin = ctx.createBufferSource();
       vin.buffer = vinylBuf(ctx); vin.loop = true;
@@ -725,7 +750,7 @@
     onStart: function (P, when) {
       var g = P.vinylGain.gain;
       g.setValueAtTime(0, when);
-      g.linearRampToValueAtTime(0.045, when + 1.5);
+      g.linearRampToValueAtTime(0.035, when + 1.5);
     },
     compose: function (P, bar, R) {
       var E = [], q = P.s16;
@@ -785,7 +810,7 @@
         else if (pos === 2 && sec !== 0) kicks = [[0, 1], [3, 0.42], [10, 0.85]];
         else kicks = [[0, 1], [10, 0.85]];
         for (i = 0; i < kicks.length; i++) {
-          (function (v) { at(E, kicks[i][0], 0, function (t) { P.kick(t, v, 118, 46, 0.1, 0.35); }); })(kicks[i][1] * (0.94 + 0.08 * R()));
+          (function (v) { at(E, kicks[i][0], 0, function (t) { P.kick(t, v, 118, 52, 0.09, 0.7); }); })(kicks[i][1] * (0.94 + 0.08 * R()));
         }
         var lay = 0.014;   // laid-back backbeat
         if (brk) {
@@ -889,17 +914,17 @@
   }
   function happyFilterCurve(sec, pos) {
     if (sec === 2) {
-      if (pos === 0) return [15000, 2200, 0.5];
+      if (pos === 0) return [13000, 2200, 0.5];
       if (pos === 1) return [2200, 2200, 0];
-      if (pos === 2) return [2200, 5700, 1];
-      if (pos === 3) return [5700, 15000, 1];
+      if (pos === 2) return [2200, 5350, 1];
+      if (pos === 3) return [5350, 13000, 1];
     }
-    return [15000, 15000, 0];
+    return [13000, 13000, 0];
   }
 
   var HAPPY = {
-    id: 'happy', name: 'Happy', bpm: 112, swing: 0.08, seed: 11206, tone: 15000,
-    outGain: 0.5, reverb: 0.7, previewBar: 9,
+    id: 'happy', name: 'Happy', bpm: 112, swing: 0.08, seed: 11206, tone: 13000,
+    outGain: 0.34, reverb: 0.7, previewBar: 9, eq: [[300, -1.5, 0.9], [3000, 2, 0.7]],
     build: function (P) {
       var ctx = P.ctx;
       // tempo-synced dotted-eighth echo for the bell + marimba
@@ -911,18 +936,20 @@
       echoOut.connect(P.pan(0.35, P.mix));
       P.echo = echoIn;
 
-      P.bus('mar', 0.95, null, -0.12, 0.18);
-      P.bus('bell', 0.85, null, 0.15, 0.25);
-      P.bus('pad', 0.75, [P.filter('lowpass', 1700, -3)], 0, 0.3);
-      P.bus('bass', 1.0, null, 0, 0);
-      P.bus('kick', 0.95, null, 0, 0);
+      P.bus('mar', 1.2, null, -0.12, 0.18);
+      P.bus('bell', 0.75, null, 0.15, 0.25);
+      P.bus('pluck', 1.7, null, 0.1, 0.22);
+      P.bus('pad', 0.65, [P.filter('lowpass', 1700, -3)], 0, 0.3);
+      P.bus('bass', 0.5, null, 0, 0);
+      P.bus('kick', 0.65, null, 0, 0);
       P.bus('knock', 0.6, [P.filter('lowpass', 3500, -3)], 0, 0, P.lv.kick);
-      P.bus('clap', 0.75, [P.filter('bandpass', 1250, 1.0), P.filter('highpass', 600, -3)], 0.04, 0.3);
-      P.bus('shk', 0.3, [P.filter('highpass', 5800, -3)], 0.38, 0.03);
-      P.bus('oh', 0.2, [P.filter('highpass', 7800, -3)], -0.3, 0.06);
+      P.bus('clap', 0.95, [P.filter('bandpass', 1250, 1.0), P.filter('highpass', 600, -3)], 0.04, 0.3);
+      P.bus('shk', 0.3, [P.filter('highpass', 4200, -3), P.filter('lowpass', 10000, -3)], 0.38, 0.03);
+      P.bus('oh', 0.24, [P.filter('highpass', 6500, -3), P.filter('lowpass', 12500, -3)], -0.3, 0.06);
       P.bus('fx', 0.55, null, 0, 0.3);
       var se = P.gain(0.22); P.lv.mar.connect(se); se.connect(echoIn);
-      var be = P.gain(0.4); P.lv.bell.connect(be); be.connect(echoIn);
+      var be = P.gain(0.3); P.lv.bell.connect(be); be.connect(echoIn);
+      var pe = P.gain(0.4); P.lv.pluck.connect(pe); pe.connect(echoIn);
     },
     compose: function (P, bar, R) {
       var E = [], q = P.s16;
@@ -1016,9 +1043,10 @@
         var hk = HP_HOOK[pos];
         for (i = 0; i < hk.length; i++) {
           (function (nn, v) {
-            at(E, nn[0], 0.002, function (t, t0) { P.bell(t, nn[1], v, t0 + nn[2] * q - 0.04 - t); }, nn[2] > 3);
+            at(E, nn[0], 0.002, function (t, t0) { P.pluck(t, nn[1], v, t0 + nn[2] * q - 0.04 - t); }, nn[2] > 3);
+            at(E, nn[0], 0.004, function (t, t0) { P.bell(t, nn[1] + 12, v * 0.6, t0 + nn[2] * q - 0.04 - t); }, nn[2] > 3);
             if (sec === 3) {
-              at(E, nn[0], 0.012, function (t, t0) { P.bell(t, thirdBelow(nn[1]), v * 0.55, t0 + nn[2] * q - 0.05 - t); }, nn[2] > 3);
+              at(E, nn[0], 0.012, function (t, t0) { P.pluck(t, thirdBelow(nn[1]), v * 0.6, t0 + nn[2] * q - 0.05 - t); }, nn[2] > 3);
             }
           })(hk[i], 0.85 * (0.9 + 0.2 * R()));
         }
