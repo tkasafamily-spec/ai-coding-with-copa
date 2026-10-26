@@ -111,7 +111,8 @@ svg.i { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor;
 .steps li.now .dot { background: transparent; border: 3px solid var(--accent-soft); border-top-color: var(--accent); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .results-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 28px 0 12px; }
-.results-head h2 { margin: 0; font-size: 22px; }
+.results-head h2 { margin: 0; font-size: 22px; min-width: 0; overflow-wrap: anywhere; }
+.results-head .btn { flex: none; }
 .note { margin: 0 0 12px; font-size: 15px; color: var(--text-2); }
 .idea-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
 .idea-card { display: flex; flex-direction: column; border-radius: var(--r); border: 1px solid var(--border); background: var(--surface-2); overflow: hidden; }
@@ -241,6 +242,8 @@ input[type=range]:disabled { opacity: .4; }
 .layers .icon-btn { width: 44px; height: 44px; color: var(--text-2); }
 .pop { background: linear-gradient(135deg, #FF4F2E, #FFB224); border: 0; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.25); }
 :root[data-mode="smp"] .pop { background: linear-gradient(135deg, #17994A, #9BD43A); }
+@media (hover: hover) { .btn.pop:hover { background: linear-gradient(135deg, #FF4F2E, #FFB224); filter: brightness(1.06); } :root[data-mode="smp"] .btn.pop:hover { background: linear-gradient(135deg, #17994A, #9BD43A); } }
+.row .btn { padding: 0 12px; white-space: nowrap; }
 details.more { margin: 4px 0 16px; border-top: 1px solid var(--border); }
 details.more summary { min-height: 48px; display: flex; align-items: center; font-weight: 600; color: var(--text-2); cursor: pointer; list-style: none; }
 details.more summary::-webkit-details-marker { display: none; }
@@ -368,7 +371,7 @@ details.more[open] summary::after { content: "–"; }
       </div>
       <ol class="steps" id="ideaSteps" aria-live="polite" hidden></ol>
       <div id="ideaOut" hidden>
-        <div class="results-head"><h2 id="ideaOutTitle">Your ideas</h2></div>
+        <div class="results-head"><h2 id="ideaOutTitle">Your ideas</h2><button type="button" class="btn" id="ideaMore" data-testid="idea-more"><svg class="i"><use href="#i-magic"/></svg>More ideas</button></div>
         <p class="note" id="ideaNote" hidden></p>
         <div class="idea-grid" id="ideaGrid"></div>
         <div class="inspired" id="inspired" data-testid="inspired-by" hidden>
@@ -926,19 +929,22 @@ details.more[open] summary::after { content: "–"; }
     $('ideaInput').value = lsGet('thumbpop.prompt', '');
     updateDetect();
   }
+  var tplTimer = null;
   function updateDetect() {
     var I = ideasApi(), v = $('ideaInput').value.trim();
     var el = $('ideaDetect');
+    if (I && ideaTheme !== 'auto' && ideaTheme !== mode) { setMode(ideaTheme); renderModeCards(); clearTimeout(tplTimer); tplTimer = setTimeout(renderTemplates, 100); }
     if (!I || !v || ideaTheme !== 'auto') { el.textContent = ''; return; }
     var t; try { t = I.detectTheme(v); } catch (e) { t = null; }
     el.textContent = t ? 'Looks like a ' + (t === 'smp' ? 'Donut SMP' : 'cooking') + ' video.' : '';
+    if (t && t !== mode && v.length > 3) { setMode(t); renderModeCards(); clearTimeout(tplTimer); tplTimer = setTimeout(renderTemplates, 400); }
   }
   $('ideaChips').addEventListener('click', function (e) {
     var b = e.target.closest('.chip'); if (!b) return;
     $('ideaInput').value = b.textContent; lsSet('thumbpop.prompt', b.textContent); updateDetect();
   });
   $('ideaInput').addEventListener('input', function () { lsSet('thumbpop.prompt', $('ideaInput').value); updateDetect(); });
-  $('ideaInput').addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); makeIdeas(); } });
+  $('ideaInput').addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); makeIdeas(false); } });
   $('ideaTheme').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-v]'); if (!b) return;
     ideaTheme = b.getAttribute('data-v');
@@ -946,7 +952,8 @@ details.more[open] summary::after { content: "–"; }
     updateDetect();
   });
   $('popularChk').addEventListener('change', function () { lsSet('thumbpop.popular', $('popularChk').checked ? '1' : '0'); });
-  $('ideaGo').addEventListener('click', makeIdeas);
+  $('ideaGo').addEventListener('click', function () { makeIdeas(false); });
+  $('ideaMore').addEventListener('click', function () { makeIdeas(true); });
 
   function addStep(msg) {
     var ol = $('ideaSteps'); ol.hidden = false;
@@ -960,34 +967,39 @@ details.more[open] summary::after { content: "–"; }
     var prev = $('ideaSteps').querySelector('li.now');
     if (prev) { prev.classList.remove('now'); prev.querySelector('.dot').innerHTML = icon('i-check'); }
   }
-  function makeIdeas() {
+  var ideaSeed = 0;
+  function makeIdeas(more) {
     var I = ideasApi();
     if (!I || ideaBusy) return;
-    var prompt = $('ideaInput').value.trim();
+    var prompt = (more && lastIdeas ? lastIdeas.prompt : $('ideaInput').value).trim();
     if (!prompt) { toast('Type what your video is about first'); try { $('ideaInput').focus(); } catch (e) {} return; }
     ideaBusy = true;
-    var go = $('ideaGo'); go.disabled = true; go.querySelector('span').textContent = 'Making…';
+    var go = $('ideaGo'); go.disabled = true; go.querySelector('span').textContent = 'Making…'; $('ideaMore').disabled = true;
+    var genOpts = { theme: undefined, lookAtPopular: false, onStep: function (m) { if (m) addStep(String(m)); } };
+    if (more) { ideaSeed = (ideaSeed + 1 + Math.floor(Math.random() * 1000)) % 100000; genOpts.seed = ideaSeed; genOpts.fresh = true; }
     $('ideaSteps').innerHTML = ''; $('ideaSteps').hidden = false;
     addStep('Reading what your video is about…');
     var theme = ideaTheme === 'auto' ? undefined : ideaTheme;
     var lookAtPopular = !$('popularWrap').hidden && $('popularChk').checked;
     var p;
     try {
-      p = Promise.resolve(I.generate(prompt, { theme: theme, lookAtPopular: lookAtPopular, onStep: function (m) { if (m) addStep(String(m)); } }));
+      genOpts.theme = theme; genOpts.lookAtPopular = lookAtPopular;
+      p = Promise.resolve(I.generate(prompt, genOpts));
     } catch (e) { p = Promise.reject(e); }
     p.then(null, function () { return null; }).then(function (res) {
       if (!res || !res.designs || !res.designs.length) {
         try {
-          var cs = I.offline(prompt, { theme: theme });
+          var cs = I.offline(prompt, { theme: theme, seed: genOpts.seed });
           res = { concepts: cs, designs: cs.map(function (c) { return I.toDesign(c); }), inspiredBy: [], source: 'offline', note: '' };
         } catch (e) { res = null; }
       }
       finishSteps();
-      ideaBusy = false; go.disabled = false; go.querySelector('span').textContent = 'Make thumbnails';
+      ideaBusy = false; go.disabled = false; go.querySelector('span').textContent = 'Make thumbnails'; $('ideaMore').disabled = false;
       if (!res || !res.designs || !res.designs.length) { toast('Couldn’t make ideas for that. Try different words, or pick a style below.'); return; }
       lastIdeas = { prompt: prompt, res: res };
       showIdeas();
-      setTimeout(function () { $('ideaSteps').hidden = true; }, 1200);
+      if (more) { try { $('ideaOut').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {} }
+      setTimeout(function () { if (!ideaBusy) $('ideaSteps').hidden = true; }, 1500);
     });
   }
   function showIdeas() {
@@ -1042,6 +1054,7 @@ details.more[open] summary::after { content: "–"; }
     setMode(d.theme);
     var slots = emptySlots();
     panelMode = (slots.length || !hasAnyPhoto()) ? 'photo' : 'bg';
+    if (opts.fromIdea && slots.length) { selectedId = slots[0].id; panelMode = 'layer'; }
     $('home').hidden = true;
     $('editor').hidden = false;
     root.classList.add('in-editor');
@@ -1108,7 +1121,7 @@ details.more[open] summary::after { content: "–"; }
   function requestRender() { if (rq) return; rq = true; requestAnimationFrame(function () { rq = false; drawEditor(); }); }
   function drawEditor() {
     if (!design || $('editor').hidden) return;
-    paint(cv, design, { selectedId: selectedId });
+    paint(cv, design, {});
     drawOverlay();
   }
   function selLayer() { if (!selectedId || !design) return null; return layerById(selectedId); }
@@ -1223,7 +1236,7 @@ details.more[open] summary::after { content: "–"; }
   window.addEventListener('pagehide', function () { flushSave(); });
 
   /* ================================================== EDITOR: pointer interaction */
-  var pointers = {}, pcount = 0, gesture = null, tapText = null;
+  var pointers = {}, pcount = 0, gesture = null, tapText = null, tapSlot = null;
   function toDesign(e) {
     var r = cv.getBoundingClientRect();
     return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
@@ -1248,7 +1261,7 @@ details.more[open] summary::after { content: "–"; }
     var p = toDesign(e);
     if (!pointers[e.pointerId]) pcount++;
     pointers[e.pointerId] = p;
-    tapText = null;
+    tapText = null; tapSlot = null;
     if (pcount === 2) { startPinch(); return; }
     if (pcount > 2) return;
     var k = cssK(), hitR = 24 * k;
@@ -1355,10 +1368,13 @@ details.more[open] summary::after { content: "–"; }
     gesture = null; guides.x = guides.y = false;
     if (g.type === 'bg' && !g.moved) {
       selectedId = null; panelMode = 'bg'; renderPanel(); requestRender();
+      if (bgSlotEmpty()) tapSlot = '__bg';
       return;
     }
-    if (g.type === 'move' && !g.moved && g.wasSel) {
-      var l = layerById(g.id); if (l && l.type === 'text') tapText = g.id;
+    if (g.type === 'move' && !g.moved) {
+      var l = layerById(g.id);
+      if (l && l.type === 'text' && g.wasSel) tapText = g.id;
+      if (l && l.type === 'image' && !l.imageId) tapSlot = g.id;
     }
     if (g.moved) commitGesture(g); else requestRender();
   }
@@ -1370,6 +1386,9 @@ details.more[open] summary::after { content: "–"; }
   cv.addEventListener('pointercancel', endPointer);
   cv.addEventListener('lostpointercapture', function (e) { if (pointers[e.pointerId]) endPointer(e); });
   cv.addEventListener('click', function () {
+    // tapping an empty photo box opens the photo picker for it (file pickers need a real tap)
+    if (tapSlot === '__bg' && design && bgSlotEmpty()) { tapSlot = null; pickTarget = { kind: 'bg' }; $('bgPhotoInput').click(); return; }
+    if (tapSlot && layerById(tapSlot)) { pickTarget = { kind: 'replace', id: tapSlot }; tapSlot = null; $('photoInput').click(); return; }
     // a second tap on the selected text opens the words to edit (keyboard needs a real tap)
     if (tapText && tapText === selectedId) {
       var ta = $('panel').querySelector('[data-testid="text-edit"]');
@@ -1432,6 +1451,8 @@ details.more[open] summary::after { content: "–"; }
   }
   function setPanel(m) { panelMode = m; if (m !== 'layer') selectedId = null; renderPanel(); requestRender(); }
   function emptySlots() { return design ? design.layers.filter(function (l) { return l.type === 'image' && !l.imageId; }) : []; }
+  function bgSlotEmpty() { return !!(design && design.background.kind === 'image' && !design.background.imageId); }
+  function bgSlotLabel() { var t = String(design.background.placeholder || (design.theme === 'smp' ? 'Your screenshot' : 'Your food photo')); return t.replace(/\s*\(background\)\s*/i, ''); }
   function hasAnyPhoto() { return !!(design && (design.background.kind === 'image' && design.background.imageId || design.layers.some(function (l) { return l.type === 'image' && l.imageId; }))); }
   function updateNudge() {
     var show = !!design && !nudgeDismissed && !hasAnyPhoto() && panelMode !== 'photo';
@@ -1634,14 +1655,15 @@ details.more[open] summary::after { content: "–"; }
   function photoPanel(t) {
     var slots = emptySlots();
     var h = head(t === 'smp' ? 'Add your screenshot' : 'Add your photo');
-    if (slots.length) {
-      h += '<div class="lbl"><span>Fill a box</span></div><div class="bigbtns">' + slots.map(function (s, i) {
-        return '<button type="button" class="btn' + (i === 0 ? ' primary' : '') + '" data-act="fill-slot" data-id="' + esc(s.id) + '">' + icon('i-photo') + esc(s.placeholder || 'Photo box') + '</button>';
+    var bgEmpty = bgSlotEmpty();
+    if (slots.length || bgEmpty) {
+      h += '<div class="lbl"><span>Fill a box</span></div><div class="bigbtns">' + (bgEmpty ? '<button type="button" class="btn primary" data-act="pick-bg">' + icon('i-image-bg') + esc(bgSlotLabel()) + ' (background)</button>' : '') + slots.map(function (s, i) {
+        return '<button type="button" class="btn' + (i === 0 && !bgEmpty ? ' primary' : '') + '" data-act="fill-slot" data-id="' + esc(s.id) + '">' + icon('i-photo') + esc(s.placeholder || 'Photo box') + '</button>';
       }).join('') + '</div>';
     }
     h += '<div class="bigbtns">' +
-      '<button type="button" class="btn' + (slots.length ? '' : ' primary') + '" data-act="pick-new">' + icon('i-plus') + 'Add a photo on top</button>' +
-      '<button type="button" class="btn" data-act="pick-bg">' + icon('i-image-bg') + 'Use a photo as the background</button>' +
+      '<button type="button" class="btn' + (slots.length || bgEmpty ? '' : ' primary') + '" data-act="pick-new">' + icon('i-plus') + 'Add a photo on top</button>' +
+      (bgEmpty ? '' : '<button type="button" class="btn" data-act="pick-bg">' + icon('i-image-bg') + 'Use a photo as the background</button>') +
       '<button type="button" class="btn" data-act="pick-video">' + icon('i-video') + 'Grab a frame from a video</button></div>';
     h += '<div class="grp"><div class="lbl"><span>Paste a cut-out</span></div><div class="paste" contenteditable="true" inputmode="none" data-testid="paste-field" role="textbox" aria-label="Paste here" data-ph="Touch and hold here, then tap Paste"></div></div>';
     h += '<p class="tip"><b>Cut yourself out (or your food):</b> in Photos, touch and hold the person or plate until it glows, tap <b>Copy</b>, come back here, touch and hold the box above and tap <b>Paste</b>.</p>';
@@ -1665,6 +1687,11 @@ details.more[open] summary::after { content: "–"; }
         var s = stickerById(b.getAttribute('data-sticker')); if (!s) return;
         var c = b.querySelector('canvas');
         var asp = num(s.aspect, 1), w = asp >= 1 ? 560 : 560 * asp;
+        if (R.drawSticker) {
+          var x0 = c.getContext('2d'); x0.clearRect(0, 0, c.width, c.height);
+          var tw = (asp >= 1 ? 108 : 108 * asp);
+          try { x0.save(); R.drawSticker(x0, s.id, c.width / 2, c.height / 2, tw, s.tintable ? (design.theme === 'smp' ? '#FF2D2D' : '#FF4A1C') : undefined); x0.restore(); return; } catch (e) { x0.restore(); }
+        }
         var lay;
         try { lay = R.defaultsFor('sticker', design.theme); } catch (e) { lay = {}; }
         lay = lay || {};
@@ -1958,6 +1985,7 @@ details.more[open] summary::after { content: "–"; }
     if (l && l.type === 'image') return { kind: 'replace', id: l.id };
     var s = emptySlots()[0];
     if (s) return { kind: 'replace', id: s.id };
+    if (bgSlotEmpty()) return { kind: 'bg' };
     return { kind: 'new' };
   }
   function addPhotoFile(file, tgt) {
@@ -2044,7 +2072,7 @@ details.more[open] summary::after { content: "–"; }
     if (!f || !design) return;
     var tgt = videoTarget || (selLayer() && selLayer().type === 'image' ? { kind: 'replace', id: selectedId } : null);
     videoTarget = tgt;
-    var defBg = tgt ? tgt.kind === 'bg' : !hasBgPhoto();
+    var defBg = tgt ? tgt.kind === 'bg' : (bgSlotEmpty() || (!hasBgPhoto() && !emptySlots().length));
     setFrameTarget(defBg ? 'bg' : 'layer');
     if (frameUrl) { try { URL.revokeObjectURL(frameUrl); } catch (e) {} }
     frameUrl = URL.createObjectURL(f);

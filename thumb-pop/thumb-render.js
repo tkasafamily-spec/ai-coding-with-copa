@@ -501,8 +501,10 @@
     var w = c.measureText(text).width; if (w > maxW) size = size * maxW / w;
     c.font = weight + ' ' + size + 'px ' + fontCss; return size;
   }
+  var unflipText = false;
   function stickerText(c, text, cx, cy, maxW, maxH, fill, stroke, fontId) {
     if (!text) return;
+    if (unflipText) { c.save(); c.translate(cx, 0); c.scale(-1, 1); c.translate(-cx, 0); }
     var f = fontOf(fontId || 'bowlby');
     var size = fitFont(c, text, f.css, f.weight, maxW, maxH);
     c.textAlign = 'center'; c.textBaseline = 'alphabetic';
@@ -510,6 +512,7 @@
     var by = cy + capH / 2;
     if (stroke) { c.lineJoin = 'round'; c.lineWidth = size * 0.16; c.strokeStyle = stroke; c.strokeText(text, cx, by); }
     c.fillStyle = fill; c.fillText(text, cx, by);
+    if (unflipText) c.restore();
   }
   function star4(c, cx, cy, r) {
     var k = r * 0.16;
@@ -978,13 +981,8 @@
     } else {
       c.setTransform(es, 0, 0, es, pad * es, pad * es);
       if (L.flipX) { c.translate(w, 0); c.scale(-1, 1); }
-      var LL = L; if (L.flipX && meta.hasText) LL = assign({}, L, { text: '' });
-      VEC[id].draw(c, w, h, col, LL);
-      if (L.flipX && meta.hasText) { // keep text readable when flipped: redraw sticker text unflipped
-        c.setTransform(es, 0, 0, es, pad * es, pad * es);
-        var tmp = mk(1, 1); free(tmp);
-        VEC[id].draw(c, 0.0001, 0.0001, col, L); // no-op shape; text drawn below
-      }
+      unflipText = !!L.flipX;
+      try { VEC[id].draw(c, w, h, col, L); } finally { unflipText = false; }
     }
     var sil = ow > 0 ? dilate(I, ow * es, oc, !!meta.pixel) : null;
     var out = finishFx(I, sil, glow, sh, es);
