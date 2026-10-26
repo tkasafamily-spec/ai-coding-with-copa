@@ -286,6 +286,7 @@ button{cursor:pointer}
 .inline-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .note button{margin-top:8px}
 .hint a{color:var(--ice)}
+.seg.seg2{grid-template-columns:repeat(2,1fr)}
 </style>
 </head>
 <body>
@@ -389,6 +390,12 @@ button{cursor:pointer}
 
       <div class="field">
         <span class="label">Oreo's voice</span>
+        <div class="seg seg2" role="radiogroup" aria-label="Voice type">
+          <label><input type="radio" name="vmode" id="vmNatural" value="natural"><b>Natural</b><small>Sounds like a real person</small></label>
+          <label><input type="radio" name="vmode" id="vmIpad" value="ipad"><b>iPad</b><small>Built-in voices</small></label>
+        </div>
+        <div class="voices" id="gVoiceList" role="radiogroup" aria-label="Natural voice"></div>
+        <p class="hint" id="gVoiceHint">Natural voices come from Google and use your free Google key. If Google's free voice limit runs out, Oreo uses the iPad voice for a while, then switches back.</p>
         <div class="voices" id="voiceList" role="radiogroup" aria-label="Oreo's voice"></div>
         <p class="hint" id="voiceHint">The voices that sound most like a real person are the Premium ones, and they're free. Get them in your iPad's Settings → Accessibility → Spoken Content → Voices → English. Download any marked Premium (men's and women's), then reload Oreo and pick one here.</p>
       </div>
@@ -938,7 +945,8 @@ void main(){
             o.connect(g); g.connect(ctx.destination); o.start(s); o.stop(s + 0.25);
           });
         } catch {}
-      }
+      },
+      get ctx() { return ctx; }
     };
   })();
 
@@ -1476,6 +1484,123 @@ void main(){
     };
   })();
 
+  /* ---------- the natural voice (Google text-to-speech) ---------- */
+  const GVOICES = {
+    Men: [["Puck", "Upbeat"], ["Achird", "Friendly"], ["Charon", "Informative"], ["Algieba", "Smooth"], ["Zubenelgenubi", "Casual"], ["Fenrir", "Excitable"]],
+    Women: [["Sulafat", "Warm"], ["Aoede", "Breezy"], ["Despina", "Smooth"], ["Leda", "Youthful"], ["Kore", "Firm"], ["Achernar", "Soft"]]
+  };
+  const TTS_MODELS = ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"];
+  const gtts = { downUntil: 0, why: "", sources: [], ctl: null, endT: 0, gen: 0 };
+  const b64bytes = s => { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; };
+  function useNatural() {
+    return state.settings.voiceMode !== "ipad" && !!(state.settings.gemKey || "").trim() && Date.now() >= gtts.downUntil;
+  }
+  function stopGoogleVoice() {
+    gtts.gen++;
+    try { if (gtts.ctl) gtts.ctl.abort(); } catch {}
+    gtts.ctl = null; clearTimeout(gtts.endT);
+    for (const s of gtts.sources) { try { s.stop(); } catch {} }
+    gtts.sources = [];
+  }
+  /* Find base64 audio anywhere in a non-streamed reply. */
+  function findAudio(data) {
+    for (const s of (data && Array.isArray(data.steps) ? data.steps : [])) {
+      for (const c of (Array.isArray(s.content) ? s.content : [])) if (c && c.type === "audio" && c.data) return { data: c.data, mime: c.mime_type || "" };
+    }
+    return null;
+  }
+  /* Speak text in a natural Google voice. Resolves true once audio has started; false means use the iPad voice. */
+  async function googleSay(text, voiceName) {
+    const key = (state.settings.gemKey || "").trim();
+    chime.prime();
+    const ctx = chime.ctx;
+    const plain = toSpeech(text);
+    if (!key || !ctx || !plain) return false;
+    stopGoogleVoice(); stopSpeaking(); pauseEar();
+    const gen = gtts.gen, ctl = new AbortController(); gtts.ctl = ctl;
+    try { if (ctx.state === "suspended") await ctx.resume(); } catch {}
+    if (ctx.state !== "running") return false;   // the browser hasn't allowed sound yet: use the iPad voice
+    let lastStatus = 0;
+    for (const model of TTS_MODELS) {
+      let res;
+      try {
+        res = await fetch(GEMINI_URL, {
+          method: "POST", signal: ctl.signal,
+          headers: { "content-type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify({
+            model, stream: true,
+            input: [{ type: "user_input", content: [{ type: "text", text: plain }] }],
+            response_format: { type: "audio", mime_type: "audio/l16", sample_rate: 24000 },
+            generation_config: { speech_config: [{ voice: voiceName || state.settings.gVoice || "Puck" }] }
+          })
+        });
+      } catch (e) { return false; }
+      if (gen !== gtts.gen) return true;            // someone stopped us: don't fall back either
+      if (!res.ok) { lastStatus = res.status; continue; }
+      let t = ctx.currentTime + 0.06, got = false, carry = null;
+      const playBytes = bytes => {
+        if (gen !== gtts.gen) return;
+        if (carry) { const m = new Uint8Array(carry.length + bytes.length); m.set(carry); m.set(bytes, carry.length); bytes = m; carry = null; }
+        if (bytes.length % 2) { carry = bytes.slice(-1); bytes = bytes.slice(0, -1); }
+        const n = bytes.length / 2; if (!n) return;
+        const buf = ctx.createBuffer(1, n, 24000), ch = buf.getChannelData(0);
+        const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.length);
+        for (let i = 0; i < n; i++) ch[i] = dv.getInt16(i * 2, true) / 32768;
+        const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
+        if (t < ctx.currentTime + 0.02) t = ctx.currentTime + 0.02;
+        src.start(t); t += buf.duration; gtts.sources.push(src);
+        if (!got) { got = true; setOrb("speaking"); }
+      };
+      try {
+        const type = res.headers.get("content-type") || "";
+        if (res.body && /event-stream/i.test(type)) {
+          const reader = res.body.getReader(), dec = new TextDecoder(); let buf = "";
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done || gen !== gtts.gen) break;
+            buf += dec.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+            let i;
+            while ((i = buf.indexOf("\n\n")) >= 0) {
+              const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+              const d = chunk.split("\n").filter(l => l.startsWith("data:")).map(l => l.slice(5).trim()).join("\n");
+              if (!d || d === "[DONE]") continue;
+              let ev; try { ev = JSON.parse(d); } catch { continue; }
+              const dl = ev && ev.delta;
+              if (ev && ev.event_type === "step.delta" && dl && dl.type === "audio") {
+                const b = dl.data || (dl.audio && dl.audio.data);
+                if (b) playBytes(b64bytes(b));
+              }
+            }
+          }
+        } else {
+          const audio = findAudio(await res.json().catch(() => null));
+          if (audio) {
+            const bytes = b64bytes(audio.data);
+            if (bytes[0] === 0x52 && bytes[1] === 0x49) {          // a WAV file: let the browser decode it
+              const ab = await ctx.decodeAudioData(bytes.buffer.slice(0));
+              const src = ctx.createBufferSource(); src.buffer = ab; src.connect(ctx.destination);
+              src.start(t); t += ab.duration; gtts.sources.push(src); got = true; setOrb("speaking");
+            } else playBytes(bytes);
+          }
+        }
+      } catch (e) { if (gen !== gtts.gen) return true; }
+      if (gen !== gtts.gen) return true;
+      if (!got) continue;
+      gtts.endT = setTimeout(() => { if (gen === gtts.gen) { gtts.sources = []; doneSpeaking(); } }, Math.max(0, (t - ctx.currentTime) * 1000) + 150);
+      return true;
+    }
+    /* Google's voice isn't available right now: use the iPad voice for 10 minutes. */
+    gtts.downUntil = Date.now() + 10 * 60 * 1000;
+    gtts.why = lastStatus === 429 ? "Google's free voice limit ran out, so Oreo is using the iPad voice for a while." : "Google's natural voice didn't work, so Oreo is using the iPad voice for a while.";
+    return false;
+  }
+  /* Say a finished answer in the best voice available. */
+  async function sayAnswer(text) {
+    if (!state.settings.speak) { doneSpeaking(); return; }
+    if (useNatural() && await googleSay(text)) return;
+    speak(text);
+  }
+
   /* Questions Oreo can answer on the spot, with no brain needed. */
   function localAnswer(text) {
     const t = M.stripWake(text).toLowerCase().replace(/[?.!,]/g, "").replace(/\s+/g, " ").trim();
@@ -1517,7 +1642,7 @@ void main(){
     renderAnswer(md); idleStatus();
     state.turns.push({ role: "assistant", content: md });
     persist(); renderHistory();
-    speak(say || md);
+    sayAnswer(say || md);
   }
   function fail(msg, retryQ) {
     showError(msg, null, retryQ);
@@ -1536,7 +1661,7 @@ void main(){
   async function ask(raw) {
     const text = String(raw || "").trim();
     if (!text || state.busy) return;
-    pauseEar(); unlockSpeech(); stopSpeaking();
+    pauseEar(); unlockSpeech(); stopSpeaking(); stopGoogleVoice(); chime.prime();
     qEl.value = ""; autosize(); qEl.blur();
     showReplyView(text);
     state.turns.push({ role: "user", content: text });
@@ -1573,14 +1698,16 @@ void main(){
         finish(answer + (src ? "\n\nSources: " + src : ""), answer);
         return;
       }
-      /* Google: show and speak the answer while it streams in. */
-      talk.start();
+      /* Google: show the answer while it streams in. With the iPad voice, speak it as it arrives too;
+         the natural voice speaks the whole answer in one smooth go once the words are in. */
+      const natural = state.settings.speak && useNatural();
+      if (!natural) talk.start();
       let first = true, streamed = "";
       const { text: answer, cites } = await callGemini(gem, text, partial => {
         if (first) { first = false; setStatus(""); }
         streamed = partial;
         renderAnswer(partial);
-        talk.feed(partial);
+        if (!natural) talk.feed(partial);
       });
       setBusy(false);
       if (!answer) { talk.cancel(); fail("Oreo came up blank. Try asking a different way.", text); return; }
@@ -1589,7 +1716,7 @@ void main(){
       renderAnswer(md); idleStatus();
       state.turns.push({ role: "assistant", content: md });
       persist(); renderHistory();
-      talk.end(streamed || answer);
+      if (natural) sayAnswer(answer); else talk.end(streamed || answer);
     } catch (e) {
       setBusy(false);
       talk.cancel();
@@ -1617,7 +1744,7 @@ void main(){
   /* ---------- the orb and mic button ---------- */
   orbBtn.addEventListener("click", () => {
     unlockSpeech(); chime.prime();
-    if (Orb.state === "speaking" && !state.busy) { talk.cancel(); stopSpeaking(); doneSpeaking(); return; }
+    if (Orb.state === "speaking" && !state.busy) { talk.cancel(); stopGoogleVoice(); stopSpeaking(); doneSpeaking(); return; }
     if (state.busy) return;
     if (!ear.armed) { arm(true); return; }
     if (ear.awake) { dozeOff(); return; }
@@ -1637,7 +1764,7 @@ void main(){
     close();
     openSheet = $(id); openSheet.hidden = false; scrim.hidden = false;
     if (id === "historySheet") { renderHistory(); const l = $("histList"); l.lastElementChild && l.lastElementChild.scrollIntoView({ block: "end" }); }
-    if (id === "settingsSheet") { renderVoices(); showKey(); }
+    if (id === "settingsSheet") { showVoiceMode(); showKey(); }
     const btn = openSheet.querySelector("[data-close]"); if (btn) btn.focus();
   }
   function close() { if (openSheet) { openSheet.hidden = true; openSheet = null; } scrim.hidden = true; resetClear(); }
@@ -1713,7 +1840,58 @@ void main(){
   speakEl.checked = !!state.settings.speak;
   $({ quick: "brainQuick", smart: "brainSmart", genius: "brainGenius" }[state.settings.brain] || "brainSmart").checked = true;
   cityEl.addEventListener("change", () => { state.settings.city = cityEl.value.trim(); persist(); });
-  speakEl.addEventListener("change", () => { state.settings.speak = speakEl.checked; if (!speakEl.checked) { stopSpeaking(); doneSpeaking(); } persist(); });
+  speakEl.addEventListener("change", () => { state.settings.speak = speakEl.checked; if (!speakEl.checked) { stopGoogleVoice(); stopSpeaking(); doneSpeaking(); } persist(); });
+
+  /* voice settings: natural (Google) or iPad */
+  const gHint = $("gVoiceHint"), gHelp = gHint.textContent;
+  function showVoiceMode() {
+    const natural = state.settings.voiceMode !== "ipad";
+    $("vmNatural").checked = natural; $("vmIpad").checked = !natural;
+    $("gVoiceList").hidden = !natural; gHint.hidden = !natural;
+    $("voiceList").hidden = natural; $("voiceHint").hidden = natural;
+    if (natural) {
+      if (!(state.settings.gemKey || "").trim()) gHint.textContent = "Add your free Google key at the top of Settings to use natural voices. Until then Oreo uses the iPad voice.";
+      else if (Date.now() < gtts.downUntil) gHint.textContent = gtts.why + " Pick iPad above if you'd rather choose an iPad voice.";
+      else gHint.textContent = gHelp;
+      renderGVoices();
+    } else renderVoices();
+  }
+  function renderGVoices() {
+    const box = $("gVoiceList"); box.innerHTML = "";
+    const cur = state.settings.gVoice || "Puck";
+    let n = 0;
+    for (const [group, list] of Object.entries(GVOICES)) {
+      const head = document.createElement("span"); head.className = "label vhead"; head.textContent = group;
+      box.append(head);
+      for (const [name, feel] of list) {
+        const row = document.createElement("label"); row.className = "voice";
+        const input = document.createElement("input");
+        input.type = "radio"; input.name = "gvoice"; input.id = "gvoice" + (n++); input.value = name; input.checked = name === cur;
+        input.addEventListener("change", () => { if (input.checked) { state.settings.gVoice = name; persist(); } });
+        const nm = document.createElement("span"); nm.className = "voice-name";
+        const b = document.createElement("b"); b.textContent = name;
+        const sm = document.createElement("small"); sm.textContent = feel + (name === cur && !state.settings.gVoice ? " · picked for you" : "");
+        nm.append(b, sm);
+        const play = document.createElement("button");
+        play.type = "button"; play.className = "play"; play.innerHTML = PLAY_SVG; play.setAttribute("aria-label", "Hear " + name);
+        play.addEventListener("click", async e => {
+          e.preventDefault(); e.stopPropagation();
+          input.checked = true; state.settings.gVoice = name; persist();
+          gtts.downUntil = 0;
+          const ok = await googleSay("Hey, it's Oreo. This is what I sound like. Want me to check the weather?", name);
+          if (!ok) { gHint.textContent = gtts.why || "That voice didn't play."; speak("Google's natural voice isn't working right now, so this is the iPad voice.", true); }
+        });
+        row.append(input, nm, play);
+        box.append(row);
+      }
+    }
+  }
+  document.querySelectorAll('input[name="vmode"]').forEach(r => r.addEventListener("change", () => {
+    if (!r.checked) return;
+    state.settings.voiceMode = r.value; persist();
+    stopGoogleVoice(); stopSpeaking();
+    showVoiceMode();
+  }));
   document.querySelectorAll('input[name="brain"]').forEach(r => r.addEventListener("change", () => { if (r.checked) { state.settings.brain = r.value; persist(); } }));
 
   renderHistory();
