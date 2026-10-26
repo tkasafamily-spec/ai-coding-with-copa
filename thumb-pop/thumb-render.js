@@ -36,6 +36,7 @@
     var t = amt < 0 ? 0 : 255, k = Math.abs(amt);
     return toHex(p[0] + (t - p[0]) * k, p[1] + (t - p[1]) * k, p[2] + (t - p[2]) * k);
   }
+  function stop(g, o, c, fb) { try { g.addColorStop(o, c); } catch (e) { g.addColorStop(o, fb); } }
   function rgba(c, a) { var p = parseHex(c); return p ? 'rgba(' + p[0] + ',' + p[1] + ',' + p[2] + ',' + a + ')' : c; }
   function rng(seed) {
     var a = seed >>> 0;
@@ -154,7 +155,10 @@
         return Promise.all(FONTS.map(function (f) {
           return document.fonts.load(f.weight + ' 48px "' + f.family + '"', 'AaBb$1!').catch(function () { return null; });
         }));
-      }).then(function () { fontEpoch++; layoutCache.clear(); return true; });
+      }).then(function () {
+        fontEpoch++; layoutCache.clear();
+        try { return FONTS.every(function (f) { return document.fonts.check(f.weight + ' 48px "' + f.family + '"', 'A'); }); } catch (e) { return true; }
+      });
     } catch (e) { return Promise.resolve(false); }
     return Promise.race([work, timeout]).catch(function () { return false; });
   }
@@ -314,7 +318,7 @@
     forLines(lay, align, function (ln, lx, by) {
       if (fill.kind === 'gradient') {
         var g = c.createLinearGradient(0, by - lay.capH, 0, by + lay.size * 0.04);
-        g.addColorStop(0, fc); g.addColorStop(1, fc2); c.fillStyle = g;
+        stop(g, 0, fc, '#ffffff'); stop(g, 1, fc2, '#ffb000'); c.fillStyle = g;
       } else c.fillStyle = fc;
       run(c, ln, lx, by, false);
     });
@@ -1324,7 +1328,7 @@
     else if (kind === 'gradient') {
       var a = num(bg.angle, 135) * DEG, dx = Math.cos(a), dy = Math.sin(a), half = (Math.abs(dx) * W + Math.abs(dy) * H) / 2;
       var g = c.createLinearGradient(W / 2 - dx * half, H / 2 - dy * half, W / 2 + dx * half, H / 2 + dy * half);
-      g.addColorStop(0, str(bg.color, '#ff7a00')); g.addColorStop(1, str(bg.color2, '#ffd60a')); c.fillStyle = g; c.fillRect(0, 0, W, H);
+      stop(g, 0, str(bg.color, '#ff7a00'), '#ff7a00'); stop(g, 1, str(bg.color2, '#ffd60a'), '#ffd60a'); c.fillStyle = g; c.fillRect(0, 0, W, H);
     } else {
       var sid = SCENE_BY[bg.scene] ? bg.scene : THEME_SCENE[theme];
       var sc = sceneCanvas(sid);
@@ -1402,8 +1406,8 @@
     frame++;
     ctx.save();
     smooth(ctx, true);
-    var bge = renderBackground(design, images, s);
-    ctx.drawImage(bge.canvas, 0, 0, W * s, H * s);
+    try { var bge = renderBackground(design, images, s); ctx.drawImage(bge.canvas, 0, 0, W * s, H * s); }
+    catch (err) { ctx.fillStyle = '#222'; ctx.fillRect(0, 0, W * s, H * s); if (window.console) console.warn('ThumbRender background failed', err); }
     var layers = design.layers || [];
     var bgo = obj(design.background), thm = design.theme === 'smp' ? 'smp' : 'cooking';
     var info = { theme: thm, bgScene: (bgo.kind === 'scene' || (bgo.kind === 'image' && !natSize(bgo.imageId ? images[bgo.imageId] : null))) ? (SCENE_BY[bgo.scene] ? bgo.scene : THEME_SCENE[thm]) : null };

@@ -36,9 +36,11 @@
   --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
   --safe-l:env(safe-area-inset-left,0px); --safe-r:env(safe-area-inset-right,0px);
   --gutter:20px;
+  --glass:rgba(251,245,236,.86); --paper-clear:rgba(251,245,236,0); --board:#2A1E16;
 }
+/* Dark: follows the device, unless the page sits in a frame that sets data-theme (claude.ai) */
 @media (prefers-color-scheme: dark){
-  :root{
+  :root:not([data-theme="light"]){
     --paper:#1C140F; --paper-2:#160F0B; --card:#271C15; --card-2:#2D2119;
     --ink:#F7EDDF; --ink-2:#CDB7A0; --ink-3:#9A846F;
     --line:#3A2C22; --line-2:#56432F; --rule:rgba(214,180,140,.09); --margin:rgba(242,100,59,.28);
@@ -48,7 +50,22 @@
     --scrim:rgba(0,0,0,.6);
     --shadow:0 1px 0 rgba(255,240,220,.03) inset, 0 14px 30px -16px rgba(0,0,0,.7);
     --shadow-lg:0 24px 60px -18px rgba(0,0,0,.8);
+    --glass:rgba(28,20,15,.86); --paper-clear:rgba(28,20,15,0); --board:#0E0906;
   }
+}
+:root[data-theme="light"]{ color-scheme:light; }
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#1C140F; --paper-2:#160F0B; --card:#271C15; --card-2:#2D2119;
+  --ink:#F7EDDF; --ink-2:#CDB7A0; --ink-3:#9A846F;
+  --line:#3A2C22; --line-2:#56432F; --rule:rgba(214,180,140,.09); --margin:rgba(242,100,59,.28);
+  --tomato:#F2643B; --tomato-press:#D9532C; --tomato-ink:#FFFFFF; --tomato-soft:#3D2219; --tomato-text:#FF8E68;
+  --basil:#6FB269; --basil-soft:#1E2C1C; --basil-text:#8FCB89;
+  --mustard:#EDB948; --mustard-soft:#372B14; --mustard-text:#F0C266;
+  --scrim:rgba(0,0,0,.6);
+  --shadow:0 1px 0 rgba(255,240,220,.03) inset, 0 14px 30px -16px rgba(0,0,0,.7);
+  --shadow-lg:0 24px 60px -18px rgba(0,0,0,.8);
+  --glass:rgba(28,20,15,.86); --paper-clear:rgba(28,20,15,0); --board:#0E0906;
 }
 @media (max-width: 480px){ :root{ --gutter:16px; } }
 
@@ -84,9 +101,8 @@ img,video,canvas{ display:block; max-width:100%; }
 .ghost .ico{ width:20px; height:20px; }
 
 .stepper-wrap{ position:sticky; top:0; z-index:20; padding:8px calc(var(--gutter) + var(--safe-r)) 8px calc(var(--gutter) + var(--safe-l));
-  background:rgba(251,245,236,.86); -webkit-backdrop-filter:saturate(1.4) blur(14px); backdrop-filter:saturate(1.4) blur(14px);
+  background:var(--glass); -webkit-backdrop-filter:saturate(1.4) blur(14px); backdrop-filter:saturate(1.4) blur(14px);
   border-bottom:1px solid transparent; transition:border-color .2s; }
-@media (prefers-color-scheme: dark){ .stepper-wrap{ background:rgba(28,20,15,.86); } }
 .stepper-wrap.stuck{ border-bottom-color:var(--line); padding-top:calc(8px + var(--safe-t)); }
 .stepper{ max-width:980px; margin:0 auto; display:grid; grid-template-columns:repeat(4,1fr); gap:6px; list-style:none; padding:0; }
 .tab{ position:relative; width:100%; min-height:56px; display:flex; align-items:center; justify-content:center; gap:10px; border:0; border-radius:16px; background:transparent; color:var(--ink-2); font-weight:700; font-size:16px; padding:6px 8px; }
@@ -145,8 +161,7 @@ h2{ font-size:22px; font-weight:700; }
 .icon-btn:disabled{ opacity:.28; pointer-events:none; }
 .icon-btn.danger:hover{ color:var(--tomato-text); background:var(--tomato-soft); }
 
-.actions{ position:sticky; bottom:0; z-index:15; margin-top:28px; padding:18px 0 calc(16px + var(--safe-b)); background:linear-gradient(to top, var(--paper) 62%, rgba(251,245,236,0)); display:flex; gap:12px; justify-content:flex-end; align-items:center; }
-@media (prefers-color-scheme: dark){ .actions{ background:linear-gradient(to top, var(--paper) 62%, rgba(28,20,15,0)); } }
+.actions{ position:sticky; bottom:0; z-index:15; margin-top:28px; padding:18px 0 calc(16px + var(--safe-b)); background:linear-gradient(to top, var(--paper) 62%, var(--paper-clear)); display:flex; gap:12px; justify-content:flex-end; align-items:center; }
 .actions .btn.primary{ flex:0 1 auto; min-width:min(100%, 320px); }
 @media (max-width:600px){ .actions .btn.primary{ width:100%; } }
 .actions .note{ margin-right:auto; color:var(--ink-3); font-size:15px; }
@@ -319,8 +334,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
 .estimate .t{ color:var(--tomato); font-variant-numeric:tabular-nums; }
 .est-sub{ color:var(--ink-2); font-size:16px; min-height:1.45em; }
 .est-sub.warn{ color:var(--mustard-text); font-weight:600; }
-.storyboard{ margin-top:16px; display:flex; gap:3px; height:84px; padding:4px; border-radius:16px; background:var(--ink); }
-@media (prefers-color-scheme: dark){ .storyboard{ background:#0E0906; } }
+.storyboard{ margin-top:16px; display:flex; gap:3px; height:84px; padding:4px; border-radius:16px; background:var(--board); }
 .sb{ position:relative; flex:1 1 0; min-width:10px; border-radius:10px; overflow:hidden; display:flex; align-items:flex-end; padding:5px; color:#fff; background:var(--c, #555) center/cover no-repeat; transition:flex-grow .45s cubic-bezier(.2,.8,.2,1); animation:sbIn .4s ease both; }
 @keyframes sbIn{ from{ opacity:0; transform:scaleY(.6); } to{ opacity:1; transform:none; } }
 .sb::before{ content:""; position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,0) 60%); }
@@ -366,9 +380,12 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
 .keep-open{ display:flex; gap:10px; align-items:flex-start; color:#CDB7A0; font-size:15px; margin:0; }
 .keep-open .ico{ width:20px; height:20px; margin-top:1px; color:#EDB948; }
 .paused{ padding:14px 16px; border-radius:14px; background:#EDB948; color:#2A1E16; font-weight:700; }
+#frameNote{ align-items:center; width:calc(100% - 2 * var(--gutter)); }
+#frameNote .grow{ flex:1; min-width:0; }
 .render .btn{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.16); color:#F7EDDF; }
 .render .btn:hover{ background:rgba(255,255,255,.14); }
 .render .btn.primary{ background:#F2643B; color:#fff; border:0; }
+.render .paused .btn, .render .paused .btn:hover{ display:flex; width:100%; margin-top:12px; background:#2A1E16; color:#FFF6EA; border:0; }
 .render .row .btn{ flex:1; }
 .render-error{ display:grid; gap:12px; }
 .render-error p{ margin:0; color:#E6D5C2; }
@@ -486,7 +503,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   </defs>
 </svg>
 
-<header class="topbar">
+<header class="topbar" id="topbar">
   <div class="topbar-in">
     <div class="brand"><svg aria-hidden="true"><use href="#logo"/></svg><span>Recipe <em>Reel</em></span></div>
     <button class="ghost" type="button" id="startOverBtn" data-testid="start-over"><svg class="ico"><use href="#i-restart"/></svg>Start over</button>
@@ -505,6 +522,11 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
 <div class="notice engine-missing" id="engineMissing" hidden role="alert">
   <svg class="ico"><use href="#i-info"/></svg>
   <div><b>The video maker didn’t load.</b> Check your internet connection, then <a href="" onclick="location.reload();return false;">reload the page</a>. Your steps are safe.</div>
+</div>
+<div class="notice engine-missing" id="frameNote" hidden>
+  <svg class="ico"><use href="#i-info"/></svg>
+  <div class="grow"><b>Make your video in one go.</b> In this preview, your iPad keeps your clips only until Safari closes, so finish and save your video before you leave.</div>
+  <button class="icon-btn" type="button" id="frameNoteClose" aria-label="Hide this note"><svg class="ico"><use href="#i-x"/></svg></button>
 </div>
 
 <main id="main">
@@ -684,7 +706,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
 
         <div class="card pad opt">
           <h2>Sound &amp; cards</h2>
-          <label class="switch-row"><span class="t">Keep the clips’ own sound<small>Sizzles, chopping and your voice</small></span><input class="switch" type="checkbox" role="switch" id="clipSoundAll" data-testid="clip-sound-all"></label>
+          <label class="switch-row"><span class="t">Keep the clips’ own sound<small id="clipSoundAllSub">Sizzles, chopping and your voice</small></span><input class="switch" type="checkbox" role="switch" id="clipSoundAll" data-testid="clip-sound-all"></label>
           <label class="switch-row"><span class="t">Title card<small>Your dish name at the start</small></span><input class="switch" type="checkbox" role="switch" id="showTitle" data-testid="show-title"></label>
           <label class="switch-row"><span class="t">Ingredients card<small>Your list, one by one</small></span><input class="switch" type="checkbox" role="switch" id="showIng" data-testid="show-ingredients"></label>
           <label class="switch-row"><span class="t">The end card<small>A friendly sign-off</small></span><input class="switch" type="checkbox" role="switch" id="showOutro" data-testid="show-outro"></label>
@@ -718,7 +740,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       <h2 id="renderTitle">Making your video…</h2>
       <div class="progress" id="renderProgress" data-testid="render-progress" role="progressbar" aria-label="Progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar" id="renderBar"></div></div>
       <div class="render-meta"><span data-testid="render-label" id="renderLabel">Getting ready</span><span class="left" id="renderLeft"></span></div>
-      <div class="paused" id="renderPaused" hidden>Come back to this page to keep going</div>
+      <div class="paused" id="renderPaused" hidden><span id="renderPausedText">Come back to this page to keep going</span><button class="btn" type="button" id="resumeBtn" data-testid="render-resume" hidden><svg class="ico fill"><use href="#i-play"/></svg>Keep going</button></div>
       <p class="keep-open"><svg class="ico"><use href="#i-sun"/></svg>Keep this screen open while it makes your video.</p>
       <div class="row">
         <button class="btn" type="button" id="monitorBtn" data-testid="render-monitor" aria-pressed="true"><svg class="ico"><use href="#i-sound"/></svg><span>Sound on</span></button>
@@ -729,7 +751,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       <h2>That didn’t work</h2>
       <p id="renderErrorMsg">Something went wrong while making your video. Please try again.</p>
       <button class="btn primary" type="button" id="errRetry" data-make="1"><svg class="ico"><use href="#i-refresh"/></svg>Try again</button>
-      <button class="btn" type="button" id="errBack"><svg class="ico"><use href="#i-back"/></svg>Back to my video</button>
+      <button class="btn" type="button" id="errBack"><svg class="ico"><use href="#i-back"/></svg><span id="errBackText">Back</span></button>
     </div>
   </div>
 </section>
@@ -993,10 +1015,15 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     project.steps.forEach(function (s) { if (s.media) out.push(s.media); });
     return out;
   }
+  function refIdsOf(p, set) {
+    if (!p || typeof p !== 'object') return set;
+    if (p.ingredientsMedia && p.ingredientsMedia.id) set[p.ingredientsMedia.id] = 1;
+    (Array.isArray(p.steps) ? p.steps : []).forEach(function (s) { if (s && s.media && s.media.id) set[s.media.id] = 1; });
+    if (p.settings && p.settings.musicFile && p.settings.musicFile.id) set[p.settings.musicFile.id] = 1;
+    return set;
+  }
   function referencedIds() {
-    var set = {};
-    allRefs().forEach(function (r) { set[r.id] = 1; });
-    if (project.settings.musicFile) set[project.settings.musicFile.id] = 1;
+    var set = refIdsOf(project, {});
     Object.keys(protectedIds).forEach(function (k) { set[k] = 1; });
     return set;
   }
@@ -1043,7 +1070,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       return new Promise(function (resolve, reject) {
         var tx, out;
         try { tx = db.transaction(store, mode); } catch (e) { reject(e); return; }
-        var r = fn(tx.objectStore(store));
+        var r = fn(Array.isArray(store) ? null : tx.objectStore(store), tx);
         if (r) r.onsuccess = function () { out = r.result; };
         tx.oncomplete = function () { resolve(out); };
         tx.onerror = function () { reject(tx.error || new Error('tx')); };
@@ -1064,15 +1091,50 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     toast(quota ? 'Your iPad is short on space, so clips may not be remembered if you close this page. Finish your video in one go.'
                 : 'This browser won’t remember your project after you close it. Finish your video in one go.', 7000);
   }
+  // Every save bumps kv 'rev' = { n, tab }. A tab whose copy is older than what another tab saved
+  // since (e.g. an old Safari tab brought back) loads the newer project instead of writing over it.
+  var TAB = newId(), seenRev = 0;
   var saveTimer = 0;
   function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 400); }
-  function saveNow() {
+  function saveNow(force) {
     clearTimeout(saveTimer); saveTimer = 0;
     if (DB.failed) return Promise.resolve();
-    var data = clone(project);
-    return idb('kv', 'readwrite', function (s) { return s.put(data, 'project'); })
-      .then(cleanupOrphans)
-      .catch(function (e) { if (!DB.failed) console.warn('save failed', e); if (DB.failed) storageNote(false); });
+    var data = clone(project), stale = false, wrote = 0;
+    return idb('kv', 'readwrite', function (s) {
+      var r = s.get('rev');
+      r.onsuccess = function () {
+        var cur = r.result || { n: 0 };
+        if (force !== true && cur.n !== seenRev && cur.tab !== TAB) { stale = true; return; }
+        wrote = (cur.n || 0) + 1;
+        s.put(data, 'project');
+        s.put({ n: wrote, tab: TAB }, 'rev');
+      };
+      return null;
+    }).then(function () {
+      if (stale) { reloadFromOtherTab(); return; }
+      seenRev = wrote;
+      return cleanupOrphans();
+    }).catch(function (e) { if (!DB.failed) console.warn('save failed', e); if (DB.failed) storageNote(false); });
+  }
+  var reloading = false;
+  function reloadFromOtherTab() {
+    if (reloading || session) return;   // never swap the project out from under a render
+    reloading = true;
+    clearTimeout(saveTimer); saveTimer = 0;
+    closeEditor(); stopListen();
+    loadSaved().then(function (had) {
+      reloading = false;
+      if (!had) return;
+      renderAll();
+      showScreen(current, { focus: false, noScroll: true });
+      toast('You changed this project in another tab, so here’s the newest version.', 6000);
+    }, function () { reloading = false; });
+  }
+  function checkOtherTab() {
+    if (DB.failed || reloading) return;
+    idb('kv', 'readonly', function (s) { return s.get('rev'); }).then(function (r) {
+      if (r && r.n !== seenRev && r.tab !== TAB) reloadFromOtherTab();
+    }, function () {});
   }
   function storeBlob(id, blob) {
     if (DB.failed) { storageNote(false); return Promise.resolve(false); }
@@ -1093,16 +1155,25 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     var refs = referencedIds();
     Object.keys(blobs).forEach(function (k) { if (!refs[k]) delete blobs[k]; });
     if (DB.failed) return Promise.resolve();
-    return idb('media', 'readonly', function (s) { return s.getAllKeys ? s.getAllKeys() : null; }).then(function (keys) {
-      if (!keys) return;
-      refs = referencedIds();
-      var dead = keys.filter(function (k) { return !refs[k]; });
-      if (!dead.length) return;
-      return idb('media', 'readwrite', function (s) { dead.forEach(function (k) { s.delete(k); }); return null; });
+    // One transaction: never delete a clip that the saved project (maybe from another tab) still uses.
+    return idb(['kv', 'media'], 'readwrite', function (_, tx) {
+      var ms = tx.objectStore('media'), pr = tx.objectStore('kv').get('project');
+      pr.onsuccess = function () {
+        if (!ms.getAllKeys) return;
+        var keep = refIdsOf(pr.result, referencedIds());
+        var kr = ms.getAllKeys();
+        kr.onsuccess = function () { (kr.result || []).forEach(function (k) { if (!keep[k]) ms.delete(k); }); };
+      };
+      return null;
     }).catch(function () {});
   }
   function loadSaved() {
-    return idb('kv', 'readonly', function (s) { return s.get('project'); }).then(function (saved) {
+    var rev = null;
+    return idb('kv', 'readonly', function (s) {
+      var rr = s.get('rev'); rr.onsuccess = function () { rev = rr.result || null; };
+      return s.get('project');
+    }).then(function (saved) {
+      seenRev = rev ? rev.n : 0;
       if (!saved) return false;
       var p = normProject(typeof saved === 'string' ? JSON.parse(saved) : saved);
       var ids = [];
@@ -2321,7 +2392,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     document.documentElement.classList.remove('lock');
     renderAll();
     showScreen('dish');
-    saveNow();
+    saveNow(true);
     if (!DB.failed) idb('media', 'readwrite', function (st) { return st.clear(); }).catch(function () {});
     toast('Fresh start! What are you cooking?');
   });
@@ -2336,7 +2407,10 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   function renderAll() {
     renderDish(); renderIngredients(); renderSteps(); renderMake(); updateStepper();
   }
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && saveTimer) saveNow(); });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') { if (saveTimer) saveNow(); }
+    else checkOtherTab();
+  });
   window.addEventListener('pagehide', function () { if (saveTimer) saveNow(); });
 
   function boot() {

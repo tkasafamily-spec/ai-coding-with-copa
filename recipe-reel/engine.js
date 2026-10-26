@@ -15,6 +15,7 @@
  *   Session.run({ onProgress, onStatus }) -> Promise<Result>
  *   Session.cancel()
  *   Session.setMonitor(on)
+ *   Session.resumeFromTap()   call from a tap when a 'paused' status has needsTap: true
  */
 (function (root) {
   'use strict';
@@ -252,6 +253,13 @@
     };
   }
 
+  // The shortest an auto clip may get when it must also be shortened: long enough to read its
+  // caption (1 s plus a little per character, 1–3.5 s), and never more than the whole clip at 4x.
+  function clipFloor(a) {
+    var need = a.text ? clamp(1 + 0.045 * a.text.length, 1, 3.5) : 1;
+    return Math.min(a._L / 4, need);
+  }
+
   function applyFit(segs, fit) {
     var cards = [], autos = [], others = 0;
     segs.forEach(function (sg) {
@@ -270,7 +278,7 @@
     }
     var cardSum = 0, shrinkable = 0, floorAuto = 0;
     cards.forEach(function (c) { cardSum += c.dur; shrinkable += c.dur - c._min; });
-    autos.forEach(function (a) { floorAuto += Math.min(a._L / 4, 1); });
+    autos.forEach(function (a) { floorAuto += clipFloor(a); });
     // Shrink the cards (toward their minimums) only when the fixed parts can't fit otherwise.
     var need = cardSum + others + floorAuto - fit;
     if (need > 1e-9 && shrinkable > 0) {
@@ -288,9 +296,9 @@
     res.autoSpeed = sp;
     if (raw > 4 + 1e-9) {
       // Even at 4x it doesn't fit: shorten every auto clip by the same factor (keep the middle),
-      // never below 1 s of output per clip.
+      // never below the time needed to read its caption (see clipFloor). What's left is overBy.
       var outs = autos.map(function (a) { return a._L / 4; });
-      var floors = outs.map(function (o) { return Math.min(o, 1); });
+      var floors = autos.map(clipFloor);
       var floorSum = floors.reduce(function (x, y) { return x + y; }, 0);
       var target = Math.max(room, floorSum);
       var lo = 0, hi = 1;
@@ -324,6 +332,16 @@
     if (/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua)) return true;
     return /AppleWebKit/.test(ua) && !/Chrome\/|Chromium|Edg\/|Android/.test(ua);
   }
+  // Before Safari 27, WebKit's MediaElementAudioSourceNode did no sample-rate conversion for a
+  // media element playing at a rate other than 1x (WebKit bug 240405, fixed in Safari 27), so a
+  // sped-up clip's own sound came out choppy and out of step. There, only 1x clips keep their sound.
+  // (Home Screen apps and other iOS browsers have no Version/: treat them as older.)
+  function webkitMajor() {
+    var ua = (root.navigator && navigator.userAgent) || '';
+    var m = /Version\/(\d+)/.exec(ua) || /OS (\d+)_\d+(?:_\d+)? like Mac OS X/.exec(ua);
+    return m ? Number(m[1]) : 0;
+  }
+  var RATE_SOUND_OK = !isAppleWebKit() || webkitMajor() >= 27;
 
   function pickMime() {
     var MR = root.MediaRecorder;
@@ -380,6 +398,12 @@
   function getAudioContext() {
     var AC = root.AudioContext || root.webkitAudioContext;
     if (!AC) return null;
+    // iOS can leave a context stuck in 'interrupted' (resume() never brings it back, WebKit bug
+    // 273511): start the next render with a fresh one, made inside this tap. getPool follows it.
+    if (shared.ctx && shared.ctx.state === 'interrupted') {
+      try { var c = shared.ctx.close(); if (c && c.catch) c.catch(noop); } catch (e) { /* ignore */ }
+      shared.ctx = null;
+    }
     if (shared.ctx && shared.ctx.state !== 'closed') return shared.ctx;
     try { shared.ctx = new AC(); } catch (e) { shared.ctx = null; }
     return shared.ctx;
@@ -920,24 +944,42 @@
       var last = lines.slice(maxLines - 1).join(' ');
       var chars = Array.from(last);
       while (chars.length && mw(chars.join('') + '…') > maxW) chars.pop();
-      keep[maxLines - 1] = chars.join('').replace(/[\s,.;:–-]+$/, '') + '…';
+      var s = chars.join(''), sp = s.lastIndexOf(' ');
+      if (sp > s.length * 0.6) s = s.slice(0, sp);   // end on a whole word
+      keep[maxLines - 1] = s.replace(/[\s,.;:–-]+$/, '') + '…';
       return keep;
     }
     function fitText(text, family, weight, maxSize, minSize, maxW, maxLines, doBalance) {
-      var size = maxSize, lines;
+      var size = maxSize, lines, cut = false;
       for (;;) {
         g.font = fnt(weight, size, family);
         lines = wrapLines(text, maxW);
         var widest = 0;
         for (var i = 0; i < lines.length; i++) widest = Math.max(widest, mw(lines[i]));
         if (lines.length <= maxLines && widest <= maxW + 0.5) break;
-        if (size <= minSize) { lines = truncate(lines, maxLines, maxW); break; }
+        if (size <= minSize) { cut = lines.length > maxLines; lines = truncate(lines, maxLines, maxW); break; }
         size = Math.max(minSize, Math.floor(size * 0.93));
       }
-      if (doBalance !== false) lines = balance(text, maxW, lines);
+      if (doBalance !== false && !cut) lines = balance(text, maxW, lines);
       var width = 0;
       for (var j = 0; j < lines.length; j++) width = Math.max(width, mw(lines[j]));
-      return { size: size, lines: lines, font: fnt(weight, size, family), width: width };
+      return { size: size, lines: lines, font: fnt(weight, size, family), width: width, cut: cut };
+    }
+    // Split a caption that won't fit in two, at the sentence (else clause, else word) break nearest the middle.
+    function splitText(text) {
+      var n = text.length;
+      function nearest(re) {
+        var m, best = -1, bd = Infinity;
+        while ((m = re.exec(text))) {
+          var at = m.index + m[0].length, d = Math.abs(at - n / 2);
+          if (at > n * 0.25 && at < n * 0.75 && d < bd) { bd = d; best = at; }
+        }
+        return best;
+      }
+      var at = nearest(/[.!?]\s+/g);
+      if (at < 0) at = nearest(/[,;:]\s+|\s[–—]\s+/g);
+      if (at < 0) at = nearest(/\s+/g);
+      return at < 0 ? null : [text.slice(0, at).trim(), text.slice(at).trim()];
     }
     function spaced(text, family, weight, size, spacingEm, maxW, minSize) {
       var sz = size, res;
@@ -1016,27 +1058,29 @@
     // ---- per-shape metrics ----
     var M = (function () {
       if (shape === 'tall') {
-        return { maxW: 0.84, capBottom: 0.80, capMax: 64, capMin: 40, pill: 32, titleMax: 150, titleLines: 4,
-          textMax: 112, textLines: 6, outroMax: 180, centerY: 0.47, barY: 0.032, listTop: 0.10, listBottom: 0.84 };
+        // Step captions and text cards stay clear of the TikTok / Shorts / Reels buttons on the
+        // right (capW, capX) and of their caption area at the bottom (capBottom, listBottom).
+        return { maxW: 0.84, capW: 0.76, capX: 0.45, capBottom: 0.72, capMax: 64, capMin: 40, pill: 32, titleMax: 150, titleLines: 4,
+          textMax: 112, textLines: 7, outroMax: 180, centerY: 0.47, barY: 0.032, listTop: 0.10, listBottom: 0.74 };
       }
       if (shape === 'square') {
         return { maxW: 0.84, capBottom: 0.90, capMax: 56, capMin: 36, pill: 30, titleMax: 130, titleLines: 3,
-          textMax: 92, textLines: 4, outroMax: 160, centerY: 0.5, barY: 0.045, listTop: 0.07, listBottom: 0.94 };
+          textMax: 92, textLines: 5, outroMax: 160, centerY: 0.5, barY: 0.045, listTop: 0.07, listBottom: 0.94 };
       }
       return { maxW: 0.70, capBottom: 0.90, capMax: 54, capMin: 34, pill: 30, titleMax: 124, titleLines: 3,
         textMax: 96, textLines: 4, outroMax: 160, centerY: 0.5, barY: 0.05, listTop: 0.07, listBottom: 0.94 };
     })();
 
     // ---- layouts (computed once per segment) ----
-    function layoutCaption(seg) {
-      var L = { pill: makePill('STEP ' + (seg.stepNumber || ''), M.pill * u) };
-      var maxW = W * M.maxW, padX = 36 * u, padY = 24 * u;
+    function captionBox(text, stepNumber) {
+      var L = { pill: makePill('STEP ' + (stepNumber || ''), M.pill * u), cx: W * (M.capX || 0.5) };
+      var maxW = W * (M.capW || M.maxW), padX = 36 * u, padY = 24 * u;
       var bottom = H * M.capBottom;
-      if (seg.text) {
-        var F = fitText(seg.text, FONT_TEXT, 800, M.capMax * u, M.capMin * u, maxW - 2 * padX, 3);
+      if (text) {
+        var F = fitText(text, FONT_TEXT, 800, M.capMax * u, M.capMin * u, maxW - 2 * padX, 3);
         var lh = F.size * 1.2;
         var bw = Math.min(maxW, Math.max(F.width + 2 * padX, L.pill.w + 2 * padX)), bh = F.lines.length * lh + 2 * padY;
-        L.box = { x: (W - bw) / 2, y: bottom - bh, w: bw, h: bh, r: Math.min(30 * u, bh / 2) };
+        L.box = { x: L.cx - bw / 2, y: bottom - bh, w: bw, h: bh, r: Math.min(30 * u, bh / 2) };
         L.F = F; L.lh = lh; L.padY = padY;
         L.pillY = L.box.y - L.pill.h * 0.12;
       } else {
@@ -1044,7 +1088,22 @@
       }
       return L;
     }
-    function drawCaption(L, alpha, rise) {
+    // A caption too long for 3 lines is shown in two parts (first half of the step, then the rest)
+    // instead of being cut off, so nothing like "bake at 180°C for 25 min" goes missing.
+    function layoutCaption(seg) {
+      var L = captionBox(seg.text, seg.stepNumber);
+      var parts = L.F && L.F.cut ? splitText(seg.text) : null;
+      if (!parts) return L;
+      return { pages: [captionBox(parts[0], seg.stepNumber), captionBox(parts[1], seg.stepNumber)],
+        split: parts[0].length / (parts[0].length + parts[1].length) };
+    }
+    function drawCaption(L, alpha, rise, t, dur) {
+      if (L.pages) {
+        var m = dur * L.split, f = 0.12;
+        drawCaption(L.pages[0], alpha * clamp((m - t) / f, 0, 1), rise);
+        drawCaption(L.pages[1], alpha * clamp((t - m) / f, 0, 1), 0);
+        return;
+      }
       if (alpha <= 0.001) return;
       g.save();
       g.globalAlpha = alpha;
@@ -1057,9 +1116,9 @@
         g.font = L.F.font;
         g.textAlign = 'center';
         var top = L.box.y + L.padY;
-        for (var i = 0; i < L.F.lines.length; i++) g.fillText(L.F.lines[i], W / 2, base(top + L.lh * (i + 0.5), L.F.size));
+        for (var i = 0; i < L.F.lines.length; i++) g.fillText(L.F.lines[i], L.cx, base(top + L.lh * (i + 0.5), L.F.size));
       }
-      drawPill(L.pill, W / 2, L.pillY);
+      drawPill(L.pill, L.cx, L.pillY);
       g.restore();
     }
 
@@ -1180,7 +1239,7 @@
 
     function layoutIngredients(seg) {
       var items = seg.items || [], n = items.length;
-      var maxW = W * (shape === 'wide' ? 0.80 : 0.86);
+      var maxW = W * (shape === 'wide' ? 0.80 : (shape === 'tall' ? 0.76 : 0.86));   // tall: clear of the app buttons
       var L = {};
       L.kick = spaced('YOU’LL NEED', FONT_TEXT, 800, 30 * u, 0.26);
       var headSize = (shape === 'tall' ? 108 : 92) * u;
@@ -1190,7 +1249,7 @@
       var availTop = H * M.listTop, availBottom = H * M.listBottom;
       var gapAfterHead = 40 * u;
       var availH = availBottom - availTop - L.headH - gapAfterHead;
-      var oneMax = shape === 'tall' ? 7 : (shape === 'square' ? 5 : 4);
+      var oneMax = shape === 'tall' ? 10 : (shape === 'square' ? 5 : 4);
       var colOpts = n <= 1 ? [1] : (n <= oneMax ? [1, 2, 3] : [2, 3]);
       var chosen = null, smallest = null;
       for (var ci = 0; ci < colOpts.length && !chosen; ci++) {
@@ -1301,7 +1360,7 @@
       drawProgressBar(seg, local / v.dur);
       var L = v.L || (v.L = layoutCaption(seg));
       var a = captionAlpha(v, tc, local);
-      drawCaption(L, a, (1 - easeOut((tc - 0.12) / 0.35)) * 40 * u);
+      drawCaption(L, a, (1 - easeOut((tc - 0.12) / 0.35)) * 40 * u, local, v.dur);
     }
 
     function paintPhoto(v, tc) {
@@ -1311,12 +1370,12 @@
       drawMedia(I.canvas, I.w, I.h, z, dir * (0.6 - 1.2 * easeInOut(p)), 0.3 - 0.6 * easeInOut(p), I.tiny);
       drawProgressBar(seg, p);
       var L = v.L || (v.L = layoutCaption(seg));
-      drawCaption(L, captionAlpha(v, tc, tc), (1 - easeOut((tc - 0.12) / 0.35)) * 40 * u);
+      drawCaption(L, captionAlpha(v, tc, tc), (1 - easeOut((tc - 0.12) / 0.35)) * 40 * u, tc, v.dur);
     }
 
     function layoutTextStep(seg) {
-      var L = { pill: makePill('STEP ' + (seg.stepNumber || ''), 36 * u) };
-      L.F = fitText(seg.text, FONT_DISPLAY, 700, M.textMax * u, 50 * u, W * M.maxW, M.textLines);
+      var L = { pill: makePill('STEP ' + (seg.stepNumber || ''), 36 * u), cx: W * (M.capX || 0.5) };
+      L.F = fitText(seg.text, FONT_DISPLAY, 700, M.textMax * u, 50 * u, W * (M.capW || M.maxW), M.textLines);
       L.lh = L.F.size * 1.14;
       var total = L.pill.h + 48 * u + L.F.lines.length * L.lh;
       L.top = H * (shape === 'tall' ? 0.46 : 0.5) - total / 2;
@@ -1329,14 +1388,14 @@
       drawProgressBar(seg, p);
       var a1 = easeOut((tc - 0.08) / 0.4);
       g.globalAlpha = a1;
-      drawPill(L.pill, W / 2, L.top + L.pill.h / 2 + (1 - a1) * 20 * u);
+      drawPill(L.pill, L.cx, L.top + L.pill.h / 2 + (1 - a1) * 20 * u);
       var a2 = easeOut((tc - 0.2) / 0.5);
       g.globalAlpha = a2 * (v.dur - tc < 0.22 ? clamp((v.dur - tc) / 0.22, 0, 1) : 1);
       g.font = L.F.font;
       g.fillStyle = '#FFFFFF';
       g.textAlign = 'center';
       var y = L.top + L.pill.h + 48 * u + (1 - a2) * 26 * u;
-      for (var i = 0; i < L.F.lines.length; i++) g.fillText(L.F.lines[i], W / 2, base(y + L.lh * (i + 0.5), L.F.size));
+      for (var i = 0; i < L.F.lines.length; i++) g.fillText(L.F.lines[i], L.cx, base(y + L.lh * (i + 0.5), L.F.size));
       g.globalAlpha = 1;
     }
 
@@ -1684,7 +1743,14 @@
         try { rec = new MediaRecorder(stream, tries[i]); } catch (e) { rec = null; }
       }
       if (!rec) throw mkErr('unsupported', 'This browser can’t record video in a format we can save.');
-      rec.ondataavailable = function (e) { if (e.data && e.data.size > 0) chunks.push(e.data); };
+      rec.ondataavailable = function (e) {
+        if (!e.data || !(e.data.size > 0)) return;
+        // iOS 16/17 Safari could hand over the same chunk again at every timeslice while paused
+        // (WebKit bug 261964); one flush on pause is real, repeats of it are not.
+        var last = chunks[chunks.length - 1];
+        if (rec && rec.state === 'paused' && last && (e.data === last || e.data.size === last.size)) return;
+        chunks.push(e.data);
+      };
       rec.onstart = function () { recStartT = now(); recStarted.resolve(); };
       rec.onstop = function () {
         recStopped.resolve();
@@ -1898,46 +1964,110 @@
     }
 
     // ================================================================ pause / resume (page hidden)
-    var resumeToken = 0;
+    var resumeToken = 0, pauseWhy = '', tapWaiter = null;
+    var MSG_HIDDEN = 'Come back to this page to keep going';
+    var MSG_AUDIO = 'Paused while something else is using the sound';
+    var MSG_TAP = 'The sound stopped. Tap “Keep going” to carry on.';
     function isHidden() { return document.hidden === true || document.visibilityState === 'hidden'; }
-    function pauseAll() {
-      if (paused || finished || aborted) return;
+    function settle(p, ms) { return Promise.race([Promise.resolve(p).catch(noop), new Promise(function (r) { setTimeout(r, ms); })]); }
+    // Is the sound really running? iOS can report 'running' with a frozen clock after a lock or a
+    // call (WebKit bug 263627), and the music and clip sound would then be missing from the video.
+    // `kick`: if not, try suspend() + resume() once (often brings a stuck context back).
+    function audioAlive(kick) {
+      return new Promise(function (resolve) {
+        var kicked = !kick;
+        (function probe() {
+          var t0 = actx.currentTime;
+          setTimeout(function () {
+            if (actx.state === 'running' && actx.currentTime > t0) { resolve(true); return; }
+            if (kicked || aborted || finished) { resolve(false); return; }
+            kicked = true;
+            var sp = null; try { sp = actx.suspend(); } catch (e) { /* ignore */ }
+            settle(sp, 600).then(function () { var r = null; try { r = actx.resume(); } catch (e) { /* ignore */ } return settle(r, 800); }).then(probe);
+          }, 160);
+        })();
+      });
+    }
+    function pauseVideos() {
+      sslots.forEach(function (s) { try { if (!s.pool.el.paused) s.pool.el.pause(); } catch (e) { /* ignore */ } });
+    }
+    // why: 'hidden' (page hidden) or 'audio' (iOS took the sound away while the page is on screen)
+    function pauseAll(why) {
+      if (finished || aborted) return;
+      resumeToken++;   // a resume still on its way must not go ahead
+      if (paused) {
+        pauseVideos();
+        if (why === 'hidden' && pauseWhy !== 'hidden') {
+          pauseWhy = 'hidden';
+          try { var sp0 = actx.suspend(); if (sp0 && sp0.catch) sp0.catch(noop); } catch (e) { /* ignore */ }
+          status('paused', MSG_HIDDEN);
+        }
+        return;
+      }
       paused = true;
-      resumeToken++;
+      pauseWhy = why || 'hidden';
       pauseBegan = now();
       try { if (rec && rec.state === 'recording' && rec.pause) rec.pause(); } catch (e) { /* ignore */ }
-      sslots.forEach(function (s) { try { if (!s.pool.el.paused) { s.wasPlaying = true; s.pool.el.pause(); } } catch (e) { /* ignore */ } });
-      try { var sp = actx.suspend(); if (sp && sp.catch) sp.catch(noop); } catch (e) { /* ignore */ }
-      status('paused', 'Come back to this page to keep going');
+      pauseVideos();
+      // An interrupted context comes back by itself when the interruption ends, but not one we suspended.
+      if (pauseWhy === 'hidden') { try { var sp = actx.suspend(); if (sp && sp.catch) sp.catch(noop); } catch (e) { /* ignore */ } }
+      status('paused', pauseWhy === 'hidden' ? MSG_HIDDEN : MSG_AUDIO);
     }
-    function resumeAll() {
-      if (!paused || finished || aborted) return;
+    function resumeAll(kick) {
+      if (!paused || finished || aborted || isHidden()) return;
       var token = ++resumeToken;
       var r = null;
       try { r = actx.resume(); } catch (e) { r = null; }
-      if (cur && cur.slot && !cur.held && !cur.finished) { setRate(cur.slot.pool.el, cur.seg.speed || 1); playEl(cur.slot.pool.el); }
-      sslots.forEach(function (s) { s.wasPlaying = false; });
       requestWakeLock();
-      var go = function () {
-        if (token !== resumeToken || !paused || aborted) return;
+      function live() { return token === resumeToken && paused && !aborted && !finished && !isHidden(); }
+      settle(r, 600).then(function () { return live() ? audioAlive(kick) : false; }).then(function (ok) {
+        if (!live()) return;
+        if (!ok) { status('paused', MSG_TAP, { needsTap: true }); return; }
+        // the recorder, the clock and the clip all start again together
         try { if (rec && rec.state === 'paused' && rec.resume) rec.resume(); } catch (e) { /* ignore */ }
         if (pauseBegan) pausedMs += now() - pauseBegan;
         pauseBegan = 0;
         paused = false;
+        pauseWhy = '';
         lastTick = now();
-        if (cur) { cur.lastProgress = clock; cur.lastPlayTry = clock; }
+        if (cur) {
+          cur.lastProgress = clock; cur.lastPlayTry = clock;
+          if (cur.slot && !cur.held && !cur.finished) { setRate(cur.slot.pool.el, cur.seg.speed || 1); playEl(cur.slot.pool.el); }
+        }
         status('recording', 'Making your video…');
-      };
-      Promise.race([Promise.resolve(r).catch(noop), new Promise(function (res) { setTimeout(res, 600); })]).then(go);
+      });
+    }
+    // Called by the UI straight from a "Keep going" tap, so iOS lets the sound start again.
+    function resumeFromTap() {
+      if (finished || aborted) return;
+      try { var r = actx.resume(); if (r && r.catch) r.catch(noop); } catch (e) { /* ignore */ }
+      requestWakeLock();
+      if (tapWaiter) { var w = tapWaiter; tapWaiter = null; status('preparing', 'Getting your clips ready…'); w(); return; }
+      resumeAll(true);
+    }
+    // Before recording starts: make sure the sound runs, or wait for a tap.
+    function waitAudio() {
+      return guard(audioAlive(true)).then(function (ok) {
+        if (ok) return null;
+        status('paused', MSG_TAP, { needsTap: true });
+        return guard(new Promise(function (res) { tapWaiter = res; })).then(waitAudio);
+      });
     }
     function onVisibility() {
       if (!running && !recStartT) return;
-      if (isHidden()) pauseAll(); else resumeAll();
+      if (isHidden()) pauseAll('hidden'); else resumeAll(true);
     }
     function onCtxState() {
-      // e.g. iOS interrupted the audio while the page is still visible: try to get it back
-      if (!running || paused || aborted || finished) return;
+      if (!running || aborted || finished) return;
+      if (paused) {
+        // iOS gave the sound back (call or Siri over): carry on by ourselves
+        if (pauseWhy === 'audio' && actx.state === 'running' && !isHidden()) resumeAll(false);
+        return;
+      }
       if (actx.state !== 'running' && !isHidden()) {
+        // A call, Siri or another app took the sound while this page stays on screen. Pause the
+        // recording, the clips and the clock until it comes back, so no step is skipped as stuck.
+        pauseAll('audio');
         try { var r = actx.resume(); if (r && r.catch) r.catch(noop); } catch (e) { /* ignore */ }
       }
     }
@@ -2012,7 +2142,7 @@
         var el = v.slot.pool.el, sp = v.seg.speed || 1;
         v.slot.state = 'playing';
         setRate(el, sp);
-        var gt = (v.seg.sound && v.slot.pool.src && !el.muted) ? clipGain(sp) : 0;
+        var gt = (v.seg.sound && v.slot.pool.src && !el.muted && (RATE_SOUND_OK || Math.abs(sp - 1) < 0.01)) ? clipGain(sp) : 0;
         v.slot.ramp.to(gt, 0.08);
         audible = gt > 0 && hasAudio(el);
         playEl(el);
@@ -2121,6 +2251,10 @@
         .then(function () {
           checkAbort();
           return waitVisible();
+        })
+        .then(function () {
+          checkAbort();
+          return waitAudio();
         })
         .then(function () {
           checkAbort();
@@ -2269,7 +2403,7 @@
       if (monitorRamp) monitorRamp.to(monitorOn ? 1 : 0, 0.05);
     }
 
-    var api = { run: run, cancel: cancel, setMonitor: setMonitor, plan: plan, width: W, height: H };
+    var api = { run: run, cancel: cancel, setMonitor: setMonitor, resumeFromTap: resumeFromTap, plan: plan, width: W, height: H };
     return api;
   }
 
@@ -2289,6 +2423,7 @@
     supported: supported,
     plan: planProject,
     begin: begin,
+    rateSoundOK: RATE_SOUND_OK,   // false: sped-up (or slowed) clips play without their own sound here
     _fixWebmDuration: fixWebmDuration
   };
   root.ReelEngine = ReelEngine;
