@@ -1705,6 +1705,7 @@
     var fadeOutStart = null, fadeOutDur = FADE_OUT;
     var lastIndex = segs.length - 1;
     var tailWait = null;
+    var stats = { paints: 0, paintMs: 0 };
 
     function startFadeOut(d) {
       if (fadeOutStart != null) return;
@@ -1843,7 +1844,9 @@
       if (!fromTimer && t - lastPaint < 1000 / FPS - 3) return;
       lastPaint = t;
       try { update(); } catch (e) { dbg('update error', e); }
+      var p0 = now();
       try { paint(); } catch (e) { dbg('paint error', e); }
+      stats.paints++; stats.paintMs += now() - p0;
       if (tailWait && clock >= tailWait.until) { var tw = tailWait; tailWait = null; tw.d.resolve(); }
       emitProgress(false);
     }
@@ -2125,6 +2128,7 @@
         .then(function () {
           checkAbort();
           status('finishing', 'Finishing up…');
+          dbg('paints', stats.paints, 'avg paint ms', (stats.paintMs / Math.max(1, stats.paints)).toFixed(1), 'fps', (stats.paints / Math.max(0.1, clock)).toFixed(1));
           stopLoop();
           return stopRecorder();
         })
