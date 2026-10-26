@@ -1050,7 +1050,7 @@ void main(){
   const chime = (() => {
     let ctx = null;
     return {
-      prime() { try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === "suspended") ctx.resume(); } catch {} },
+      prime() { try { if (!ctx || ctx.state === "closed") ctx = new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state !== "running") ctx.resume(); } catch {} },
       play() {
         if (!ctx) return;
         try {
@@ -2014,7 +2014,7 @@ void main(){
   }
 
   /* ---------- the studio voice (Google text-to-speech) ---------- */
-  const TTS_MODELS = ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"];
+  const TTS_MODELS = ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.1-flash-tts-preview"];
   const STYLES = {
     relaxed: "warm, relaxed and conversational, unhurried pace, like chatting with a friend on the couch",
     normal: "warm, natural and conversational, like chatting with a good friend",
@@ -2036,12 +2036,19 @@ void main(){
     for (const s of gtts.sources) { try { s.stop(); } catch {} }
     gtts.sources = [];
   }
-  function markTtsDown(status) {
+  /* Why the studio voice failed, in plain words, so the user (and we) know what's going on. */
+  function markTtsDown(status, msg) {
+    msg = String(msg || "");
+    const none = status === 429 && /limit:\s*0\b/.test(msg);
     const limit = status === 429;
-    state.settings.ttsDown = Date.now() + (limit ? 30 : 10) * 60 * 1000;
-    gtts.why = state.settings.ttsWhy = limit
-      ? "Google's free studio voice limit ran out for now, so Oreo is using the device voice below (still a " + (oreoGender() === "f" ? "girl" : "guy") + "). It tries the studio voice again every 30 minutes."
-      : "The studio voice didn't work just now, so Oreo is using the device voice below for a little while.";
+    state.settings.ttsDown = Date.now() + (none ? 24 * 60 : limit ? 30 : 10) * 60 * 1000;
+    const who = oreoGender() === "f" ? "girl" : "guy";
+    gtts.why = state.settings.ttsWhy =
+      none ? "Google doesn't give free keys any studio voice uses right now, so Oreo uses the device voice (still a " + who + "). Turn Studio voice off to stop seeing this."
+      : limit ? "You've used up Google's free studio voice for now (it only allows a small number each day). Oreo uses the device voice meanwhile (still a " + who + ") and tries the studio voice again in 30 minutes."
+      : status === 400 || status === 403 || status === 404 ? "Google turned the studio voice request down (" + status + (msg ? ": " + msg.slice(0, 120) : "") + "). Oreo uses the device voice for now."
+      : status ? "Google's studio voice had a problem (" + status + "). Oreo uses the device voice for now and tries again in 10 minutes."
+      : "Couldn't reach Google's studio voice. Check the internet; Oreo uses the device voice for now.";
     persist();
   }
 
@@ -2074,8 +2081,11 @@ void main(){
     async function fetchSeg(seg, g) {
       const key = (state.settings.gemKey || "").trim(), ctx = chime.ctx;
       try { if (ctx && ctx.state === "suspended") await ctx.resume(); } catch {}
-      if (!key || !ctx || ctx.state !== "running") { seg.failed = true; seg.noAudio = true; return pump(g); }
-      let lastStatus = 0;
+      if (!key || !ctx || ctx.state !== "running") {
+        gtts.why = !key ? "Add your free Google key at the top of Settings first." : "This device hasn't let Oreo play sound yet. Tap the orb once, then try again.";
+        seg.failed = true; seg.noAudio = true; return pump(g);
+      }
+      let lastStatus = 0, lastMsg = "";
       const attempts = [];
       for (const model of TTS_MODELS) { attempts.push({ model, styled: true }); attempts.push({ model, styled: false }); }
       for (let a = 0; a < attempts.length; a++) {
@@ -2090,7 +2100,7 @@ void main(){
             body: JSON.stringify({
               model, stream: true,
               input: [{ type: "user_input", content: [item] }],
-              response_format: { type: "audio", mime_type: "audio/l16", sample_rate: 24000 },
+              response_format: { type: "audio" },            // streamed audio is 24 kHz 16-bit PCM by default
               generation_config: { speech_config: [{ voice }] }
             })
           });
@@ -2098,6 +2108,8 @@ void main(){
         if (!alive(g)) return;
         if (!res.ok) {
           lastStatus = res.status;
+          try { const eb = await res.json(); lastMsg = String((eb && eb.error && (eb.error.message || eb.error.status)) || ""); } catch {}
+          if (res.status === 401 || /api key/i.test(lastMsg)) break;   // the key itself is the problem: don't keep trying
           if (!(styled && res.status === 400)) { const i = attempts.findIndex((x, k) => k > a && x.model === model && !x.styled); if (i >= 0) attempts.splice(i, 1); }
           continue;
         }
@@ -2136,7 +2148,7 @@ void main(){
         if (!alive(g)) return;
         if (seg.got) { seg.done = true; return pump(g); }
       }
-      seg.failed = true; seg.status = lastStatus;
+      seg.failed = true; seg.status = lastStatus; seg.msg = lastMsg;
       pump(g);
     }
     function push(text, g) {
@@ -2178,7 +2190,7 @@ void main(){
     /* Google's voice stopped working: finish with the device voice (same guy/girl). */
     function giveUp() {
       const s = segs[cur];
-      if (!s.noAudio) markTtsDown(s.status);
+      if (!s.noAudio) markTtsDown(s.status, s.msg);
       for (const x of segs.slice(cur)) { try { x.ctl.abort(); } catch {} }
       gen = -1;
       if (!started) { const f = onFail; onFail = null; if (f) f(); else doneSpeaking(); return; }
@@ -2509,7 +2521,7 @@ void main(){
         input.checked = true; state.settings.gVoice = name; persist();
         state.settings.ttsDown = 0;
         const ok = await googleSay("Hey, it's Oreo. This is what I sound like. Want me to check the weather?", name);
-        if (!ok) { $("gVoiceHint").textContent = gtts.why || "That voice didn't play."; speak("The studio voice isn't working right now, so this is my backup voice.", true); }
+        if (!ok) { $("gVoiceHint").textContent = gtts.why || "That voice didn't play."; speak("The studio voice can't play right now. This is my backup voice.", true); }
       });
       row.append(input, nm, play);
       box.append(row);
