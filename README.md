@@ -13,7 +13,10 @@ Keep Oreo open on screen while it listens. The mic button at the top turns liste
 ## What it can do
 
 - **Without a key:** sums and the weather (weather from [Open-Meteo](https://open-meteo.com/)).
-- **With a Claude API key** (Settings → Oreo's brain): answers anything, searches the web, reads websites. Get a key at [platform.claude.com](https://platform.claude.com/). The key is stored only on your device and is only sent to Anthropic.
+- **With a free Google Gemini key** (Settings → Free brain): answers anything and searches Google. Get one at [aistudio.google.com/apikey](https://aistudio.google.com/apikey); no credit card needed.
+- **Or with a Claude API key** (Settings → Paid brain): answers anything, searches the web, reads websites. Get a key at [platform.claude.com](https://platform.claude.com/).
+
+Keys are stored only on your device and are only sent to Google or Anthropic.
 
 ## Voices
 
