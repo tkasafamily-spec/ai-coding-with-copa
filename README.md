@@ -38,3 +38,15 @@ Open `recipe-reel/` in Safari, then:
 Your project is saved on the iPad, so you can close the page and come back.
 
 Files: `recipe-reel/index.html` (the app), `engine.js` (makes the video), `music.js` (built-in music).
+
+# Thumb Pop
+
+Make YouTube thumbnails for cooking and Donut SMP videos, right on your iPad.
+
+1. Type what your video is about (for example "Donut SMP trapping base") and tap **Make thumbnails**. You get 3–4 different ideas.
+2. Tap **Use this** on one, then add your own screenshot, photo or cut-out.
+3. Move, resize and change anything, then tap **Save** for a 1280×720 picture YouTube accepts.
+
+On claude.ai it can also look at popular YouTube videos (through vidIQ) and ask Claude for ideas; everywhere else it uses its built-in ideas.
+
+Files: `thumb-pop/index.html` (the app), `thumb-render.js` (draws thumbnails), `thumb-ideas.js` (turns what you type into designs).
