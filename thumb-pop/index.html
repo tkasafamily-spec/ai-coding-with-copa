@@ -2094,6 +2094,7 @@ details.more[open] summary::after { content: "–"; }
     if (frameUrl) { try { URL.revokeObjectURL(frameUrl); } catch (e) {} }
     frameUrl = URL.createObjectURL(f);
     $('frameUse').disabled = true; $('frameScrub').value = 0; $('frameTime').textContent = 'Loading…';
+    fv._woke = false;
     fv.src = frameUrl + '#t=0.001';
     try { fv.load(); } catch (e) {}
     openSheet('frameSheet');
@@ -2105,7 +2106,7 @@ details.more[open] summary::after { content: "–"; }
   $('frameTarget').addEventListener('click', function (e) { var b = e.target.closest('button[data-v]'); if (b) setFrameTarget(b.getAttribute('data-v')); });
   fv.addEventListener('loadedmetadata', function () {
     var p = fv.play && fv.play();   // wakes the decoder on iPad so seeking shows frames
-    if (p && p.then) p.then(function () { fv.pause(); seekFrame(Math.min(0.1, (fv.duration || 1) / 2)); }, function () { seekFrame(Math.min(0.1, (fv.duration || 1) / 2)); });
+    if (p && p.then) p.then(function () { fv._woke = true; fv.pause(); seekFrame(Math.min(0.1, (fv.duration || 1) / 2)); }, function () { seekFrame(Math.min(0.1, (fv.duration || 1) / 2)); });
     else seekFrame(0.05);
     updateFrameTime();
   });
@@ -2129,6 +2130,7 @@ details.more[open] summary::after { content: "–"; }
   }
   $('frameScrub').addEventListener('input', function () {
     var d = fv.duration; if (!isFinite(d)) return;
+    if (!fv._woke) { fv._woke = true; try { var pp = fv.play(); if (pp && pp.then) pp.then(function () { fv.pause(); }, function () {}); else fv.pause(); } catch (e) {} }
     seekFrame(d * this.value / 1000);
     $('frameTime').textContent = fmtTime(d * this.value / 1000) + ' / ' + fmtTime(d);
   });
@@ -2260,9 +2262,14 @@ details.more[open] summary::after { content: "–"; }
         doClaudeSave();
       } else if (file && canShareFile(file)) {
         saveMode = 'share'; shareFile = file;
-        $('saveGoLbl').textContent = 'Save to Photos'; $('saveGo').querySelector('use').setAttribute('href', '#i-share');
+        var touch = (navigator.maxTouchPoints || 0) > 0;
+        $('saveGoLbl').textContent = touch ? 'Save to Photos' : 'Share'; $('saveGo').querySelector('use').setAttribute('href', '#i-share');
         $('saveGo').disabled = false; $('saveLink').hidden = false;
-        $('saveStatus').textContent = 'Tap “Save to Photos”, then choose “Save Image”.';
+        $('saveStatus').textContent = touch ? 'Tap “Save to Photos”, then choose “Save Image”.' : '';
+      } else if (window.claude && typeof window.claude.use === 'function') {
+        // inside claude.ai without the downloads capability: plain downloads are blocked there
+        saveMode = null; $('saveGo').disabled = true;
+        $('saveStatus').textContent = 'Touch and hold the picture, then tap Save to Photos (or right-click → Save Image).';
       } else {
         saveMode = 'download';
         $('saveGoLbl').textContent = 'Download again'; $('saveGo').querySelector('use').setAttribute('href', '#i-save');

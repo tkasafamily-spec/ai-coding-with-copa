@@ -1089,7 +1089,6 @@
     plank: { main: shades('#b8874e', 4, 0.2), edge: 1 },
     nightgrass: { top: shades('#2f6a3a', 5, 0.3), main: shades('#4a3424', 5, 0.3) }
   };
-  BLOCK_PAL.nightgrass.top = BLOCK_PAL.nightgrass.top; // alias
   function terrain(c, R, bs, heights, opts) {
     var cols = Math.ceil(W / bs);
     for (var x = 0; x < cols; x++) {
@@ -1689,6 +1688,8 @@
     stickers: STICKERS,
     scenes: SCENES.map(function (s) { return { id: s.id, name: s.name, themes: s.themes.slice() }; }),
     defaultScene: function (theme) { return THEME_SCENE[theme === 'smp' ? 'smp' : 'cooking']; },
+    /* "Make it pop" background preset (merge into design.background) */
+    pop: { brightness: 0.06, contrast: 0.22, saturation: 0.35, vignette: 0.35 },
     newId: newId,
     render: render,
     layerBox: layerBox,
