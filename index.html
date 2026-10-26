@@ -1272,7 +1272,6 @@ void main(){
 
   /* ---------- Google Gemini, the free brain ---------- */
   const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
-  const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-2.5-flash"];
   function geminiError(status, data) {
     const msg = String((data && data.error && (data.error.message || data.error.status)) || "");
     let say;
@@ -1312,38 +1311,56 @@ void main(){
     const q = hist.length ? hist[hist.length - 1].content : "";
     const prior = hist.slice(0, -1).map(m => (m.role === "user" ? "User: " : "Oreo: ") + m.content).join("\n");
     const input = prior ? "Earlier in this conversation:\n" + prior + "\n\nNow the user says: " + q : q;
-    let lastErr = null;
-    for (const model of GEMINI_MODELS) {
-      for (const withSearch of [true, false]) {
-        setStatus(withSearch ? "Thinking" : "Still thinking", true);
-        const body = { model, system_instruction: rules("gemini"), input };
-        if (withSearch) body.tools = [{ type: "google_search" }];
-        let res;
-        try {
-          res = await fetch(GEMINI_URL, {
-            method: "POST", signal: ctl.signal,
-            headers: { "content-type": "application/json", "x-goog-api-key": key },
-            body: JSON.stringify(body)
-          });
-        } catch (e) {
-          if (e && e.name === "AbortError") throw e;
-          throw new Error("Can't reach Google. Check your internet connection.");
-        }
-        const data = await res.json().catch(() => null);
-        if (res.ok) {
-          const out = parseGemini(data);
-          if (out.text) return out;
-          lastErr = new Error("Oreo came up blank. Try asking a different way.");
-          continue;
-        }
-        lastErr = geminiError(res.status, data);
-        const keyProblem = /api key|api_key/i.test(lastErr.raw || "") || res.status === 401;
-        if (keyProblem || res.status === 429) throw lastErr;
-        if (res.status === 404) break;      // this model isn't offered: try the next one
-        /* anything else: try again without Google Search, then the next model */
+    const NO_SEARCH_NOTE = "\n\n(Google Search isn't available right now. If this needs live or recent information, say in one short line that you can't check live right now, then give what you know, flagged as possibly out of date.)";
+
+    /* Free Google plans don't cover every model or Google Search, so try the free options in turn
+       and remember the first one that works. */
+    const plan = [];
+    const add = (model, search) => { if (!plan.some(p => p.model === model && p.search === search)) plan.push({ model, search }); };
+    const cached = state.settings.gemCombo;
+    if (cached && cached.model) add(cached.model, !!cached.search);
+    add("gemini-3.8-flash", true); add("gemini-3.8-flash", false);
+    add("gemini-2.5-flash", true); add("gemini-2.5-flash", false);
+    add("gemini-3.5-flash-lite", false); add("gemini-2.5-flash-lite", false);
+
+    let lastErr = null, lastRaw = "", gone = new Set();
+    for (const step of plan) {
+      if (gone.has(step.model)) continue;
+      setStatus(lastErr ? "Still thinking" : "Thinking", true);
+      const body = { model: step.model, system_instruction: rules("gemini"), input: step.search ? input : input + NO_SEARCH_NOTE };
+      if (step.search) body.tools = [{ type: "google_search" }];
+      let res;
+      try {
+        res = await fetch(GEMINI_URL, {
+          method: "POST", signal: ctl.signal,
+          headers: { "content-type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify(body)
+        });
+      } catch (e) {
+        if (e && e.name === "AbortError") throw e;
+        throw new Error("Can't reach Google. Check your internet connection.");
       }
+      const data = await res.json().catch(() => null);
+      if (res.ok) {
+        const out = parseGemini(data);
+        if (out.text) {
+          if (!cached || cached.model !== step.model || !!cached.search !== step.search) { state.settings.gemCombo = step; persist(); }
+          return out;
+        }
+        lastErr = new Error("Oreo came up blank. Try asking a different way.");
+        continue;
+      }
+      lastErr = geminiError(res.status, data);
+      lastRaw = lastErr.raw || lastRaw;
+      if (cached && cached.model === step.model && !!cached.search === step.search) { state.settings.gemCombo = null; persist(); }
+      const keyProblem = /api key not valid|api_key_invalid|invalid api key|unauthenticated/i.test(lastErr.raw || "") || res.status === 401;
+      if (keyProblem) throw lastErr;
+      if (res.status === 404) gone.add(step.model);   // this model isn't offered: skip it
     }
-    throw lastErr || new Error("Google couldn't answer that.");
+    const e = lastErr || new Error("Google couldn't answer that.");
+    if (lastRaw && e.status === 429) e.message = "Google says this key has no free uses left right now. Try again later. (Google said: " + lastRaw.slice(0, 140) + ")";
+    else if (lastRaw && !e.message.includes(lastRaw.slice(0, 40))) e.message += " (Google said: " + lastRaw.slice(0, 140) + ")";
+    throw e;
   }
 
   /* ---------- asking ---------- */
