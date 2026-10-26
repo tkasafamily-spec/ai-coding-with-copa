@@ -1032,6 +1032,11 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   var project = defaultProject();
   var blobs = {};          // mediaId -> Blob (in memory)
   var protectedIds = {};   // ids kept alive for "Undo"
+  var gen = 0;             // bumped by Start over: imports still running for the old project are dropped
+  // Running as a claude.ai page (inside its frame): saving and storage work differently there.
+  var inClaude = false, framed = false;
+  try { inClaude = !!(window.claude && typeof window.claude.use === 'function'); } catch (e) {}
+  try { framed = inClaude || window.self !== window.top; } catch (e) { framed = true; }
 
   /* =========================================================== persistence (IndexedDB) */
   var DB = { db: null, failed: false, warned: false };
@@ -1335,13 +1340,25 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     });
   }
   var askedPersist = false;
+  // Safari deletes a site's saved data after 7 days of use without a visit, except for Home Screen
+  // apps: tell the person once, on an iPad or iPhone, when the browser won't keep the data for good.
+  function homeScreenTip(kept) {
+    try {
+      if (kept || framed || navigator.standalone === true || matchMedia('(display-mode: standalone)').matches) return;
+      var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (!ios || localStorage.getItem('recipeReel.homeTip')) return;
+      localStorage.setItem('recipeReel.homeTip', '1');
+    } catch (e) { return; }
+    setTimeout(function () { toast('Tip: Safari clears saved clips after a week away. Tap Share, then “Add to Home Screen” to keep them.', 7000); }, 2500);
+  }
   // Returns a MediaRef (blob kept in memory + stored), or null after telling the person why.
   function importFile(file, quiet) {
-    var kind = kindOf(file);
+    var kind = kindOf(file), g = gen;
     if (!kind) { if (!quiet) toast('That file isn’t a video or a photo — try another one.'); return Promise.resolve(null); }
-    if (!askedPersist && navigator.storage && navigator.storage.persist) { askedPersist = true; try { navigator.storage.persist().catch(function () {}); } catch (e) {} }
+    if (!askedPersist && navigator.storage && navigator.storage.persist) { askedPersist = true; try { navigator.storage.persist().then(homeScreenTip, function () {}); } catch (e) {} }
     var probe = kind === 'video' ? probeVideo(file) : probeImage(file);
     return probe.then(function (info) {
+      if (g !== gen) return null;   // Start over happened meanwhile
       var id = newId();
       var ref = normRef({ id: id, kind: kind, name: file.name || (kind === 'video' ? 'clip' : 'photo'), type: file.type || '',
         duration: info.duration, width: info.width, height: info.height, thumb: info.thumb,
@@ -1352,12 +1369,19 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       storeBlob(id, file).then(function () { delete protectedIds[id]; });
       return ref;
     }, function () {
+      if (g !== gen) return null;
       if (!quiet) toast(kind === 'video' ? 'That video won’t play in this browser — try another one.' : 'That photo won’t open in this browser — try another one.', 5200);
       return null;
     });
   }
 
   /* =========================================================== screens + stepper */
+  // While a full-screen stage or a sheet is open, the page behind it can't scroll, and it is inert:
+  // VoiceOver and the keyboard can't reach (and e.g. restart a render from) the hidden controls.
+  function setLock(on) {
+    document.documentElement.classList.toggle('lock', on);
+    ['topbar', 'stepperWrap', 'engineMissing', 'frameNote', 'main'].forEach(function (id) { var n = $(id); if (n) n.inert = on; });
+  }
   var SCREENS = ['dish', 'ingredients', 'steps', 'make'];
   var current = 'dish';
   function showScreen(name, opts) {
@@ -1367,7 +1391,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     $('renderScreen').hidden = name !== 'render';
     $('resultScreen').hidden = name !== 'result';
     if (name === 'result') { /* keep */ } else if (!$('resultVideo').paused) { try { $('resultVideo').pause(); } catch (e) {} }
-    document.documentElement.classList.toggle('lock', isStage);
+    setLock(isStage);
     if (!isStage) {
       SCREENS.forEach(function (s) { $('screen-' + s).hidden = s !== name; });
       current = name;
@@ -1549,10 +1573,24 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     wrap.appendChild(th); wrap.appendChild(meta);
     return wrap;
   }
-  function emptySlot(title, sub, inputAttrs) {
+  // A file input with its own change listener. The lists are redrawn whenever something changes
+  // (e.g. a bulk import finishing), which can detach an input while its picker is open; a detached
+  // input's change event never reaches a listener on the list, so the pick would be lost.
+  var pickerInput = null;   // keeps the input whose picker is open alive until it reports back
+  function fileInput(attrs, onFile) {
+    var inp = el('input', Object.assign({ 'class': 'vh', type: 'file', accept: 'video/*,image/*' }, attrs));
+    inp.addEventListener('click', function () { pickerInput = inp; });
+    inp.addEventListener('change', function () {
+      if (pickerInput === inp) pickerInput = null;
+      var f = inp.files && inp.files[0]; inp.value = '';
+      if (f) onFile(f);
+    });
+    return inp;
+  }
+  function emptySlot(title, sub, input) {
     var lab = el('label', { 'class': 'media-slot' });
     lab.innerHTML = '<span class="bubble" aria-hidden="true">' + icon('i-video') + '<i></i>' + icon('i-photo') + '</span><span><b>' + title + '</b><span class="what">' + sub + '</span></span>';
-    lab.appendChild(el('input', Object.assign({ 'class': 'vh', type: 'file', accept: 'video/*,image/*' }, inputAttrs)));
+    lab.appendChild(input);
     return lab;
   }
   function renderIngMedia() {
@@ -1560,22 +1598,19 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     var ref = project.ingredientsMedia;
     if (ref) {
       box.appendChild(mediaBlock(ref, { testThumb: 'ingredients-media-thumb', testEdit: 'ingredients-media-edit', editLabel: 'Edit ingredients clip' }));
-      box.appendChild(el('input', { 'class': 'vh', type: 'file', accept: 'video/*,image/*', 'data-testid': 'ingredients-media-input', tabindex: '-1', 'aria-hidden': 'true' }));
+      box.appendChild(fileInput({ 'data-testid': 'ingredients-media-input', tabindex: '-1', 'aria-hidden': 'true' }, addIngMedia));
     } else {
-      box.appendChild(emptySlot('Add a video or photo of your ingredients', 'Lay everything out on the bench and film or snap it from above. 5–10 seconds is plenty.', { 'data-testid': 'ingredients-media-input' }));
+      box.appendChild(emptySlot('Add a video or photo of your ingredients', 'Lay everything out on the bench and film or snap it from above. 5–10 seconds is plenty.', fileInput({ 'data-testid': 'ingredients-media-input' }, addIngMedia)));
     }
   }
-  $('ingMedia').addEventListener('change', function (e) {
-    var inp = e.target; if (inp.type !== 'file') return;
-    var f = inp.files && inp.files[0]; inp.value = '';
-    if (!f) return;
+  function addIngMedia(f) {
     busy(true, 'Adding your ' + (kindOf(f) === 'image' ? 'photo' : 'clip') + '…');
     importFile(f).then(function (ref) {
       busy(false);
       if (!ref) return;
       project.ingredientsMedia = ref; renderIngMedia(); changed();
     });
-  });
+  }
   $('ingMedia').addEventListener('click', function (e) {
     if (e.target.closest('[data-edit]')) openEditor({ type: 'ingredients' }, e.target.closest('button'));
   });
@@ -1596,11 +1631,12 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     var ta = el('textarea', { 'class': 'step-text', 'data-testid': 'step-text', rows: '3', placeholder: 'What happens? e.g. Mix the butter and sugar', 'aria-label': 'What happens in step ' + (i + 1), maxlength: '200', enterkeyhint: 'done' });
     ta.value = s.text;
     var mc = el('div', { 'class': 'media-col' });
+    var onFile = function (f) { addStepMedia(s.id, f); };
     if (s.media) {
       mc.appendChild(mediaBlock(s.media, { testThumb: 'step-thumb', testEdit: 'step-edit-clip', testDur: 'step-duration', editLabel: 'Edit step ' + (i + 1) + ' clip' }));
-      mc.appendChild(el('input', { 'class': 'vh', type: 'file', accept: 'video/*,image/*', 'data-testid': 'step-media-input', tabindex: '-1', 'aria-hidden': 'true' }));
+      mc.appendChild(fileInput({ 'data-testid': 'step-media-input', tabindex: '-1', 'aria-hidden': 'true' }, onFile));
     } else {
-      mc.appendChild(emptySlot('Add a video or photo', '<em>What to film:</em> your hands doing this step. Hold still, get close, 5–20 seconds. Tall or wide both work — we’ll trim and speed it up for you.', { 'data-testid': 'step-media-input' }));
+      mc.appendChild(emptySlot('Add a video or photo', '<em>What to film:</em> your hands doing this step. Hold still, get close, 5–20 seconds. Tall or wide both work — we’ll trim and speed it up for you.', fileInput({ 'data-testid': 'step-media-input' }, onFile)));
     }
     main.appendChild(ta); main.appendChild(mc);
     li.appendChild(side); li.appendChild(main);
@@ -1694,11 +1730,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       } else release();
     }
   });
-  $('stepsList').addEventListener('change', function (e) {
-    var inp = e.target; if (inp.type !== 'file') return;
-    var id = inp.closest('.step-card').getAttribute('data-id');
-    var f = inp.files && inp.files[0]; inp.value = '';
-    if (!f) return;
+  function addStepMedia(id, f) {
     busy(true, 'Adding your ' + (kindOf(f) === 'image' ? 'photo' : 'clip') + '…');
     importFile(f).then(function (ref) {
       busy(false);
@@ -1707,13 +1739,14 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       if (!s) return;
       s.media = ref; changed(); renderSteps(null, id);
     });
-  });
+  }
   $('bulkInput').addEventListener('change', function () {
     var files = Array.prototype.slice.call(this.files || []); this.value = '';
     if (!files.length) return;
-    var n = files.length, i = 0, ok = 0, bad = 0;
+    var n = files.length, i = 0, ok = 0, bad = 0, g = gen;
     busy(true, n === 1 ? 'Adding your clip…' : 'Adding 1 of ' + n + '…');
     (function next() {
+      if (g !== gen) { busy(false); return; }   // Start over: stop adding the old clips
       if (i >= n) {
         busy(false);
         if (bad) toast(bad === 1 ? (n === 1 ? 'That video won’t play in this browser — try another one.' : '1 file wouldn’t open in this browser — try another one.') : bad + ' files wouldn’t open in this browser — try other ones.', 5200);
@@ -1723,6 +1756,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       var f = files[i++];
       $('busyText').textContent = n === 1 ? 'Adding your clip…' : 'Adding ' + i + ' of ' + n + '…';
       importFile(f, true).then(function (ref) {
+        if (g !== gen) { next(); return; }
         if (ref) {
           ok++;
           var s = { id: newId(), text: '', media: ref };
@@ -1779,7 +1813,6 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       updateTrimUI();
       updateSpeedUI();
       $('clipSound').checked = ref.sound !== false;
-      $('clipSoundSub').textContent = project.settings.clipSound ? 'Turn off for noisy clips' : 'All clip sound is off on the Make page';
       v.muted = true; v.defaultMuted = true; setMuteUI();
       if (ed.url) {
         v.src = ed.url;
@@ -1797,7 +1830,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       updatePhotoUI();
     }
     $('clipEditor').hidden = false;
-    document.documentElement.classList.add('lock');
+    setLock(true);
     if (isVid) loopTick();
     try { $('clipTitle').focus({ preventScroll: true }); } catch (e) {}
   }
@@ -1809,7 +1842,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     $('clipImg').removeAttribute('src');
     if (ed.url) { URL.revokeObjectURL(ed.url); ed.url = null; }
     $('clipEditor').hidden = true;
-    document.documentElement.classList.remove('lock');
+    setLock(false);
     var t = ed.target; ed.target = null;
     if (t) {
       if (t.type === 'ingredients') renderIngMedia(); else renderSteps();
@@ -1916,8 +1949,12 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       else hint = 'Auto is <b>normal speed</b> right now — it already fits ' + fitLabel(fit) + '.';
     }
     $('autoHint').innerHTML = hint;
+    $('clipSoundSub').textContent = !project.settings.clipSound ? 'All clip sound is off on the Make page'
+      : (!rateSoundOK() && Math.abs(effSpeed(ref) - 1) > 0.01 ? 'On this iPad, sped-up clips play without their sound. Pick 1× to keep it.' : 'Turn off for noisy clips');
     setRate();
   }
+  // false where sped-up clips can't keep their own sound (Safari before 27, see engine.js)
+  function rateSoundOK() { return !hasEngine() || window.ReelEngine.rateSoundOK !== false; }
   document.querySelectorAll('#clipEditor .chip').forEach(function (c) {
     c.addEventListener('click', function () {
       var ref = edRef(); if (!ref) return;
@@ -1941,13 +1978,42 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     var ref = edRef(); if (!ref) return;
     ref.photoSeconds = clamp(num(this.value, 3), 2, 8); updatePhotoUI(); changed();
   });
+  function targetRef(t) {
+    if (t.type === 'ingredients') return project.ingredientsMedia;
+    var s = stepById(t.id); return s ? s.media : undefined;   // undefined: the step is gone
+  }
+  function setTargetRef(t, ref) {
+    if (t.type === 'ingredients') { project.ingredientsMedia = ref; return true; }
+    var s = stepById(t.id); if (!s) return false;
+    s.media = ref; return true;
+  }
+  function showTarget(t) {
+    if (ed.target && ed.target.type === t.type && ed.target.id === t.id) { var o = ed.opener; closeEditor(); openEditor(t, o); }
+    else if (t.type === 'ingredients') renderIngMedia();
+    else renderSteps(null, t.id);
+  }
+  // Removing or replacing a clip keeps the old one for a few seconds, so "Undo" can bring it back
+  // (a clip filmed straight from the picker may exist nowhere else).
+  function undoableSwap(t, oldRef, nowRef, msg) {
+    protectedIds[oldRef.id] = 1;
+    var undone = false;
+    toast(msg, 6000, { label: 'Undo', fn: function () {
+      if (targetRef(t) !== nowRef) return;   // something else changed it since
+      undone = true;
+      setTargetRef(t, oldRef);
+      delete protectedIds[oldRef.id];
+      changed(); showTarget(t);
+    } });
+    setTimeout(function () { if (!undone) { delete protectedIds[oldRef.id]; scheduleSave(); } }, 6500);
+  }
   $('clipRemove').addEventListener('click', function () {
     var t = ed.target; if (!t) return;
-    if (t.type === 'ingredients') project.ingredientsMedia = null;
-    else { var s = stepById(t.id); if (s) s.media = null; }
+    var old = targetRef(t);
+    if (!old) return;
+    setTargetRef(t, null);
     changed();
     closeEditor();
-    toast(t.type === 'ingredients' ? 'Removed the ingredients clip' : 'Removed the clip');
+    undoableSwap(t, old, null, t.type === 'ingredients' ? 'Removed the ingredients clip' : 'Removed the clip');
   });
   $('clipDone').addEventListener('click', closeEditor);
   $('clipEditor').addEventListener('click', function (e) { if (e.target.closest('[data-close]')) closeEditor(); });
@@ -1958,12 +2024,13 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     importFile(f).then(function (ref) {
       busy(false);
       if (!ref || !ed.target) return;
-      if (t.type === 'ingredients') project.ingredientsMedia = ref;
-      else { var s = stepById(t.id); if (!s) return; s.media = ref; }
+      var old = targetRef(t);
+      if (!setTargetRef(t, ref)) return;
       changed();
       var opener = ed.opener;
       closeEditor();
       openEditor(t, opener);
+      if (old) undoableSwap(t, old, ref, 'Replaced the clip');
     });
   });
 
@@ -2099,12 +2166,13 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     if (!f) return;
     stopListen();
     busy(true, 'Adding your song…');
-    var url = URL.createObjectURL(f), a = new Audio(), settled = false;
+    var url = URL.createObjectURL(f), a = new Audio(), settled = false, g = gen;
     function done(ok) {
       if (settled) return; settled = true; clearTimeout(tm);
       try { a.removeAttribute('src'); a.load(); } catch (e) {}
       URL.revokeObjectURL(url);
       busy(false);
+      if (g !== gen) return;   // Start over happened meanwhile
       if (!ok) { toast('That song won’t play in this browser — try another one.', 5200); return; }
       var id = newId();
       blobs[id] = f; protectedIds[id] = 1;
@@ -2196,23 +2264,31 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     if (!st) return;
     if (st.warning) { if (st.message) toast(st.message, 6500); return; }
     $('renderPaused').hidden = st.state !== 'paused';
-    if (st.state === 'paused') { $('renderPaused').textContent = st.message || 'Come back to this page to keep going'; return; }
+    $('resumeBtn').hidden = !(st.state === 'paused' && st.needsTap);
+    if (st.state === 'paused') { $('renderPausedText').textContent = st.message || 'Come back to this page to keep going'; return; }
     var titles = { preparing: 'Getting your clips ready…', recording: 'Making your video…', finishing: 'Finishing up…', done: 'All done!' };
     $('renderTitle').textContent = titles[st.state] || st.message || 'Making your video…';
     if (st.state === 'finishing') { $('renderLeft').textContent = 'Almost done'; }
   }
+  // "Make it again" keeps the video you already have until the new one is done: Cancel or an error
+  // takes you back to it rather than to the Make screen.
+  var renderFrom = 'make', renderShownAt = 0;
+  function backFromRender() { showScreen(renderFrom === 'result' && result.url ? 'result' : 'make'); }
   function renderFailed(err) {
     $('renderPanel').hidden = true; $('renderError').hidden = false;
     $('renderErrorMsg').textContent = (err && err.message) || 'Something went wrong while making your video. Please try again.';
+    $('errBackText').textContent = renderFrom === 'result' && result.url ? 'Back to my video' : 'Back';
     try { $('errRetry').focus({ preventScroll: true }); } catch (e) {}
   }
   function startRender() {
     // Runs synchronously inside the tap: no awaits before begin().
+    if (session) return;   // already making one (a double tap, or a control behind the render screen)
     if (!hasEngine() || typeof window.ReelEngine.begin !== 'function') {
       $('engineMissing').hidden = false;
       toast('The video maker didn’t load. Check your internet and reload the page.', 6000);
       return;
     }
+    if (busyCount > 0) { toast('Still adding your clip — one moment…', 3500); return; }
     var hasStep = project.steps.some(function (s) { return s.media || s.text.trim(); });
     if (!hasStep) {
       toast('Add at least one step first', 4500);
@@ -2235,11 +2311,12 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       }
     }
     stopListen();
-    if (session) { try { session.cancel(); } catch (e) {} session = null; }
     var canvas = $('renderCanvas');
     try { var sz = window.ReelEngine.canvasSize(project.settings); canvas.width = sz.width; canvas.height = sz.height; } catch (e) {}
+    if ($('renderScreen').hidden) renderFrom = $('resultScreen').hidden ? 'make' : 'result';   // (Try again keeps it)
     resetRenderUI();
     showScreen('render');
+    renderShownAt = Date.now();
     var s;
     try {
       s = window.ReelEngine.begin({ project: clone(project), media: media, musicBlob: musicBlob, canvas: canvas });
@@ -2256,7 +2333,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     }, function (err) {
       if (s !== session) return;
       session = null;
-      if (err && err.code === 'cancelled') { showScreen('make'); return; }
+      if (err && err.code === 'cancelled') { backFromRender(); return; }
       renderFailed(err);
     });
   }
@@ -2268,19 +2345,25 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     if (session) { try { session.setMonitor(monitorOn); } catch (e) {} }
   });
   $('cancelBtn').addEventListener('click', function () {
+    // the second tap of a quick double tap on "Edit my video" can land here: ignore it
+    if (Date.now() - renderShownAt < 700) return;
     var s = session; session = null;
     if (s) { try { s.cancel(); } catch (e) {} }
-    showScreen('make');
+    backFromRender();
   });
-  $('errBack').addEventListener('click', function () { showScreen('make'); });
+  $('resumeBtn').addEventListener('click', function () {
+    // straight from the tap, so iOS lets the sound start again
+    if (session && session.resumeFromTap) { try { session.resumeFromTap(); } catch (e) {} }
+  });
+  $('errBack').addEventListener('click', backFromRender);
 
   /* =========================================================== result */
-  var result = { url: null, file: null, name: '' };
+  var result = { url: null, file: null, blob: null, name: '' };
   function clearResult() {
     var v = $('resultVideo');
     try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {}
     if (result.url) URL.revokeObjectURL(result.url);
-    result = { url: null, file: null, name: '' };
+    result = { url: null, file: null, blob: null, name: '' };
     $('dlLink').setAttribute('href', '#');
   }
   function showResult(res) {
@@ -2291,6 +2374,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     var ext = res.ext || (/webm/i.test(mime) ? 'webm' : 'mp4');
     var name = slug(project.dish.name) + '.' + ext;
     result.url = URL.createObjectURL(blob);
+    result.blob = blob;
     result.name = name;
     try { result.file = new File([blob], name, { type: mime.split(';')[0] }); } catch (e) { result.file = null; }
     var v = $('resultVideo');
@@ -2319,21 +2403,26 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   // so saves go through the page's "downloads" capability instead (null everywhere else).
   var claudeDownloads = null;
   try {
-    if (window.claude && typeof window.claude.use === 'function') {
-      window.claude.use('downloads').then(function (d) { claudeDownloads = d || null; }, function () {});
-    }
+    if (inClaude) window.claude.use('downloads').then(function (d) { claudeDownloads = d || null; }, function () {});
   } catch (e) {}
   function claudeSave() {
-    var blob = result.file;
+    var blob = result.file || result.blob;
     if (!claudeDownloads || !blob) return false;
     claudeDownloads.save({ filename: result.name, data: blob }).then(function () {}, function (e) {
       var code = e && e.code;
-      if (code === 'declined' || code === 'rate_limited') return;
+      if (code === 'declined') return;
+      if (code === 'rate_limited') { toast('A save is already waiting for you — look for the prompt, then try again.'); return; }
       toast('That didn’t save. Try again in a moment.');
     });
     return true;
   }
-  function downloadNow() { if (!claudeSave()) $('dlLink').click(); }
+  // In the claude.ai frame a plain download link is refused, so say so instead of doing nothing.
+  function noSaveHere() { toast('Saving isn’t available in this view. Open Recipe Reel in Safari to save your video.', 6000); }
+  function downloadNow() {
+    if (claudeSave()) return;
+    if (inClaude) { noSaveHere(); return; }
+    $('dlLink').click();
+  }
   $('saveBtn').addEventListener('click', function () {
     var f = result.file, ok = false;
     try { ok = !!(f && navigator.canShare && navigator.share && navigator.canShare({ files: [f] })); } catch (e) {}
@@ -2345,6 +2434,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   $('dlLink').addEventListener('click', function (e) {
     if (!result.url) { e.preventDefault(); return; }
     if (claudeDownloads) { e.preventDefault(); claudeSave(); }
+    else if (inClaude) { e.preventDefault(); noSaveHere(); }
   });
   $('changeBtn').addEventListener('click', function () { showScreen('steps'); });
   $('againBtn').addEventListener('click', function () { startRender(); });
@@ -2354,14 +2444,14 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   document.addEventListener('click', function (e) {
     if (e.target.closest('[data-tips]')) {
       tipsOpener = e.target.closest('[data-tips]');
-      $('tipsSheet').hidden = false; document.documentElement.classList.add('lock');
+      $('tipsSheet').hidden = false; setLock(true);
       try { $('tipsTitle').focus({ preventScroll: true }); } catch (er) {}
     } else if (e.target.closest('[data-close-tips]')) closeTips();
   });
   function closeTips() {
     if ($('tipsSheet').hidden) return;
     $('tipsSheet').hidden = true;
-    if ($('clipEditor').hidden && $('confirmSheet').hidden) document.documentElement.classList.remove('lock');
+    if ($('clipEditor').hidden && $('confirmSheet').hidden) setLock(false);
     if (tipsOpener) { try { tipsOpener.focus({ preventScroll: true }); } catch (e) {} }
   }
 
@@ -2370,12 +2460,12 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   function openConfirm() {
     confirmOpener = document.activeElement;
     $('confirmSheet').hidden = false;
-    document.documentElement.classList.add('lock');
+    setLock(true);
     try { $('confirmNo').focus({ preventScroll: true }); } catch (e) {}
   }
   function closeConfirm() {
     $('confirmSheet').hidden = true;
-    if ($('renderScreen').hidden && $('resultScreen').hidden && $('clipEditor').hidden) document.documentElement.classList.remove('lock');
+    if ($('renderScreen').hidden && $('resultScreen').hidden && $('clipEditor').hidden) setLock(false);
     if (confirmOpener && confirmOpener.focus) { try { confirmOpener.focus({ preventScroll: true }); } catch (e) {} }
   }
   $('startOverBtn').addEventListener('click', openConfirm);
@@ -2386,10 +2476,11 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     if (session) { var s = session; session = null; try { s.cancel(); } catch (e) {} }
     closeEditor();
     clearResult();
+    gen++;
     project = defaultProject();
     blobs = {}; protectedIds = {};
     $('confirmSheet').hidden = true;
-    document.documentElement.classList.remove('lock');
+    setLock(false);
     renderAll();
     showScreen('dish');
     saveNow(true);
