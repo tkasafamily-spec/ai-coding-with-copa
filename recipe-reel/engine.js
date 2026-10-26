@@ -1020,7 +1020,7 @@
           textMax: 92, textLines: 4, outroMax: 160, centerY: 0.5, barY: 0.045, listTop: 0.07, listBottom: 0.94 };
       }
       return { maxW: 0.70, capBottom: 0.90, capMax: 54, capMin: 34, pill: 30, titleMax: 124, titleLines: 3,
-        textMax: 80, textLines: 4, outroMax: 160, centerY: 0.5, barY: 0.05, listTop: 0.07, listBottom: 0.94 };
+        textMax: 96, textLines: 4, outroMax: 160, centerY: 0.5, barY: 0.05, listTop: 0.07, listBottom: 0.94 };
     })();
 
     // ---- layouts (computed once per segment) ----
@@ -1219,11 +1219,11 @@
       // background
       if (v.slot) {
         var el = v.slot.pool.el;
-        if (el.readyState >= 2 && el.videoWidth) { drawMedia(el, el.videoWidth, el.videoHeight, 1.02 + 0.05 * p, 0, 0, null, true); dim(0.56); }
+        if (el.readyState >= 2 && el.videoWidth) { drawMedia(el, el.videoWidth, el.videoHeight, 1.02 + 0.05 * p, 0, 0, null, true); dim(0.62); }
         else if (snapValid) { g.drawImage(snap, 0, 0); dim(0.5); } else paintGradient(tc);
       } else if (v.img) {
         drawMedia(v.img.canvas, v.img.w, v.img.h, 1.02 + 0.06 * easeInOut(p), 0, 0, null, true);
-        dim(0.56);
+        dim(0.62);
       } else paintGradient(tc);
       drawVignette();
       // heading

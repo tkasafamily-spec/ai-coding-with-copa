@@ -924,7 +924,7 @@
 
   var HAPPY = {
     id: 'happy', name: 'Happy', bpm: 112, swing: 0.08, seed: 11206, tone: 13000,
-    outGain: 0.34, reverb: 0.7, previewBar: 9, eq: [[300, -1.5, 0.9], [3000, 2, 0.7]],
+    outGain: 0.37, reverb: 0.7, previewBar: 9, eq: [[300, -1.5, 0.9], [3000, 2, 0.7]],
     build: function (P) {
       var ctx = P.ctx;
       // tempo-synced dotted-eighth echo for the bell + marimba
