@@ -234,10 +234,10 @@ h2{ font-size:22px; font-weight:700; }
 @media (min-width:700px){
   .step-main{ grid-template-columns:minmax(0,1fr) 240px; align-items:start; }
   .step-label{ grid-column:1 / -1; }
-  .step-main .media-col{ grid-column:2; grid-row:2; }
-  .step-main .step-text{ grid-column:1; grid-row:2; min-height:128px; }
+  .step-main .media-col{ grid-column:2; grid-row:1; }
+  .step-main .step-text{ grid-column:1; grid-row:1; min-height:160px; }
   .step-card.no-media .step-main .step-text{ grid-column:1 / -1; min-height:96px; }
-  .step-card.no-media .step-main .media-col{ grid-column:1 / -1; grid-row:3; }
+  .step-card.no-media .step-main .media-col{ grid-column:1 / -1; grid-row:2; }
   .step-card .media-set{ flex-direction:column; align-items:stretch; }
   .step-card .thumb{ width:100%; }
 }
@@ -376,7 +376,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
 .result-panel h2{ font-size:34px; font-weight:800; font-variation-settings:"SOFT" 100, "WONK" 1; }
 .result-panel h2 span{ color:var(--tomato); }
 .result-meta{ color:var(--ink-2); margin:0 0 4px; font-weight:600; font-variant-numeric:tabular-nums; }
-.result-panel .row .btn{ flex:1; }
+.result-panel .row .btn{ flex:1; padding:0 12px; font-size:16px; white-space:nowrap; }
 .result-panel .fine{ color:var(--ink-3); font-size:14px; margin:4px 0 0; }
 
 /* ---------- sheets ---------- */
@@ -473,6 +473,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.4"/></symbol>
     <symbol id="i-vol-lo" viewBox="0 0 24 24"><path d="M11 5L6.5 9H3.5v6h3l4.5 4z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/></symbol>
+    <symbol id="i-portrait" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 5.5h3"/></symbol>
     <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
     <symbol id="logo" viewBox="0 0 48 48"><circle cx="24" cy="26" r="19" fill="#E4572E"/><path d="M24 7.5c-2.6-3.3-7.4-3.6-9.6-1.6 3.3.5 6.1 2.1 7.6 4.6zM24 7.5c2.6-3.3 7.4-3.6 9.6-1.6-3.3.5-6.1 2.1-7.6 4.6z" fill="#4E8B4A"/><rect x="22.6" y="4" width="2.8" height="7" rx="1.4" fill="#4E8B4A"/><g fill="#FFD9C8" opacity=".85"><circle cx="24" cy="15" r="3.2"/><circle cx="34.5" cy="22.6" r="3.2"/><circle cx="30.5" cy="35" r="3.2"/><circle cx="17.5" cy="35" r="3.2"/><circle cx="13.5" cy="22.6" r="3.2"/></g><path d="M21.2 21.5v9l7.6-4.5z" fill="#FFF7EE"/></symbol>
   </defs>
@@ -538,6 +539,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       <p class="kicker">Step 2 of 4</p>
       <h1>What do you <span class="swash">need?</span></h1>
       <p class="lede">One ingredient per line, like “2 cups flour”. You can paste a whole list too.</p>
+      <button class="tips-link" type="button" data-tips="1" data-testid="tips-open"><svg class="ico"><use href="#i-video"/></svg>Filming tips</button>
     </div>
     <div class="card ing-card">
       <ul class="ing-list ruled" id="ingList"></ul>
@@ -562,7 +564,8 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     <div class="head" tabindex="-1">
       <p class="kicker">Step 3 of 4</p>
       <h1>Show each <span class="swash">step.</span></h1>
-      <p class="lede">Add a clip or photo for every step, and a few words about what happens.</p>
+      <p class="lede">Add a video or photo for every step, and a few words about what happens. We trim, speed up and caption it for you.</p>
+      <button class="tips-link" type="button" data-tips="1"><svg class="ico"><use href="#i-video"/></svg>Filming tips</button>
     </div>
     <ol class="steps-list" id="stepsList"></ol>
     <div class="card empty-steps" id="stepsEmpty">
@@ -575,7 +578,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
         <path d="M86 78v16M78 86h16" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
       </svg>
       <h2>Add your first step</h2>
-      <p>Each step becomes a short scene in your video. Add one at a time, or pick lots of clips at once.</p>
+      <p>Each step becomes a short scene in your video. Add one at a time, or pick all your clips at once — one step per clip, in the order you pick them.</p>
     </div>
     <div class="add-row">
       <button class="btn" type="button" id="stepAdd" data-testid="step-add"><svg class="ico"><use href="#i-plus"/></svg>Add a step</button>
@@ -660,7 +663,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
           <div class="song" id="songRow" hidden>
             <label class="media-slot" id="songSlot">
               <span class="bubble"><svg class="ico"><use href="#i-music"/></svg></span>
-              <span><b id="songTitle">Pick a song</b><span id="songSub">Choose an audio file from your iPad</span></span>
+              <span><b id="songTitle">Pick a song</b><span class="what" id="songSub">Choose an audio file from your iPad</span></span>
               <input class="vh" type="file" id="musicFile" data-testid="music-file-input" accept="audio/*,.mp3,.m4a,.aac,.wav">
             </label>
           </div>
@@ -726,7 +729,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
 <!-- Result -->
 <section class="stage result" id="resultScreen" data-testid="result-screen" hidden>
   <div class="stage-in">
-    <video id="resultVideo" data-testid="result-video" controls playsinline webkit-playsinline preload="metadata"></video>
+    <video id="resultVideo" data-testid="result-video" controls playsinline webkit-playsinline preload="auto"></video>
     <div class="result-panel">
       <h2>Your video is <span>ready!</span></h2>
       <p class="result-meta" id="resultMeta"></p>
@@ -796,6 +799,40 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       <button class="btn danger" type="button" id="clipRemove" data-testid="clip-remove"><svg class="ico"><use href="#i-trash"/></svg>Remove</button>
       <button class="btn primary" type="button" id="clipDone" data-testid="clip-done"><svg class="ico"><use href="#i-check"/></svg>Done</button>
     </div>
+  </div>
+</div>
+
+<!-- Filming tips -->
+<div class="sheet-wrap tips" id="tipsSheet" data-testid="tips-sheet" hidden>
+  <div class="scrim" data-close-tips="1"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="tipsTitle">
+    <div class="grab"></div>
+    <div class="sheet-head">
+      <h2 id="tipsTitle" tabindex="-1">Filming tips</h2>
+      <button class="icon-btn" type="button" data-close-tips="1" data-testid="tips-close" aria-label="Close"><svg class="ico"><use href="#i-x"/></svg></button>
+    </div>
+    <svg class="tips-art" viewBox="0 0 520 200" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="40" y="38" width="300" height="140" rx="14" fill="var(--paper-2)"/>
+      <circle cx="322" cy="108" r="6"/>
+      <path d="M70 150c18-22 46-30 70-24" opacity=".5"/>
+      <circle cx="112" cy="84" r="22" fill="var(--card)"/><circle cx="112" cy="84" r="12" opacity=".6"/>
+      <circle cx="160" cy="70" r="14" fill="var(--card)"/>
+      <circle cx="182" cy="96" r="11" fill="var(--card)"/>
+      <path d="M210 140l90-50" stroke-width="7" stroke="var(--line-2)"/><path d="M210 140l36-20" stroke-width="7"/>
+      <rect x="196" y="18" width="104" height="176" rx="16" fill="none" stroke="var(--tomato)" stroke-width="3" stroke-dasharray="0" opacity=".95"/>
+      <rect x="236" y="26" width="24" height="5" rx="2.5" fill="var(--tomato)" stroke="none"/>
+      <circle cx="248" cy="178" r="7" stroke="var(--tomato)" stroke-width="2.5"/>
+      <g opacity=".75"><path d="M390 60h90M390 92h70M390 124h84M390 156h56"/><circle cx="374" cy="60" r="4" fill="currentColor"/><circle cx="374" cy="92" r="4" fill="currentColor"/><circle cx="374" cy="124" r="4" fill="currentColor"/><circle cx="374" cy="156" r="4" fill="currentColor"/></g>
+    </svg>
+    <ul class="tips-list">
+      <li><span class="ti"><svg class="ico"><use href="#i-sun"/></svg></span><div><b>Good light</b><span>Film near a window. Daylight makes food look its best.</span></div></li>
+      <li><span class="ti"><svg class="ico"><use href="#i-sparkle"/></svg></span><div><b>Wipe the lens</b><span>A quick wipe on your shirt makes everything sharper.</span></div></li>
+      <li><span class="ti"><svg class="ico"><use href="#i-portrait"/></svg></span><div><b>Film tall for Shorts, TikTok and Reels</b><span>Hold your iPad or phone upright. Wide clips work too — we fit them in.</span></div></li>
+      <li><span class="ti"><svg class="ico"><use href="#i-video"/></svg></span><div><b>One clip per step</b><span>Start filming, do the step, stop. Hold still and get close to your hands.</span></div></li>
+      <li><span class="ti"><svg class="ico"><use href="#i-clock"/></svg></span><div><b>Long clips are fine</b><span>We trim and speed them up to fit the length you pick.</span></div></li>
+      <li><span class="ti"><svg class="ico"><use href="#i-photo"/></svg></span><div><b>Photos work too</b><span>We add a slow zoom so they don’t look still.</span></div></li>
+    </ul>
+    <div class="sheet-foot"><button class="btn primary" type="button" data-close-tips="1">Got it</button></div>
   </div>
 </div>
 
@@ -1433,7 +1470,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   }
   function emptySlot(title, sub, inputAttrs) {
     var lab = el('label', { 'class': 'media-slot' });
-    lab.innerHTML = '<span class="bubble">' + icon('i-video') + '</span><span><b>' + title + '</b><span>' + sub + '</span></span>';
+    lab.innerHTML = '<span class="bubble" aria-hidden="true">' + icon('i-video') + '<i></i>' + icon('i-photo') + '</span><span><b>' + title + '</b><span class="what">' + sub + '</span></span>';
     lab.appendChild(el('input', Object.assign({ 'class': 'vh', type: 'file', accept: 'video/*,image/*' }, inputAttrs)));
     return lab;
   }
@@ -1444,7 +1481,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       box.appendChild(mediaBlock(ref, { testThumb: 'ingredients-media-thumb', testEdit: 'ingredients-media-edit', editLabel: 'Edit ingredients clip' }));
       box.appendChild(el('input', { 'class': 'vh', type: 'file', accept: 'video/*,image/*', 'data-testid': 'ingredients-media-input', tabindex: '-1', 'aria-hidden': 'true' }));
     } else {
-      box.appendChild(emptySlot('Add a video or photo of your ingredients', 'All laid out on the counter looks great', { 'data-testid': 'ingredients-media-input' }));
+      box.appendChild(emptySlot('Add a video or photo of your ingredients', 'Lay everything out on the bench and film or snap it from above. 5–10 seconds is plenty.', { 'data-testid': 'ingredients-media-input' }));
     }
   }
   $('ingMedia').addEventListener('change', function (e) {
@@ -1464,7 +1501,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
 
   /* =========================================================== 3 Steps */
   function stepCard(s, i, n) {
-    var li = el('li', { 'class': 'card step-card', 'data-testid': 'step-card', 'data-id': s.id });
+    var li = el('li', { 'class': 'card step-card' + (s.media ? '' : ' no-media'), 'data-testid': 'step-card', 'data-id': s.id });
     var side = el('div', { 'class': 'step-side' });
     side.innerHTML = '<span class="k">STEP</span><span class="num">' + (i + 1) + '</span>';
     var up = el('button', { type: 'button', 'class': 'icon-btn', 'data-act': 'up', 'data-testid': 'step-up', 'aria-label': 'Move step ' + (i + 1) + ' up' }, icon('i-up'));
@@ -1475,7 +1512,6 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     side.appendChild(el('span', { 'class': 'grow' }));
     side.appendChild(el('button', { type: 'button', 'class': 'icon-btn danger', 'data-act': 'remove', 'data-testid': 'step-remove', 'aria-label': 'Delete step ' + (i + 1) }, icon('i-trash')));
     var main = el('div', { 'class': 'step-main' });
-    var lab = el('div', { 'class': 'step-label' }, '<span>Step ' + (i + 1) + '</span>');
     var ta = el('textarea', { 'class': 'step-text', 'data-testid': 'step-text', rows: '3', placeholder: 'What happens? e.g. Mix the butter and sugar', 'aria-label': 'What happens in step ' + (i + 1), maxlength: '200', enterkeyhint: 'done' });
     ta.value = s.text;
     var mc = el('div', { 'class': 'media-col' });
@@ -1483,9 +1519,9 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       mc.appendChild(mediaBlock(s.media, { testThumb: 'step-thumb', testEdit: 'step-edit-clip', testDur: 'step-duration', editLabel: 'Edit step ' + (i + 1) + ' clip' }));
       mc.appendChild(el('input', { 'class': 'vh', type: 'file', accept: 'video/*,image/*', 'data-testid': 'step-media-input', tabindex: '-1', 'aria-hidden': 'true' }));
     } else {
-      mc.appendChild(emptySlot('Add a clip or photo', 'Film it, or pick from your library', { 'data-testid': 'step-media-input' }));
+      mc.appendChild(emptySlot('Add a video or photo', '<em>What to film:</em> your hands doing this step. Hold still, get close, 5–20 seconds. Tall or wide both work — we’ll trim and speed it up for you.', { 'data-testid': 'step-media-input' }));
     }
-    main.appendChild(lab); main.appendChild(ta); main.appendChild(mc);
+    main.appendChild(ta); main.appendChild(mc);
     li.appendChild(side); li.appendChild(main);
     return li;
   }
@@ -1709,7 +1745,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   function playPreview() {
     var v = $('clipVideo'); setRate();
     var p; try { p = v.play(); } catch (e) {}
-    if (p && p.catch) p.catch(function () { ed.playing = false; setPlayUI(); });
+    if (p && p.catch) p.catch(function (e) { if (e && e.name === 'NotAllowedError') { ed.playing = false; setPlayUI(); } });
     ed.playing = true; setPlayUI();
   }
   function setPlayUI() {
@@ -2060,6 +2096,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   }
   function onStatus(st) {
     if (!st) return;
+    if (st.warning) { if (st.message) toast(st.message, 6500); return; }
     $('renderPaused').hidden = st.state !== 'paused';
     if (st.state === 'paused') { $('renderPaused').textContent = st.message || 'Come back to this page to keep going'; return; }
     var titles = { preparing: 'Getting your clips ready…', recording: 'Making your video…', finishing: 'Finishing up…', done: 'All done!' };
@@ -2160,9 +2197,14 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     try { result.file = new File([blob], name, { type: mime.split(';')[0] }); } catch (e) { result.file = null; }
     var v = $('resultVideo');
     v.setAttribute('data-duration', String(Math.round(num(res.duration, 0) * 100) / 100));
-    v.setAttribute('data-mime', mime);
+    v.setAttribute('data-mime', mime.split(';')[0]);
     v.setAttribute('data-size', String(num(res.size, blob.size)));
     v.src = result.url;
+    // show a real frame instead of the black fade-in as the still image
+    v.addEventListener('loadedmetadata', function onM() {
+      v.removeEventListener('loadedmetadata', onM);
+      if (v.currentTime < 0.05 && isFinite(v.duration)) { try { v.currentTime = Math.min(1.2, v.duration / 3); } catch (e) {} }
+    });
     var dl = $('dlLink'); dl.href = result.url; dl.setAttribute('download', name);
     $('resultMeta').textContent = fmtTime(res.duration) + ' long · ' + fmtSize(num(res.size, blob.size)) + ' · ' + ext.toUpperCase();
     var canShare = false;
@@ -2183,6 +2225,22 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   $('dlLink').addEventListener('click', function (e) { if (!result.url) e.preventDefault(); });
   $('changeBtn').addEventListener('click', function () { showScreen('steps'); });
   $('againBtn').addEventListener('click', function () { startRender(); });
+
+  /* =========================================================== filming tips */
+  var tipsOpener = null;
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-tips]')) {
+      tipsOpener = e.target.closest('[data-tips]');
+      $('tipsSheet').hidden = false; document.documentElement.classList.add('lock');
+      try { $('tipsTitle').focus({ preventScroll: true }); } catch (er) {}
+    } else if (e.target.closest('[data-close-tips]')) closeTips();
+  });
+  function closeTips() {
+    if ($('tipsSheet').hidden) return;
+    $('tipsSheet').hidden = true;
+    if ($('clipEditor').hidden && $('confirmSheet').hidden) document.documentElement.classList.remove('lock');
+    if (tipsOpener) { try { tipsOpener.focus({ preventScroll: true }); } catch (e) {} }
+  }
 
   /* =========================================================== start over */
   var confirmOpener = null;
@@ -2217,7 +2275,8 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   });
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
-    if (!$('confirmSheet').hidden) closeConfirm();
+    if (!$('tipsSheet').hidden) closeTips();
+    else if (!$('confirmSheet').hidden) closeConfirm();
     else if (!$('clipEditor').hidden) closeEditor();
   });
 
