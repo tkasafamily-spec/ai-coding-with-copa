@@ -2507,6 +2507,11 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   function boot() {
     buildLooks();
     if (!hasEngine()) $('engineMissing').hidden = false;
+    // In the claude.ai frame Safari keeps the page's storage only until it quits (third-party storage
+    // is ephemeral in WebKit): say so up front, since every save there still "works".
+    if (framed) $('frameNote').hidden = false;
+    $('frameNoteClose').addEventListener('click', function () { $('frameNote').hidden = true; });
+    if (!rateSoundOK()) $('clipSoundAllSub').textContent = 'Sizzles, chopping and your voice. On this iPad, only clips at 1× keep their sound.';
     setListenUI(false); setMonitorUI();
     var startTab = 'dish';
     try { var t = localStorage.getItem('recipeReel.tab'); if (SCREENS.indexOf(t) >= 0) startTab = t; } catch (e) {}

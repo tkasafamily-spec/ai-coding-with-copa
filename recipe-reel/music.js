@@ -1221,9 +1221,10 @@
 
   var currentPreview = null;
 
-  function preview(styleId, seconds) {
+  function preview(styleId, seconds, volume) {
     if (currentPreview) { currentPreview.stop(); currentPreview = null; }
-    var handle = { stop: noop, onended: null, ended: null };
+    var handle = { stop: noop, setVolume: noop, onended: null, ended: null };
+    var vol = isNum(volume) ? Math.max(0, Math.min(1, volume)) : 1;
     var resolveEnded = noop;
     if (typeof Promise === 'function') handle.ended = new Promise(function (res2) { resolveEnded = res2; });
     var style = STYLE_DEFS[styleId];
@@ -1272,8 +1273,12 @@
       g.setValueAtTime(1, tEnd - fo);
       g.linearRampToValueAtTime(0, tEnd);
       var player = create(ctx, styleId, { startBar: style.previewBar });
+      var level = ctx.createGain();   // the music volume slider (the video uses the same level)
+      level.gain.value = vol;
       player.output.connect(env);
-      env.connect(ctx.destination);
+      env.connect(level);
+      level.connect(ctx.destination);
+      st.level = level;
       player.start(t0);
       player.stop(tEnd);
       st.player = player;
