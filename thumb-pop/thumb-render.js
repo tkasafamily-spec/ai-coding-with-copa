@@ -108,9 +108,9 @@
     { id: 'archivo', label: 'Archivo Black (clean)', family: 'Archivo Black', weight: 400, fb: "'Arial Black', 'Helvetica Neue', sans-serif", themes: ['cooking'] },
     { id: 'lilita', label: 'Lilita One (chunky)', family: 'Lilita One', weight: 400, fb: "'Arial Rounded MT Bold', 'Arial Black', sans-serif", themes: ['cooking', 'smp'] },
     { id: 'caveat', label: 'Caveat Brush (handwritten)', family: 'Caveat Brush', weight: 400, fb: "'Marker Felt', 'Bradley Hand', 'Comic Sans MS', cursive", themes: ['cooking'] },
-    { id: 'pixelify', label: 'Pixelify Sans (pixel)', family: 'Pixelify Sans', weight: 700, fb: "'Courier New', monospace", themes: ['smp'] },
-    { id: 'silkscreen', label: 'Silkscreen (pixel caps)', family: 'Silkscreen', weight: 700, fb: "'Courier New', monospace", themes: ['smp'] },
-    { id: 'press2p', label: 'Press Start 2P (arcade)', family: 'Press Start 2P', weight: 400, fb: "'Courier New', monospace", themes: ['smp'] },
+    { id: 'pixelify', pixel: true, label: 'Pixelify Sans (pixel)', family: 'Pixelify Sans', weight: 700, fb: "'Courier New', monospace", themes: ['smp'] },
+    { id: 'silkscreen', pixel: true, label: 'Silkscreen (pixel caps)', family: 'Silkscreen', weight: 700, fb: "'Courier New', monospace", themes: ['smp'] },
+    { id: 'press2p', pixel: true, label: 'Press Start 2P (arcade)', family: 'Press Start 2P', weight: 400, fb: "'Courier New', monospace", themes: ['smp'] },
     { id: 'bungee', label: 'Bungee (blocky)', family: 'Bungee', weight: 400, fb: "'Arial Black', Impact, sans-serif", themes: ['smp', 'cooking'] }
   ];
   FONTS.forEach(function (f) { f.css = "'" + f.family + "', " + f.fb; });
@@ -238,6 +238,18 @@
     return { w: lay.blockW + 2 * padW, h: lay.blockH + 2 * padH, lay: lay };
   }
 
+  /* preview caches snap their pixel width to ~4% steps so resizing a photo/sticker mostly hits the cache;
+     export (and opts.exact) renders exact sizes */
+  var EXACT = false, settled = true, storeKey = null, lastMiss = Object.create(null), lastMissN = 0;
+  function quantPx(px) { if (!(px > 0)) return px; return Math.pow(2, Math.round(Math.log(px) / Math.LN2 * 16) / 16); }
+  /* exact-size cache first; while the same layer keeps missing (being resized) use ~4% size buckets drawn scaled */
+  function lookup(L, ek, bk) {
+    var e = cget(ek); if (e) return e;
+    var now = Date.now(), id = L && L.id;
+    if (!EXACT && bk && id && now - (lastMiss[id] || 0) < 400) { lastMiss[id] = now; settled = false; storeKey = bk; return cget(bk) || null; }
+    if (id) { if (++lastMissN > 600) { lastMiss = Object.create(null); lastMissN = 0; } lastMiss[id] = now; }
+    storeKey = ek; return null;
+  }
   /* scale clamp: keep any cache canvas within iOS canvas limits */
   function safeScale(s, dw, dh) {
     var cw = dw * s, ch = dh * s, k = 1;
@@ -250,9 +262,10 @@
   function renderText(L, s) {
     var lay = textMetricsOf(L), st = strokeOf(L), sh = shadowOf(L.shadow), ep = effectParams(L, lay);
     var fill = obj(L.fill), align = L.align || 'center';
-    var key = ['T', lay.fs, JSON.stringify(lay.lines.map(function (l) { return l.t; })), lay.lh, lay.ls, align, JSON.stringify(fill), st.w, st.color,
+    var tail = [lay.font.id, JSON.stringify(lay.lines.map(function (l) { return l.t; })), (lay.lh / lay.size).toFixed(3), lay.ls, align, JSON.stringify(fill), st.w, st.color,
       sh.on ? [sh.blur, sh.dx, sh.dy, sh.color].join(',') : '', ep.eff, ep.ext, ep.pix, ep.glow, ep.bp, ep.boxColor, ep.boxR, ep.color, s.toFixed(3), fontEpoch].join('|');
-    var hit = cget(key); if (hit) return hit;
+    var hit = lookup(L, 'T|' + lay.size + '|' + tail, 'Tq|' + quantPx(lay.size * s).toFixed(2) + '|' + tail); if (hit) return hit;
+    var key = storeKey;
     var pad = Math.ceil(st.w + Math.max(ep.ext + st.w * 0.5 + 2, ep.pix) + ep.glow * 1.8 + ep.bp + (sh.on ? sh.blur * 1.3 + Math.max(Math.abs(sh.dx), Math.abs(sh.dy)) : 0) + 4);
     var dw = lay.blockW + 2 * pad, dh = lay.blockH + 2 * pad;
     var es = safeScale(s, dw, dh), cw = Math.ceil(dw * es), ch = Math.ceil(dh * es);
@@ -262,7 +275,7 @@
       var S = mk(cw, ch), x = S.getContext('2d'); setT(x);
       x.font = lay.fs; x.textAlign = 'left'; x.textBaseline = 'alphabetic'; x.fillStyle = color; x.strokeStyle = color;
       var lw = (st.w + (extra || 0)) * 2;
-      if (lw > 0) { x.lineJoin = 'round'; x.lineCap = 'round'; x.miterLimit = 2; x.lineWidth = lw; forLines(lay, align, function (ln, lx, by) { run(x, ln, lx, by, true); }); }
+      if (lw > 0) { x.lineJoin = lay.font.pixel ? 'miter' : 'round'; x.lineCap = lay.font.pixel ? 'square' : 'round'; x.miterLimit = 2.5; x.lineWidth = lw; forLines(lay, align, function (ln, lx, by) { run(x, ln, lx, by, true); }); }
       forLines(lay, align, function (ln, lx, by) { run(x, ln, lx, by, false); });
       return S;
     };
@@ -294,7 +307,7 @@
     setT(c);
     c.font = lay.fs; c.textAlign = 'left'; c.textBaseline = 'alphabetic';
     if (st.w > 0) {
-      c.lineJoin = 'round'; c.lineCap = 'round'; c.miterLimit = 2; c.lineWidth = st.w * 2; c.strokeStyle = st.color;
+      c.lineJoin = lay.font.pixel ? 'miter' : 'round'; c.lineCap = lay.font.pixel ? 'square' : 'round'; c.miterLimit = 2.5; c.lineWidth = st.w * 2; c.strokeStyle = st.color;
       forLines(lay, align, function (ln, lx, by) { run(c, ln, lx, by, true); });
     }
     var fc = str(fill.color, '#ffffff'), fc2 = str(fill.color2, '#ffb000');
@@ -312,7 +325,7 @@
       o.shadowColor = sh.color; o.shadowBlur = sh.blur * es; o.shadowOffsetX = sh.dx * es; o.shadowOffsetY = sh.dy * es;
       o.drawImage(C, 0, 0); free(C);
     }
-    return cset(key, { canvas: out, ax: (pad + lay.blockW / 2) * es, ay: (pad + lay.blockH / 2) * es, m: s / es });
+    return cset(key, { canvas: out, ax: (pad + lay.blockW / 2) * es, ay: (pad + lay.blockH / 2) * es, m: s / es, w0: lay.size });
   }
 
   /* ------------------------------------------------------------------ silhouettes / outlines / glow / shadow (shared by photos + stickers) */
@@ -406,6 +419,12 @@
   }
   function drawPlaceholderArt(c, kind, shape, w, h, label, hasScene) {
     var m = Math.min(w, h);
+    if (shape === 'circle' && kind === 'plate' && !hasScene) {
+      var pg = c.createLinearGradient(0, 0, w, h); pg.addColorStop(0, '#c98a4f'); pg.addColorStop(1, '#8a5528');
+      c.fillStyle = pg; shapePath(c, 'circle', 0, 0, w, h, 0); c.fill();
+      c.save(); c.translate(w * 0.06, h * 0.06); c.scale(0.88, 0.88); drawPlaceholderArt(c, 'plate', 'none', w, h, label, false); c.restore();
+      return;
+    }
     if (shape !== 'none') {
       if (!hasScene) {
         shapePath(c, shape, 0, 0, w, h, 0);
@@ -444,17 +463,27 @@
       drawChip(c, label, w / 2, h / 2, clamp(m * 0.075, 14, 40));
     }
   }
-  function renderImage(L, src, s, placeholders) {
+  function strHash(t) { var h = 7; t = String(t || ''); for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return Math.abs(h); }
+  function autoScene(L, info) {
+    var list = info.theme === 'smp' ? ['blocky-day', 'blocky-sunset', 'cave'] : ['wood-board', 'marble', 'gingham'];
+    list = list.filter(function (x) { return x !== info.bgScene; }).slice(0, 2);
+    return list[strHash(L.placeholder) % list.length];
+  }
+  function renderImage(L, src, s, placeholders, info) {
     var n = natSize(src);
+    info = info || { theme: 'cooking', bgScene: null };
     var fr = imageFrame(L, n ? src : null), w = fr.w, h = fr.h, shape = fr.shape;
     var ol = obj(L.outline), ow = clamp(num(ol.width, 0), 0, 60), oc = str(ol.color, '#ffffff');
     var gl = obj(L.glow), glow = { size: clamp(num(gl.size, 0), 0, 120), color: str(gl.color, '#ffffff') };
     var sh = shadowOf(L.shadow);
     var sceneId = !n && L.scene && SCENE_BY[L.scene] ? L.scene : null;
     if (!n && !sceneId && !placeholders) return null;
-    var key = ['I', n ? tokenOf(src) : 'ph:' + (sceneId || '') + ':' + (placeholders ? 1 : 0) + ':' + str(L.placeholder), w.toFixed(1), h.toFixed(1), shape, !!L.flipX,
+    var phk = phKind(L.placeholder), autoPlate = false;
+    if (!n && !sceneId && placeholders && shape !== 'none' && phk !== 'person') { sceneId = autoScene(L, info); autoPlate = info.theme !== 'smp'; }
+    var tail = [n ? tokenOf(src) : 'ph:' + (sceneId || '') + ':' + autoPlate + ':' + (placeholders ? 1 : 0) + ':' + str(L.placeholder), (w / h).toFixed(4), shape, !!L.flipX,
       num(L.fx, 0.5), num(L.fy, 0.5), num(L.zoom, 1), ow, oc, glow.size, glow.color, sh.on ? [sh.blur, sh.dx, sh.dy, sh.color].join(',') : '', s.toFixed(3)].join('|');
-    var hit = cget(key); if (hit) return hit;
+    var hit = lookup(L, 'I|' + w.toFixed(2) + '|' + tail, 'Iq|' + quantPx(w * s).toFixed(2) + '|' + tail); if (hit) return hit;
+    var key = storeKey;
     if (!n && !sceneId) { ow = Math.min(ow, 10); }
     var pad = fxPad(ow, glow.size, sh), dw = w + 2 * pad, dh = h + 2 * pad;
     var es = safeScale(s, dw, dh), cw = Math.ceil(dw * es), ch = Math.ceil(dh * es);
@@ -473,7 +502,13 @@
         c.fillStyle = 'rgba(0,0,0,0.12)'; c.fillRect(0, 0, w, h); c.restore();
       }
       if (L.flipX) { c.setTransform(es, 0, 0, es, pad * es, pad * es); }
-      if (placeholders) drawPlaceholderArt(c, phKind(L.placeholder), sceneId && cut ? 'square' : shape, w, h, str(L.placeholder, 'Your photo'), !!sceneId);
+      if (autoPlate) {
+        var pm = Math.min(w, h) * 0.84;
+        c.save(); shapePath(c, shape, 0, 0, w, h, 0); c.clip(); c.translate((w - pm) / 2, (h - pm) / 2);
+        c.shadowColor = 'rgba(0,0,0,0.35)'; c.shadowBlur = pm * 0.06 * es; c.shadowOffsetY = pm * 0.03 * es;
+        c.fillStyle = '#fbfbfb'; c.beginPath(); c.arc(pm / 2, pm / 2, pm * 0.48, 0, Math.PI * 2); c.fill(); c.shadowColor = 'rgba(0,0,0,0)';
+        drawPlaceholderArt(c, 'plate', 'none', pm, pm, str(L.placeholder, 'Your photo'), false); c.restore();
+      } else if (placeholders) drawPlaceholderArt(c, phk, sceneId && cut ? 'square' : shape, w, h, str(L.placeholder, 'Your photo'), !!sceneId);
     }
     var sil = null;
     if (ow > 0) {
@@ -484,7 +519,7 @@
       }
     }
     var out = finishFx(I, sil, glow, sh, es);
-    return cset(key, { canvas: out, ax: (pad + w / 2) * es, ay: (pad + h / 2) * es, m: s / es });
+    return cset(key, { canvas: out, ax: (pad + w / 2) * es, ay: (pad + h / 2) * es, m: s / es, w0: w });
   }
 
   /* ------------------------------------------------------------------ stickers */
@@ -969,8 +1004,9 @@
     var ol = obj(L.outline), ow = clamp(num(ol.width, 0), 0, 60), oc = str(ol.color, '#ffffff');
     var sh = shadowOf(L.shadow === undefined ? DEFAULT_STK_SHADOW : L.shadow);
     var gl = obj(L.glow), glow = { size: clamp(num(gl.size, 0), 0, 120), color: str(gl.color, '#ffffff') };
-    var key = ['S', id, w.toFixed(1), col, !!L.flipX, ow, oc, sh.on ? [sh.blur, sh.dx, sh.dy, sh.color].join(',') : '', glow.size, glow.color, meta.hasText ? str(L.text, meta.text) + '/' + str(L.textColor) + '/' + str(L.font) + '/' + fontEpoch : '', s.toFixed(3)].join('|');
-    var hit = cget(key); if (hit) return hit;
+    var tail = [id, col, !!L.flipX, ow, oc, sh.on ? [sh.blur, sh.dx, sh.dy, sh.color].join(',') : '', glow.size, glow.color, meta.hasText ? str(L.text, meta.text) + '/' + str(L.textColor) + '/' + str(L.font) + '/' + fontEpoch : '', s.toFixed(3)].join('|');
+    var hit = lookup(L, 'S|' + w.toFixed(2) + '|' + tail, 'Sq|' + quantPx(w * s).toFixed(2) + '|' + tail); if (hit) return hit;
+    var key = storeKey;
     var pad = fxPad(ow, glow.size, sh), dw = w + 2 * pad, dh = h + 2 * pad;
     var es = safeScale(s, dw, dh), cw = Math.ceil(dw * es), ch = Math.ceil(dh * es);
     var I = mk(cw, ch), c = I.getContext('2d');
@@ -986,7 +1022,7 @@
     }
     var sil = ow > 0 ? dilate(I, ow * es, oc, !!meta.pixel) : null;
     var out = finishFx(I, sil, glow, sh, es);
-    return cset(key, { canvas: out, ax: (pad + w / 2) * es, ay: (pad + h / 2) * es, m: s / es });
+    return cset(key, { canvas: out, ax: (pad + w / 2) * es, ay: (pad + h / 2) * es, m: s / es, w0: w });
   }
 
   /* ------------------------------------------------------------------ emoji */
@@ -994,8 +1030,9 @@
     var size = clamp(num(L.size, 120), 8, 1200), ch = str(L.char, '😱');
     var ol = obj(L.outline), ow = clamp(num(ol.width, 0), 0, 40), oc = str(ol.color, '#ffffff');
     var sh = shadowOf(L.shadow === undefined ? { blur: size * 0.12, color: 'rgba(0,0,0,0.45)', dx: 0, dy: size * 0.05 } : L.shadow);
-    var key = ['E', ch, size, ow, oc, sh.on ? [sh.blur, sh.dx, sh.dy, sh.color].join(',') : '', s.toFixed(3), fontEpoch].join('|');
-    var hit = cget(key); if (hit) return hit;
+    var tail = [ch, ow, oc, sh.on ? [sh.blur, sh.dx, sh.dy, sh.color].join(',') : '', s.toFixed(3), fontEpoch].join('|');
+    var hit = lookup(L, 'E|' + size + '|' + tail, 'Eq|' + quantPx(size * s).toFixed(2) + '|' + tail); if (hit) return hit;
+    var key = storeKey;
     var box = size * 1.25, pad = fxPad(ow, 0, sh), dw = box + 2 * pad;
     var es = safeScale(s, dw, dw), cw = Math.ceil(dw * es);
     var I = mk(cw, cw), c = I.getContext('2d');
@@ -1006,7 +1043,7 @@
     c.fillStyle = '#000'; c.fillText(ch, box / 2, box / 2 + (asc - desc) / 2);
     var sil = ow > 0 ? dilate(I, ow * es, oc, false) : null;
     var out = finishFx(I, sil, { size: 0 }, sh, es);
-    return cset(key, { canvas: out, ax: (pad + box / 2) * es, ay: (pad + box / 2) * es, m: s / es });
+    return cset(key, { canvas: out, ax: (pad + box / 2) * es, ay: (pad + box / 2) * es, m: s / es, w0: size });
   }
 
   /* ------------------------------------------------------------------ scenes (1280x720, cached) */
@@ -1020,30 +1057,32 @@
   function shades(base, n, spread) { var out = []; for (var i = 0; i < n; i++) out.push(shade(base, (i / (n - 1) - 0.5) * spread)); return out; }
   /* draw one textured block: 8x8 sub-pixels */
   function block(c, x, y, s, kind, R) {
-    var p = s / 8, pal = BLOCK_PAL[kind];
+    var p = s / 8, pal = BLOCK_PAL[kind], ores = null;
+    if (pal.ore) { ores = []; var n = 2 + ((R() * 2) | 0); for (var k = 0; k < n; k++) ores.push([1.5 + R() * 5, 1.5 + R() * 5]); }
     for (var j = 0; j < 8; j++) for (var i = 0; i < 8; i++) {
-      var arr = pal.main;
-      if (kind === 'grass') { var drip = j < 2 || (j === 2 && R() < 0.6) || (j === 3 && R() < 0.2); arr = drip ? pal.top : pal.main; }
-      if (kind === 'ore' || kind === 'goldore' || kind === 'redore') { arr = R() < 0.22 ? pal.ore : pal.main; }
-      c.fillStyle = arr[(R() * arr.length) | 0];
+      var arr = pal.main, idx = (R() * arr.length) | 0;
+      if (kind === 'grass') { var drip = j < 2 || (j === 2 && R() < 0.6) || (j === 3 && R() < 0.2); arr = drip ? pal.top : pal.main; idx = (R() * arr.length) | 0; }
+      if (ores) { for (var q = 0; q < ores.length; q++) if (Math.abs(i - ores[q][0]) + Math.abs(j - ores[q][1]) < 1.6) { arr = pal.ore; idx = (R() * arr.length) | 0; } }
+      if (pal.edge && arr === pal.main) { if (j === 7 || i === 7) idx = 0; else if (j === 0 || i === 0) idx = arr.length - 1; }
+      c.fillStyle = arr[idx];
       c.fillRect(Math.round(x + i * p), Math.round(y + j * p), Math.ceil(p), Math.ceil(p));
     }
   }
   var BLOCK_PAL = {
     grass: { top: shades('#5fbf3a', 5, 0.35), main: shades('#8b5a2b', 5, 0.3) },
     dirt: { main: shades('#8b5a2b', 5, 0.3) },
-    stone: { main: shades('#7d7d7d', 6, 0.3) },
-    dstone: { main: shades('#4a4a50', 6, 0.3) },
-    ore: { main: shades('#6f6f73', 6, 0.3), ore: shades('#4fe3f0', 3, 0.3) },
-    goldore: { main: shades('#6f6f73', 6, 0.3), ore: shades('#ffd21f', 3, 0.3) },
-    redore: { main: shades('#6f6f73', 6, 0.3), ore: shades('#ff2a1a', 3, 0.3) },
+    stone: { main: shades('#7d7d7d', 6, 0.2), edge: 1 },
+    dstone: { main: shades('#4a4a50', 6, 0.2), edge: 1 },
+    ore: { main: shades('#73737a', 6, 0.2), ore: shades('#4fe3f0', 3, 0.35), edge: 1 },
+    goldore: { main: shades('#73737a', 6, 0.2), ore: shades('#ffd21f', 3, 0.35), edge: 1 },
+    redore: { main: shades('#73737a', 6, 0.2), ore: shades('#ff2a1a', 3, 0.35), edge: 1 },
     leaves: { main: shades('#2f8f2a', 6, 0.4) },
     log: { main: shades('#6b4423', 4, 0.3) },
     sand: { main: shades('#e2d39b', 5, 0.15) },
-    nrack: { main: shades('#7a2222', 6, 0.35) },
-    glow: { main: shades('#ffd76a', 5, 0.35) },
+    nrack: { main: shades('#7a2222', 6, 0.24), edge: 1 },
+    glow: { main: shades('#ffd76a', 5, 0.3), edge: 1 },
     lava: { main: shades('#ff7a12', 6, 0.35) },
-    plank: { main: shades('#b8874e', 4, 0.2) },
+    plank: { main: shades('#b8874e', 4, 0.2), edge: 1 },
     nightgrass: { top: shades('#2f6a3a', 5, 0.3), main: shades('#4a3424', 5, 0.3) }
   };
   BLOCK_PAL.nightgrass.top = BLOCK_PAL.nightgrass.top; // alias
@@ -1126,19 +1165,21 @@
     } },
     { id: 'marble', name: 'Marble counter', themes: ['cooking'], draw: function (c) {
       var R = rng(21);
-      var g = c.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#f7f5f1'); g.addColorStop(1, '#e6e2dc'); c.fillStyle = g; c.fillRect(0, 0, W, H);
-      for (var i = 0; i < 70; i++) { c.fillStyle = 'rgba(160,150,140,' + (0.03 + R() * 0.05) + ')'; c.beginPath(); c.arc(R() * W, R() * H, 40 + R() * 160, 0, 7); c.fill(); }
-      var vein = function (alpha, lw, blur) {
-        var x = -40, y = R() * H, ang = (R() - 0.5) * 0.9 + 0.35;
+      var g = c.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#fbfaf7'); g.addColorStop(1, '#e9e5df'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+      var vein = function (x, y, ang, alpha, lw, blur, len) {
         c.beginPath(); c.moveTo(x, y);
-        while (x < W + 40 && y > -60 && y < H + 60) { ang += (R() - 0.5) * 0.5; x += Math.cos(ang) * 30; y += Math.sin(ang) * 30; c.lineTo(x, y); }
-        c.strokeStyle = 'rgba(110,104,98,' + alpha + ')'; c.lineWidth = lw; c.shadowColor = 'rgba(110,104,98,' + alpha + ')'; c.shadowBlur = blur; c.stroke();
+        for (var i = 0; i < len; i++) {
+          ang += (R() - 0.5) * 0.35; var nx = x + Math.cos(ang) * 26, ny = y + Math.sin(ang) * 26;
+          c.quadraticCurveTo(x, y, (x + nx) / 2, (y + ny) / 2); x = nx; y = ny;
+          if (R() < 0.05 && lw > 1) { c.stroke(); vein(x, y, ang + (R() - 0.5) * 1.4, alpha * 0.7, lw * 0.5, blur, 10 + (R() * 15 | 0)); c.beginPath(); c.moveTo(x, y); }
+        }
+        c.strokeStyle = 'rgba(120,112,104,' + alpha + ')'; c.lineWidth = lw; c.shadowColor = 'rgba(120,112,104,' + alpha + ')'; c.shadowBlur = blur; c.stroke();
       };
-      c.lineJoin = 'round';
-      for (var v = 0; v < 6; v++) vein(0.28 + R() * 0.2, 2 + R() * 3, 8);
-      for (var v2 = 0; v2 < 14; v2++) vein(0.15 + R() * 0.15, 0.8 + R(), 2);
+      c.lineJoin = 'round'; c.lineCap = 'round';
+      for (var v0 = 0; v0 < 4; v0++) vein(-60, R() * H * 1.2 - 100, 0.35 + R() * 0.3, 0.06, 18 + R() * 14, 30, 70);
+      for (var v = 0; v < 5; v++) vein(-40, R() * H * 1.1 - 60, 0.3 + R() * 0.35, 0.3 + R() * 0.15, 1.5 + R() * 2, 4, 70);
       c.shadowBlur = 0; c.shadowColor = 'rgba(0,0,0,0)';
-      vignette(c, 0.18);
+      vignette(c, 0.16);
     } },
     { id: 'color-pop', name: 'Colour pop', themes: ['cooking'], draw: function (c) {
       var cx = W * 0.64, cy = H * 0.5;
@@ -1178,9 +1219,11 @@
       c.fillStyle = '#f4f1dc'; c.fillRect(180, 70, 100, 100); c.fillStyle = '#d8d3b6'; c.fillRect(200, 95, 20, 20); c.fillRect(245, 130, 15, 15); c.fillRect(235, 85, 12, 12);
       var glow = c.createRadialGradient(230, 120, 40, 230, 120, 260); glow.addColorStop(0, 'rgba(200,210,255,0.25)'); glow.addColorStop(1, 'rgba(200,210,255,0)'); c.fillStyle = glow; c.fillRect(0, 0, 600, 500);
       var cols = Math.ceil(W / bs) + 1, hs = heightsFor(R, cols, 10.5, 1.7);
-      terrain(c, R, bs, hs, { top: 'grass', mid: 'dirt', deep: 'stone' });
-      [5, 18, 23].forEach(function (tx) { if (tx < cols) tree(c, R, tx, hs[tx], bs); });
-      c.fillStyle = 'rgba(8,12,40,0.55)'; c.fillRect(0, 0, W, H);
+      var T = mk(W, H), tc = T.getContext('2d');
+      terrain(tc, R, bs, hs, { top: 'grass', mid: 'dirt', deep: 'stone' });
+      [5, 18, 23].forEach(function (tx) { if (tx < cols) tree(tc, R, tx, hs[tx], bs); });
+      tc.globalCompositeOperation = 'source-atop'; tc.fillStyle = 'rgba(8,12,40,0.6)'; tc.fillRect(0, 0, W, H);
+      c.drawImage(T, 0, 0); free(T);
       [[9, hs[9] - 1], [15, hs[15] - 1]].forEach(function (p) {
         var x = p[0] * bs + bs / 2 - 4, y = p[1] * bs + 10;
         var tg = c.createRadialGradient(x + 4, y, 4, x + 4, y, 170); tg.addColorStop(0, 'rgba(255,170,60,0.55)'); tg.addColorStop(1, 'rgba(255,140,40,0)');
@@ -1211,7 +1254,10 @@
       var d = c.createRadialGradient(W * 0.5, H * 0.42, 50, W * 0.5, H * 0.42, W * 0.6);
       d.addColorStop(0, 'rgba(255,90,40,0.35)'); d.addColorStop(0.5, 'rgba(80,0,0,0.45)'); d.addColorStop(1, 'rgba(20,0,0,0.75)');
       c.fillStyle = d; c.fillRect(0, 0, W, H);
-      [[3, 0], [4, 0], [3, 1], [20, 0], [21, 0], [21, 1], [22, 0], [12, 0]].forEach(function (p) { block(c, p[0] * bs, p[1] * bs, bs, 'glow', R); });
+      [[3, 0], [4, 0], [3, 1], [20, 0], [21, 0], [21, 1], [22, 0]].forEach(function (p) { block(c, p[0] * bs, p[1] * bs, bs, 'glow', R); });
+      c.globalCompositeOperation = 'lighter';
+      [[4, 1], [21, 1]].forEach(function (p) { var gg = c.createRadialGradient(p[0] * bs, p[1] * bs, 10, p[0] * bs, p[1] * bs, 260); gg.addColorStop(0, 'rgba(255,200,90,0.35)'); gg.addColorStop(1, 'rgba(255,160,40,0)'); c.fillStyle = gg; c.fillRect(0, 0, W, H); });
+      c.globalCompositeOperation = 'source-over';
       for (var lx = 0; lx < cols; lx++) { block(c, lx * bs, (rows - 1) * bs, bs, 'lava', R); if (lx % 7 < 4) block(c, lx * bs, (rows - 2) * bs, bs, 'lava', R); }
       c.globalCompositeOperation = 'lighter';
       var lg = c.createLinearGradient(0, H, 0, H * 0.45); lg.addColorStop(0, 'rgba(255,120,20,0.65)'); lg.addColorStop(1, 'rgba(255,60,0,0)'); c.fillStyle = lg; c.fillRect(0, 0, W, H);
@@ -1255,7 +1301,7 @@
   }
   function blurCanvas(C, amt) {
     if (amt <= 0.01) return;
-    var w = C.width, h = C.height, f = 1 + amt * 22, steps = [];
+    var w = C.width, h = C.height, f = 1 + amt * 4 + amt * amt * 20, steps = [];
     var cw = w, ch = h, cur = C;
     while (cw / 2 >= w / f && cw > 8) { cw = Math.max(2, Math.round(cw / 2)); ch = Math.max(2, Math.round(ch / 2)); var n = mk(cw, ch), x = n.getContext('2d'); smooth(x, true); x.drawImage(cur, 0, 0, cw, ch); steps.push(n); cur = n; }
     var fw = Math.max(2, Math.round(w / f)), fh = Math.max(2, Math.round(h / f));
@@ -1327,39 +1373,49 @@
   }
 
   /* ------------------------------------------------------------------ render */
-  function drawCached(ctx, e, L, s) {
+  function drawCached(ctx, e, L, s, cur) {
     if (!e) return;
-    var x = num(L.x, W / 2) * s, y = num(L.y, H / 2) * s, r = num(L.rotation, 0), m = e.m || 1;
+    var x = num(L.x, W / 2) * s, y = num(L.y, H / 2) * s, r = num(L.rotation, 0), m = (e.m || 1) * (e.w0 && cur ? cur / e.w0 : 1);
+    if (Math.abs(m - 1) < 1e-6) m = 1;
     var op = clamp(num(L.opacity, 1), 0, 1); if (op <= 0) return;
     ctx.save();
     ctx.globalAlpha = op;
     if (Math.abs(r) < 0.01 && m === 1) { ctx.drawImage(e.canvas, Math.round(x - e.ax), Math.round(y - e.ay)); }
     else {
       ctx.translate(x, y); ctx.rotate(r * DEG);
-      smooth(ctx, true);
+      ctx.imageSmoothingEnabled = true; if ('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'low';
       ctx.drawImage(e.canvas, -e.ax * m, -e.ay * m, e.canvas.width * m, e.canvas.height * m);
     }
     ctx.restore();
   }
   function render(ctx, design, images, opts) {
+    var wasExact = EXACT; settled = true;
+    try { renderInner(ctx, design, images, opts); }
+    finally { EXACT = wasExact; }
+    return { settled: settled };
+  }
+  function renderInner(ctx, design, images, opts) {
     opts = opts || {}; images = images || {}; design = design || {};
     var s = num(opts.scale, 1); if (!(s > 0)) s = 1;
     var ph = opts.placeholders !== false;
+    if (opts.exact) EXACT = true;
     frame++;
     ctx.save();
     smooth(ctx, true);
     var bge = renderBackground(design, images, s);
     ctx.drawImage(bge.canvas, 0, 0, W * s, H * s);
     var layers = design.layers || [];
+    var bgo = obj(design.background), thm = design.theme === 'smp' ? 'smp' : 'cooking';
+    var info = { theme: thm, bgScene: (bgo.kind === 'scene' || (bgo.kind === 'image' && !natSize(bgo.imageId ? images[bgo.imageId] : null))) ? (SCENE_BY[bgo.scene] ? bgo.scene : THEME_SCENE[thm]) : null };
     for (var i = 0; i < layers.length; i++) {
       var L = layers[i]; if (!L || L.hidden) continue;
       try {
-        var e = null;
-        if (L.type === 'text') e = renderText(L, s);
-        else if (L.type === 'image') e = renderImage(L, L.imageId ? images[L.imageId] : null, s, ph);
-        else if (L.type === 'sticker') e = renderSticker(L, s);
-        else if (L.type === 'emoji') e = renderEmoji(L, s);
-        drawCached(ctx, e, L, s);
+        var e = null, cur = 0;
+        if (L.type === 'text') { e = renderText(L, s); cur = textMetricsOf(L).size; }
+        else if (L.type === 'image') { e = renderImage(L, L.imageId ? images[L.imageId] : null, s, ph, info); cur = clamp(num(L.w, 400), 8, 6000); }
+        else if (L.type === 'sticker') { e = renderSticker(L, s); cur = clamp(num(L.w, 200), 8, 6000); }
+        else if (L.type === 'emoji') { e = renderEmoji(L, s); cur = clamp(num(L.size, 120), 8, 1200); }
+        drawCached(ctx, e, L, s, cur);
       } catch (err) { if (window.console) console.warn('ThumbRender layer failed', L && L.id, err); }
     }
     var bg = obj(design.background);
@@ -1401,7 +1457,7 @@
     return ensureFonts().then(function () {
       var C = mk(W, H), c = C.getContext('2d');
       c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
-      render(c, design, images, { scale: 1, placeholders: false });
+      render(c, design, images, { scale: 1, placeholders: false, exact: true });
       var tryJpeg = function (qs, i) {
         return toBlobP(C, 'image/jpeg', qs[i]).then(function (b) {
           if (!b) throw new Error('Could not make the image');
@@ -1465,9 +1521,9 @@
     /* ---------------- Cooking ---------------- */
     { id: 'cook-hero', theme: 'cooking', name: 'Hero dish', blurb: 'Big food photo + two-line title', make: function () {
       return design('cooking', 'cook-hero', 'Crispy chicken', { kind: 'scene', scene: 'kitchen-bokeh' }, [
-        img({ x: 880, y: 430, w: 700, aspect: 1.05, shape: 'none', placeholder: 'Your dish', shadow: { blur: 40, color: 'rgba(0,0,0,0.6)', dx: 0, dy: 24 } }),
-        txt({ text: 'CRISPY', font: 'anton', size: 150, x: 300, y: 175, rotation: -4, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 14, color: DARK } }),
-        txt({ text: 'CHICKEN', font: 'anton', size: 190, x: 318, y: 360, rotation: -4, fill: { kind: 'gradient', color: '#fff36b', color2: '#ffb000' }, stroke: { width: 15, color: DARK }, effect: 'extrude', effectColor: '#8a3b00', effectSize: 12 }),
+        img({ x: 900, y: 430, w: 680, aspect: 1.05, shape: 'none', placeholder: 'Your dish', outline: { width: 10, color: '#ffffff' }, shadow: { blur: 40, color: 'rgba(0,0,0,0.6)', dx: 0, dy: 24 } }),
+        txt({ text: 'CRISPY', font: 'anton', size: 140, x: 300, y: 180, rotation: -4, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 14, color: DARK } }),
+        txt({ text: 'CHICKEN', font: 'anton', size: 168, x: 318, y: 355, rotation: -4, fill: { kind: 'gradient', color: '#fff36b', color2: '#ffb000' }, stroke: { width: 15, color: DARK }, effect: 'extrude', effectColor: '#8a3b00', effectSize: 12 }),
         stk('arrow-curved', { x: 520, y: 575, w: 230, rotation: -20, color: '#ff2d2d', flipX: false }),
         emo('🤤', { x: 1160, y: 130, size: 150, rotation: 12 })
       ]);
@@ -1496,7 +1552,7 @@
       return design('cooking', 'cook-quick', '10 minute dinner', { kind: 'scene', scene: 'wood-board' }, [
         img({ x: 900, y: 410, w: 700, aspect: 1.05, shape: 'none', placeholder: 'Your dish', shadow: { blur: 36, color: 'rgba(0,0,0,0.55)', dx: 0, dy: 22 } }),
         stk('badge-time', { x: 270, y: 120, w: 420, color: '#ff3b30', text: '10 MIN', rotation: -5 }),
-        txt({ text: 'EASY\nDINNER', font: 'bowlby', size: 150, lineHeight: 0.98, x: 300, y: 420, rotation: -4, fill: { kind: 'gradient', color: '#ffffff', color2: '#ffe27a' }, stroke: { width: 14, color: DARK }, effect: 'extrude', effectColor: '#2a1300', effectSize: 10 }),
+        txt({ text: 'EASY\nDINNER', font: 'bowlby', size: 118, lineHeight: 1, x: 305, y: 420, rotation: -4, fill: { kind: 'gradient', color: '#ffffff', color2: '#ffe27a' }, stroke: { width: 14, color: DARK }, effect: 'extrude', effectColor: '#2a1300', effectSize: 10 }),
         stk('flame', { x: 1150, y: 120, w: 140, rotation: 10 })
       ]);
     } },
@@ -1531,10 +1587,10 @@
     /* ---------------- Donut SMP ---------------- */
     { id: 'smp-money', theme: 'smp', name: 'Big money', blurb: '"$10,000,000" + title + your skin', make: function () {
       return design('smp', 'smp-money', 'Big money', { kind: 'scene', scene: 'blocky-day' }, [
-        img({ x: 1010, y: 450, w: 470, aspect: 0.8, shape: 'none', placeholder: 'Your face / skin', outline: { width: 8, color: '#ffffff' }, glow: { size: 34, color: '#39ff5a' }, shadow: { blur: 24, color: 'rgba(0,0,0,0.5)', dx: 0, dy: 10 } }),
+        img({ x: 1065, y: 455, w: 420, aspect: 0.8, shape: 'none', placeholder: 'Your face / skin', outline: { width: 8, color: '#ffffff' }, glow: { size: 34, color: '#39ff5a' }, shadow: { blur: 24, color: 'rgba(0,0,0,0.5)', dx: 0, dy: 10 } }),
         stk('px-money', { x: 140, y: 600, w: 210, rotation: -10 }),
         stk('px-moneybag', { x: 720, y: 600, w: 170, rotation: 8 }),
-        txt({ text: '$10,000,000', font: 'lilita', size: 150, x: 430, y: 330, rotation: -4, maxWidth: 1100, fill: { kind: 'gradient', color: '#9dff7a', color2: '#1fbf3a' }, stroke: { width: 13, color: '#04260c' }, effect: 'extrude', effectColor: '#0a5a1c', effectSize: 13, shadow: { blur: 24, color: 'rgba(0,0,0,0.55)', dx: 0, dy: 10 } }),
+        txt({ text: '$10,000,000', font: 'lilita', size: 128, x: 450, y: 330, rotation: -4, maxWidth: 1100, fill: { kind: 'gradient', color: '#9dff7a', color2: '#1fbf3a' }, stroke: { width: 13, color: '#04260c' }, effect: 'extrude', effectColor: '#0a5a1c', effectSize: 13, shadow: { blur: 24, color: 'rgba(0,0,0,0.55)', dx: 0, dy: 10 } }),
         txt({ text: 'IN ONE DAY', font: 'pixelify', size: 92, x: 380, y: 140, rotation: -2, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 9, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 8, shadow: NOSH }),
         stk('px-coin', { x: 560, y: 520, w: 90, rotation: 12, shadow: undefined })
       ]);
@@ -1545,7 +1601,7 @@
         img({ x: 960, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'blocky-day', placeholder: 'Day 100 screenshot', shadow: NOSH }),
         stk('divider', { x: 640, y: 360, w: 116, color: '#ffffff', shadow: SOFT }),
         txt({ text: 'DAY 1', font: 'lilita', size: 140, x: 260, y: 120, rotation: -4, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 12, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 10, shadow: NOSH }),
-        txt({ text: 'DAY 100', font: 'lilita', size: 150, x: 1000, y: 120, rotation: 3, fill: { kind: 'gradient', color: '#fff36b', color2: '#ffb000' }, stroke: { width: 12, color: DARK }, effect: 'extrude', effectColor: '#7a3b00', effectSize: 11, shadow: NOSH }),
+        txt({ text: 'DAY 100', font: 'lilita', size: 136, x: 980, y: 120, rotation: 3, fill: { kind: 'gradient', color: '#fff36b', color2: '#ffb000' }, stroke: { width: 12, color: DARK }, effect: 'extrude', effectColor: '#7a3b00', effectSize: 11, shadow: NOSH }),
         stk('px-arrow', { x: 640, y: 560, w: 200, color: '#ff2a2a', rotation: -8 }),
         stk('px-crown', { x: 1150, y: 600, w: 150, rotation: 10 })
       ]);
@@ -1554,7 +1610,7 @@
       return design('smp', 'smp-base', 'My base', { kind: 'image', imageId: null, scene: 'blocky-day', placeholder: 'Add your screenshot (Background)' }, [
         stk('circle-ring', { x: 880, y: 400, w: 420, color: '#ff2d2d', rotation: -6 }),
         stk('arrow-curved', { x: 560, y: 360, w: 230, color: '#ff2d2d', rotation: 10 }),
-        txt({ text: 'MY SECRET\nBASE', font: 'lilita', size: 132, lineHeight: 0.98, x: 290, y: 190, rotation: -4, fill: { kind: 'solid', color: '#ffe100' }, stroke: { width: 12, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 11, shadow: NOSH }),
+        txt({ text: 'MY SECRET\nBASE', font: 'lilita', size: 122, lineHeight: 0.98, x: 360, y: 190, rotation: -4, fill: { kind: 'solid', color: '#ffe100' }, stroke: { width: 12, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 11, shadow: NOSH }),
         stk('px-chest', { x: 175, y: 590, w: 170, rotation: -8 }),
         stk('px-diamond', { x: 330, y: 610, w: 120, rotation: 8 })
       ]);
@@ -1582,8 +1638,8 @@
         img({ x: 320, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'nether', placeholder: 'Player 1', shadow: NOSH }),
         img({ x: 960, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'blocky-night', placeholder: 'Player 2', shadow: NOSH }),
         stk('divider', { x: 640, y: 360, w: 120, color: '#ffffff', shadow: SOFT }),
-        stk('px-sword', { x: 520, y: 380, w: 190, rotation: 0 }),
-        stk('px-sword', { x: 760, y: 380, w: 190, rotation: 0, flipX: true }),
+        stk('px-sword', { x: 640, y: 360, w: 330, rotation: 0 }),
+        stk('px-sword', { x: 640, y: 360, w: 330, rotation: 0, flipX: true }),
         txt({ text: 'VS', font: 'bungee', size: 230, x: 640, y: 380, rotation: -6, fill: { kind: 'gradient', color: '#fff36b', color2: '#ff7a00' }, stroke: { width: 14, color: DARK }, effect: 'extrude', effectColor: '#5a1d00', effectSize: 14, shadow: { blur: 30, color: 'rgba(0,0,0,0.7)', dx: 0, dy: 12 } }),
         txt({ text: '1V1 FOR $1M', font: 'pixelify', size: 76, x: 640, y: 640, fill: { kind: 'solid', color: '#7dff6b' }, stroke: { width: 8, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 7, shadow: NOSH })
       ]);
@@ -1614,7 +1670,7 @@
   /* ------------------------------------------------------------------ extras for UI (sticker sheet / scene previews) */
   function drawSticker(ctx, id, x, y, w, color, extra) {
     var L = assign({ type: 'sticker', sticker: id, x: 0, y: 0, w: w, color: color }, extra || {});
-    var e = renderSticker(L, 1); var m = e.m || 1;
+    var e = renderSticker(L, 1); var m = (e.m || 1) * (e.w0 ? w / e.w0 : 1);
     ctx.drawImage(e.canvas, x - e.ax * m, y - e.ay * m, e.canvas.width * m, e.canvas.height * m);
   }
 

@@ -80,7 +80,7 @@ svg.i { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor;
 .icon-btn[disabled] { opacity: .3; pointer-events: none; }
 
 /* ---------- home ---------- */
-.topbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); background: color-mix(in srgb, var(--bg) 88%, transparent); -webkit-backdrop-filter: saturate(1.4) blur(14px); backdrop-filter: saturate(1.4) blur(14px); border-bottom: 1px solid transparent; }
+.topbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); background: var(--bg); background: color-mix(in srgb, var(--bg) 88%, transparent); -webkit-backdrop-filter: saturate(1.4) blur(14px); backdrop-filter: saturate(1.4) blur(14px); border-bottom: 1px solid transparent; }
 .brand { display: flex; align-items: center; gap: 10px; font: 26px/1 var(--display); letter-spacing: .3px; }
 .brand img { width: 36px; height: 36px; border-radius: 9px; }
 .wrap { max-width: 1120px; margin: 0 auto; padding: 8px max(16px, env(safe-area-inset-right)) 64px max(16px, env(safe-area-inset-left)); }
@@ -110,8 +110,8 @@ svg.i { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor;
 .steps .dot svg { width: 14px; height: 14px; stroke-width: 3; }
 .steps li.now .dot { background: transparent; border: 3px solid var(--accent-soft); border-top-color: var(--accent); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.results-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 28px 0 12px; }
-.results-head h2 { margin: 0; font-size: 22px; min-width: 0; overflow-wrap: anywhere; }
+.results-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 28px 0 12px; }
+.results-head h2 { flex: 1 1 260px; margin: 0; font-size: 22px; min-width: 0; overflow-wrap: anywhere; }
 .results-head .btn { flex: none; }
 .note { margin: 0 0 12px; font-size: 15px; color: var(--text-2); }
 .idea-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
@@ -133,7 +133,7 @@ svg.i { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor;
 .sec .hint { margin: 2px 0 0; color: var(--text-2); font-size: 15px; }
 .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
 .mode { position: relative; display: flex; align-items: flex-end; min-height: 120px; padding: 16px; border-radius: var(--r); border: 3px solid transparent; overflow: hidden; color: #fff; text-align: left; background: #333; box-shadow: var(--shadow); }
-.mode canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mode canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .mode::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,.65)); }
 .mode span { position: relative; z-index: 1; display: block; }
 .mode .mt { font: 28px/1 var(--display); text-shadow: 0 2px 0 rgba(0,0,0,.5); }
@@ -166,6 +166,7 @@ svg.i { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor;
 .ed-top { flex: none; display: flex; align-items: center; gap: 4px; height: 60px; padding: 0 max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left)); background: var(--surface); border-bottom: 1px solid var(--border); }
 .ed-top .back { padding: 0 12px 0 6px; gap: 2px; border: 0; background: transparent; }
 .ed-top .grow { flex: 1; min-width: 0; }
+#previewBtn { margin-left: auto; }
 .ed-top .ttl { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-2); font-size: 15px; text-align: center; padding: 0 8px; }
 .ed-top .btn { min-height: 44px; padding: 0 16px; }
 .ed-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -214,7 +215,8 @@ input[type=range]:disabled { opacity: .4; }
 .acts { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 6px; margin-top: 8px; }
 .acts button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 60px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); font-size: 13px; font-weight: 600; color: var(--text-2); }
 .acts button.danger { color: var(--danger); }
-.bigbtns { display: grid; gap: 8px; margin-bottom: 16px; }
+.bigbtns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-bottom: 16px; }
+.bigbtns .btn { text-align: left; line-height: 1.2; padding-top: 8px; padding-bottom: 8px; }
 .bigbtns .btn { justify-content: flex-start; border-radius: 14px; min-height: 56px; }
 .tip { margin: 0 0 16px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); color: var(--text-2); font-size: 14px; line-height: 1.4; }
 .tip b { color: var(--text); }
@@ -232,7 +234,7 @@ input[type=range]:disabled { opacity: .4; }
 .scenes button[aria-pressed="true"] { border-color: var(--accent); }
 .scenes canvas { width: 100%; height: 100%; display: block; }
 .scenes span { position: absolute; left: 6px; bottom: 6px; padding: 2px 8px; border-radius: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; font-weight: 600; }
-.layers { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.layers { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .layers li { display: flex; align-items: center; gap: 2px; min-height: 56px; padding: 0 4px 0 0; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); }
 .layers li.on { border-color: var(--accent); background: var(--accent-soft); }
 .layers li.off .ln { opacity: .45; }
@@ -294,7 +296,9 @@ details.more[open] summary::after { content: "–"; }
   .idea { padding: 18px; border-radius: var(--r); }
   .chips { margin: 0 -18px; padding: 0 18px 2px; }
   .idea h1 { font-size: 28px; }
-  .idea-grid { grid-template-columns: 1fr; }
+  .idea-grid { grid-template-columns: minmax(0, 1fr); }
+  .idea-card .meta { flex-direction: column; align-items: stretch; }
+  .idea-card .meta .btn { width: 100%; }
   .idea-actions .btn.primary { width: 100%; margin-left: 0; }
   .ed-top .btn .lbl-wide { display: none; }
   .ed-top .ttl { display: none; }
@@ -759,8 +763,13 @@ details.more[open] summary::after { content: "–"; }
   function templateById(id) { return (R && R.templates || []).filter(function (t) { return t.id === id; })[0] || null; }
   function stickerById(id) { return (R && R.stickers || []).filter(function (s) { return s.id === id; })[0] || null; }
   function firstText(d) {
-    var t = (d && d.layers || []).filter(function (l) { return l.type === 'text' && (l.text || '').trim(); })[0];
-    return t ? t.text.replace(/\s*\n\s*/g, ' ').trim() : '';
+    // the biggest words on the thumbnail are usually its title
+    var best = null;
+    (d && d.layers || []).forEach(function (l) {
+      if (l.type !== 'text' || l.hidden || !(l.text || '').trim()) return;
+      if (!best || num(l.size, 0) > num(best.size, 0) + 4) best = l;
+    });
+    return best ? best.text.replace(/\s*\n\s*/g, ' ').trim() : '';
   }
   function nameOf(d) {
     if (!d) return 'My thumbnail';
@@ -1039,6 +1048,7 @@ details.more[open] summary::after { content: "–"; }
     var d = lastIdeas.res.designs[+b.getAttribute('data-open')]; if (!d) return;
     d = clone(d); d.id = newId('d');
     if (!d.theme) d.theme = mode;
+    d.name = lastIdeas.prompt.slice(0, 60); d.nameAuto = false;
     openEditor(d, { fresh: true, fromIdea: true });
   });
 
@@ -1063,9 +1073,7 @@ details.more[open] summary::after { content: "–"; }
     updateUndoUI(); renderPanel(); updateNudge(); updateTitle();
     requestRender();
     ensureImages(d).then(function () { if (design === d) { requestRender(); renderPanelIfIdle(); } });
-    if (opts.fromIdea) {
-      setTimeout(function () { if (design === d && emptySlots().length) toast(d.theme === 'smp' ? 'Now add your own screenshot — that’s what makes it real.' : 'Now add your own photo of the food — real photos win.', { ms: 4500 }); }, 400);
-    }
+
   }
   function normalize(d) {
     d.v = d.v || 1;
@@ -1177,7 +1185,6 @@ details.more[open] summary::after { content: "–"; }
       cx.lineWidth = 2 * px; cx.strokeStyle = getAccent(); cx.stroke();
     }
   }
-  var accentCache = null;
   function getAccent() { return mode === 'smp' ? '#17994A' : '#F2541B'; }
 
   /* ================================================== EDITOR: undo / changes / autosave */
@@ -1455,7 +1462,9 @@ details.more[open] summary::after { content: "–"; }
   function bgSlotLabel() { var t = String(design.background.placeholder || (design.theme === 'smp' ? 'Your screenshot' : 'Your food photo')); return t.replace(/\s*\(background\)\s*/i, ''); }
   function hasAnyPhoto() { return !!(design && (design.background.kind === 'image' && design.background.imageId || design.layers.some(function (l) { return l.type === 'image' && l.imageId; }))); }
   function updateNudge() {
-    var show = !!design && !nudgeDismissed && !hasAnyPhoto() && panelMode !== 'photo';
+    var sl = selLayer();
+    var asking = panelMode === 'photo' || (sl && sl.type === 'image' && !sl.imageId) || (panelMode === 'bg' && bgSlotEmpty());
+    var show = !!design && !nudgeDismissed && !hasAnyPhoto() && !asking && cv.clientHeight >= 300;
     $('nudge').hidden = !show;
     if (show) $('nudgeText').textContent = design.theme === 'smp' ? 'Add your own screenshot' : 'Add your own food photo';
   }
@@ -1606,7 +1615,15 @@ details.more[open] summary::after { content: "–"; }
     if (!l.imageId) {
       h += '<div class="bigbtns"><button type="button" class="btn primary big" data-act="pick-replace">' + icon('i-photo') + 'Add ' + esc((l.placeholder || 'a photo').replace(/^your /i, 'your ')) + '</button>' +
         '<button type="button" class="btn" data-act="video-replace">' + icon('i-video') + 'Grab a frame from a video</button></div>';
-      h += '<p class="tip"><b>Cut-out tip:</b> in Photos, touch and hold the person or food until it glows, tap <b>Copy</b>, then come back, tap <b>Photo</b> and paste.</p>';
+      var wantsCut = /face|skin|cut|you\b|person|player|me\b/i.test(l.placeholder || '') || l.shape === 'none';
+      if (wantsCut) {
+        h += '<div class="grp"><div class="lbl"><span>Or paste a cut-out</span></div><div class="paste" contenteditable="true" inputmode="none" data-testid="paste-field" role="textbox" aria-label="Paste here" data-ph="Touch and hold here, then tap Paste"></div></div>';
+        h += '<p class="tip"><b>Cut yourself out:</b> in Photos, touch and hold yourself (or your Minecraft skin) until it glows, tap <b>Copy</b>, come back, touch and hold the box above and tap <b>Paste</b>.</p>';
+      } else if (t === 'smp') {
+        h += '<p class="tip"><b>Tip:</b> use a real screenshot from your game — people click real screenshots more than AI pictures.</p>';
+      } else {
+        h += '<p class="tip"><b>Tip:</b> a close-up of the real food, bright and colourful, works best.</p>';
+      }
     } else {
       h += '<div class="row" style="margin-bottom:16px"><button type="button" class="btn grow" data-act="pick-replace">' + icon('i-photo') + 'Replace</button><button type="button" class="btn grow" data-act="video-replace">' + icon('i-video') + 'From video</button></div>';
     }
@@ -1738,7 +1755,7 @@ details.more[open] summary::after { content: "–"; }
       if (b.kind === 'gradient') { h += swatchCtl('Fade to', 'color2', BG_COLORS, b.color2, { target: 'bg' }); h += rangeCtl('Direction', 'angle', 0, 360, 5, b.angle || 0, { target: 'bg', fmt: 'deg' }); }
     }
     var isImg = kind === 'image' && b.imageId;
-    h += rangeCtl('Zoom', 'zoom', 1, 4, 0.01, b.zoom || 1, { target: 'bg', fmt: 'x', testid: 'bg-zoom', disabled: !isImg });
+    h += rangeCtl('Zoom', 'zoom', 1, 4, 0.01, b.zoom || 1, { target: 'bg', fmt: 'x', testid: 'bg-zoom', disabled: kind === 'color' });
     if (isImg) {
       h += rangeCtl('Move left / right', 'fx', 0, 1, 0.005, b.fx == null ? .5 : b.fx, { target: 'bg', fmt: 'pct' });
       h += rangeCtl('Move up / down', 'fy', 0, 1, 0.005, b.fy == null ? .5 : b.fy, { target: 'bg', fmt: 'pct' });
@@ -2187,7 +2204,9 @@ details.more[open] summary::after { content: "–"; }
       '<h3>Search results</h3><div class="yt-row search"><div class="yt-th" data-w="246"></div><div class="txt"><div class="tt">' + title + '</div><div class="ch">12K views · 3 hours ago</div><div class="ch">' + esc(ch) + '</div></div></div>' +
       '<h3>Up next (side list)</h3><div class="yt-row side"><div class="yt-th" data-w="168"></div><div class="txt"><div class="tt">' + title + '</div><div class="ch">' + esc(ch) + '</div><div class="ch">12K views</div></div></div>';
     Array.prototype.forEach.call(box.querySelectorAll('.yt-th'), function (el) {
-      var w = +el.getAttribute('data-w'), h = Math.round(w * 9 / 16);
+      var w = +el.getAttribute('data-w');
+      if (w === 360) w = Math.max(200, Math.min(360, box.clientWidth - 34));
+      var h = Math.round(w * 9 / 16);
       var c = makeCanvas(Math.round(w * DPR), Math.round(h * DPR));
       c.style.width = w + 'px'; c.style.height = h + 'px';
       paint(c, design, { placeholders: true });
