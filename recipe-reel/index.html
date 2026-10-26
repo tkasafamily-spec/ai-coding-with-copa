@@ -2154,7 +2154,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   $('fitSel').addEventListener('change', function () { project.settings.fit = num(this.value, 60); changed(); });
   $('qualSel').addEventListener('change', function () { project.settings.quality = this.value === '720' ? '720' : '1080'; changed(); });
   $('musicSel').addEventListener('change', function () { stopListen(); project.settings.music = this.value; updateMusicUI(); changed(); });
-  $('musicVol').addEventListener('input', function () { project.settings.musicVolume = clamp(num(this.value, 0.5), 0, 1); this.style.setProperty('--p', (project.settings.musicVolume * 100) + '%'); if (listen.audio) listen.audio.volume = project.settings.musicVolume; changed({ noHints: true }); });
+  $('musicVol').addEventListener('input', function () { project.settings.musicVolume = clamp(num(this.value, 0.5), 0, 1); this.style.setProperty('--p', (project.settings.musicVolume * 100) + '%'); setListenVolume(project.settings.musicVolume); changed({ noHints: true }); });
   $('clipSoundAll').addEventListener('change', function () { project.settings.clipSound = this.checked; changed(); });
   $('showTitle').addEventListener('change', function () { project.settings.showTitle = this.checked; changed(); });
   $('showIng').addEventListener('change', function () { project.settings.showIngredients = this.checked; changed(); });
@@ -2190,7 +2190,14 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   });
 
   // Listen (music preview)
-  var listen = { handle: null, audio: null, url: null, timer: 0 };
+  var listen = { handle: null, audio: null, url: null, timer: 0, ctx: null, gain: null };
+  // The preview follows the volume slider. iOS ignores <audio>.volume, so your own song is played
+  // through a Web Audio gain, like in the video.
+  function setListenVolume(v) {
+    if (listen.handle && listen.handle.setVolume) { try { listen.handle.setVolume(v); } catch (e) {} }
+    if (listen.gain) { try { listen.gain.gain.setTargetAtTime(v, listen.ctx.currentTime, 0.03); } catch (e) {} }
+    else if (listen.audio) listen.audio.volume = v;
+  }
   function setListenUI(on) {
     var b = $('listenBtn');
     b.setAttribute('aria-pressed', String(on));
@@ -2200,6 +2207,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     clearTimeout(listen.timer);
     if (listen.handle) { try { listen.handle.stop(); } catch (e) {} listen.handle = null; }
     if (listen.audio) { try { listen.audio.pause(); listen.audio.removeAttribute('src'); listen.audio.load(); } catch (e) {} listen.audio = null; }
+    if (listen.ctx) { try { var c = listen.ctx.close(); if (c && c.catch) c.catch(function () {}); } catch (e) {} listen.ctx = null; listen.gain = null; }
     if (listen.url) { URL.revokeObjectURL(listen.url); listen.url = null; }
     setListenUI(false);
   }
@@ -2213,6 +2221,19 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       listen.url = URL.createObjectURL(b);
       var a = listen.audio = new Audio(listen.url);
       a.volume = project.settings.musicVolume;
+      var AC = window.AudioContext || window.webkitAudioContext, ctx = null;
+      try {
+        ctx = new AC();
+        var gn = ctx.createGain();
+        gn.gain.value = project.settings.musicVolume;
+        gn.connect(ctx.destination);
+        ctx.createMediaElementSource(a).connect(gn);
+        a.volume = 1;
+        listen.ctx = ctx; listen.gain = gn;
+        var rp = ctx.resume(); if (rp && rp.catch) rp.catch(function () {});
+      } catch (e) {   // plain <audio> then
+        if (ctx && !listen.ctx) { try { ctx.close(); } catch (x) {} }
+      }
       a.addEventListener('ended', stopListen);
       var p = a.play(); if (p && p.catch) p.catch(function () { stopListen(); });
       listen.timer = setTimeout(stopListen, 12000);
@@ -2221,7 +2242,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     }
     if (!window.ReelMusic || typeof window.ReelMusic.preview !== 'function') { toast('The music player didn’t load. Try reloading the page.'); return; }
     try {
-      var h = window.ReelMusic.preview(m, 10);
+      var h = window.ReelMusic.preview(m, 10, project.settings.musicVolume);
       listen.handle = h;
       setListenUI(true);
       var onEnd = function () { if (listen.handle === h) { listen.handle = null; setListenUI(false); } };

@@ -7,7 +7,7 @@
  *   ReelMusic.create(ctx, styleId)   -> Player   generated music, loops forever
  *   ReelMusic.fromBuffer(ctx, buf)   -> Player   loops a decoded AudioBuffer
  *   Player = { output, start(when?), stop(when?) }   (output is not connected; the caller connects it)
- *   ReelMusic.preview(styleId, seconds = 8) -> { stop(), ended, onended }   (own AudioContext; call from a tap)
+ *   ReelMusic.preview(styleId, seconds = 8, volume = 1) -> { stop(), setVolume(v), ended, onended }   (own AudioContext; call from a tap)
  *
  * How it works: a classic look-ahead scheduler (setInterval every 25 ms, notes are scheduled
  * ~0.3 s ahead of ctx.currentTime), so ctx.suspend() simply pauses the music. With an
@@ -1290,6 +1290,11 @@
     }
 
     handle.stop = function () { finish(true); };
+    handle.setVolume = function (v) {
+      if (!isNum(v)) return;
+      vol = Math.max(0, Math.min(1, v));
+      try { if (st.level) st.level.gain.setTargetAtTime(vol, ctx.currentTime, 0.03); } catch (e) { /* ignore */ }
+    };
     currentPreview = handle;
     if (ctx.state === 'running') begin();
     else st.wait = setTimeout(begin, 300);   // schedule anyway; it plays once the context runs

@@ -750,13 +750,14 @@ details.more[open] summary::after { content: "–"; }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (!R || !d) return false;
     ctx.save();
+    var res;
     try {
       var o = { scale: canvas.width / W, placeholders: true };
       if (opts) for (var k in opts) o[k] = opts[k];
-      R.render(ctx, viewDesign(d), images, o);
+      res = R.render(ctx, viewDesign(d), images, o);
     } catch (e) { ctx.restore(); return false; }
     ctx.restore();
-    return true;
+    return res && typeof res === 'object' ? res : true;
   }
   function makeCanvas(w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
   function fontById(id) { var f = (R && R.fonts || []).filter(function (x) { return x.id === id; })[0]; return f || null; }
@@ -1065,6 +1066,7 @@ details.more[open] summary::after { content: "–"; }
     var slots = emptySlots();
     panelMode = (slots.length || !hasAnyPhoto()) ? 'photo' : 'bg';
     if (opts.fromIdea && slots.length) { selectedId = slots[0].id; panelMode = 'layer'; }
+    if (!$('home').hidden) homeScroll = window.scrollY || 0;
     $('home').hidden = true;
     $('editor').hidden = false;
     root.classList.add('in-editor');
@@ -1095,7 +1097,9 @@ details.more[open] summary::after { content: "–"; }
     design = null; selectedId = null;
     try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch (e) {}
     renderModeCards(); renderTemplates();
+    window.scrollTo(0, homeScroll);
   }
+  var homeScroll = 0;
   $('backHome').addEventListener('click', closeEditor);
 
   function layoutEditor() {
@@ -1125,12 +1129,15 @@ details.more[open] summary::after { content: "–"; }
   }
 
   /* ================================================== EDITOR: rendering */
-  var rq = false, guides = { x: false, y: false };
+  var rq = false, guides = { x: false, y: false }, settleTimer = null;
   function requestRender() { if (rq) return; rq = true; requestAnimationFrame(function () { rq = false; drawEditor(); }); }
   function drawEditor() {
     if (!design || $('editor').hidden) return;
-    paint(cv, design, {});
+    var res = paint(cv, design, {});
     drawOverlay();
+    // during resizes the renderer may use a soft cached size; draw once more when things settle
+    clearTimeout(settleTimer);
+    if (res && res.settled === false) settleTimer = setTimeout(requestRender, 500);
   }
   function selLayer() { if (!selectedId || !design) return null; return layerById(selectedId); }
   function layerById(id) { for (var i = 0; i < design.layers.length; i++) if (design.layers[i].id === id) return design.layers[i]; return null; }
@@ -1883,7 +1890,7 @@ details.more[open] summary::after { content: "–"; }
     if (k === 'scene') {
       bg.kind = 'scene';
       var sc = (R.scenes || []).filter(function (s) { return (s.themes || []).indexOf(design.theme) >= 0; });
-      if (!bg.scene && sc[0]) bg.scene = sc[0].id;
+      if (!bg.scene) { var ds = null; try { ds = R.defaultScene && R.defaultScene(design.theme); } catch (e) {} bg.scene = (typeof ds === 'string' && ds) || (ds && ds.id) || (sc[0] && sc[0].id) || null; }
     } else { bg.kind = bg.color2 && bg.kind === 'gradient' ? 'gradient' : 'color'; if (!bg.color) bg.color = BG_COLORS[0]; }
     changed({ panel: true });
   }
@@ -1909,7 +1916,8 @@ details.more[open] summary::after { content: "–"; }
   function makeItPop() {
     var b = design.background;
     beginChange(null);
-    b.brightness = 0.06; b.contrast = 0.22; b.saturation = 0.4; b.vignette = Math.max(num(b.vignette, 0), 0.35);
+    var preset = (R && R.pop) || { brightness: 0.06, contrast: 0.22, saturation: 0.35, vignette: 0.35 };
+    for (var k in preset) b[k] = preset[k];
     changed({ panel: true });
     toast('Popped! Brighter colours and darker edges.');
   }
