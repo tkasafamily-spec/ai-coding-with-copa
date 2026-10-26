@@ -393,7 +393,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
 .sheet-head h2{ font-size:26px; }
 .sheet-head h2:focus{ outline:none; }
 .preview{ position:relative; border-radius:18px; overflow:hidden; background:#0E0906; display:grid; place-items:center; height:min(42vh, 360px); }
-.preview video, .preview img{ width:100%; height:100%; object-fit:contain; }
+.preview video, .preview img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
 .pv-ctrls{ position:absolute; left:10px; right:10px; bottom:10px; display:flex; align-items:center; gap:8px; }
 .pv-btn{ width:52px; height:52px; border-radius:50%; border:0; background:rgba(255,255,255,.92); color:#2A1E16; display:grid; place-items:center; box-shadow:0 4px 14px rgba(0,0,0,.3); }
 .pv-btn.small{ width:44px; height:44px; background:rgba(20,12,8,.6); color:#fff; box-shadow:none; }
@@ -427,9 +427,9 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
 .confirm .btns{ display:grid; gap:10px; }
 
 /* ---------- toast + busy ---------- */
-.toast{ position:fixed; left:50%; bottom:calc(104px + var(--safe-b)); z-index:80; transform:translate(-50%, 20px); opacity:0; pointer-events:none;
-  width:max-content; max-width:min(92vw, 520px); display:flex; align-items:center; gap:14px; padding:14px 16px 14px 20px; border-radius:18px; background:var(--ink); color:var(--paper); font-weight:600; font-size:16px; box-shadow:var(--shadow-lg); transition:opacity .2s, transform .2s; }
-.toast.show{ opacity:1; transform:translate(-50%, 0); pointer-events:auto; }
+.toast{ position:fixed; left:50%; bottom:calc(104px + var(--safe-b)); z-index:80; transform:translate(-50%, 20px); opacity:0; visibility:hidden; pointer-events:none;
+  width:max-content; max-width:min(92vw, 520px); display:flex; align-items:center; gap:14px; padding:14px 16px 14px 20px; border-radius:18px; background:var(--ink); color:var(--paper); font-weight:600; font-size:16px; box-shadow:var(--shadow-lg); transition:opacity .2s, transform .2s, visibility 0s linear .2s; }
+.toast.show{ opacity:1; visibility:visible; transform:translate(-50%, 0); pointer-events:auto; transition-delay:0s; }
 .toast button{ flex:none; min-height:44px; padding:0 14px; border-radius:12px; border:0; background:var(--tomato); color:#fff; font-weight:800; }
 .busy{ position:fixed; left:50%; top:calc(12px + var(--safe-t)); z-index:70; transform:translateX(-50%); display:flex; align-items:center; gap:10px; padding:10px 18px 10px 12px; border-radius:999px; background:var(--card); border:1px solid var(--line); box-shadow:var(--shadow-lg); font-weight:700; font-size:15px; }
 .spinner{ width:22px; height:22px; border-radius:50%; border:3px solid var(--tomato-soft); border-top-color:var(--tomato); animation:spin .8s linear infinite; }
@@ -697,7 +697,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
       </div>
     </div>
     <div class="actions make-bottom">
-      <button class="btn primary" type="button" data-make="1"><svg class="ico"><use href="#i-sparkle"/></svg>Edit my video</button>
+      <button class="btn primary" type="button" data-make="1" data-testid="make-video"><svg class="ico"><use href="#i-sparkle"/></svg>Edit my video</button>
     </div>
   </section>
 </main>
@@ -1128,7 +1128,9 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     if (action) { b.textContent = action.label; b.hidden = false; } else b.hidden = true;
     t.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(hideToast, ms || 4200);
+    // short and sweet: ~4 s, a little longer for long messages, max 6 s with an Undo button
+    var dur = action ? Math.min(ms || 6000, 6000) : Math.min(ms || 4000, msg.length > 70 ? 5000 : 4000);
+    toastTimer = setTimeout(hideToast, dur);
   }
   function hideToast() { $('toast').classList.remove('show'); toastActionFn = null; }
   $('toastAction').addEventListener('click', function () { var f = toastActionFn; hideToast(); if (f) f(); });
@@ -1710,7 +1712,6 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
         });
         try { v.load(); } catch (e) {}
       }
-      loopTick();
     } else {
       if (ed.url) img.src = ed.url; else img.src = ref.thumb || '';
       $('photoSecs').value = ref.photoSeconds;
@@ -1718,6 +1719,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
     }
     $('clipEditor').hidden = false;
     document.documentElement.classList.add('lock');
+    if (isVid) loopTick();
     try { $('clipTitle').focus({ preventScroll: true }); } catch (e) {}
   }
   function closeEditor() {
@@ -2068,7 +2070,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   });
 
   /* =========================================================== render */
-  var session = null, monitorOn = true, lastProg = null;
+  var session = null, monitorOn = true, lastProg = null, maxPct = 0;
   function setMonitorUI() {
     var b = $('monitorBtn');
     b.setAttribute('aria-pressed', String(monitorOn));
@@ -2077,6 +2079,7 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   function resetRenderUI() {
     $('renderPanel').hidden = false; $('renderError').hidden = true;
     $('renderTitle').textContent = 'Getting your clips ready…';
+    maxPct = 0;
     $('renderBar').style.width = '0%';
     $('renderProgress').setAttribute('aria-valuenow', '0');
     $('renderLabel').textContent = 'Getting ready';
@@ -2087,7 +2090,9 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
   function onProgress(p) {
     if (!p) return;
     lastProg = p;
-    var pct = Math.round(clamp(num(p.fraction, 0), 0, 1) * 100);
+    // the engine's total can grow mid-render (waits/skips): never let the bar go backwards
+    var pct = Math.max(maxPct, Math.round(clamp(num(p.fraction, 0), 0, 1) * 100));
+    maxPct = pct;
     $('renderBar').style.width = pct + '%';
     $('renderProgress').setAttribute('aria-valuenow', String(pct));
     if (p.label) $('renderLabel').textContent = p.label;
