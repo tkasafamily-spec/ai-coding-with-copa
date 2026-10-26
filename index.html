@@ -445,7 +445,7 @@ body.dropping .app::after{
       <div class="row">
         <div class="field">
           <span class="label">Studio voice</span>
-          <span>Google's most real-sounding voices</span>
+          <span>Most real-sounding, but slower to start</span>
         </div>
         <label class="switch"><input type="checkbox" id="studio" aria-label="Use Google's studio voice"><span></span></label>
       </div>
@@ -1349,7 +1349,8 @@ void main(){
     renderTray();
     if (skipped.length) flash("Can't read " + skipped.slice(0, 2).join(", ") + (skipped.length > 2 ? " + " + (skipped.length - 2) + " more" : "") + " yet");
     else if (dropped) flash("That's a lot, so I let go of the oldest files");
-    else if (files.items.length) flash(ear.armed ? "Got it. Say “Hey Oreo” and ask about it" : "Got it. Ask me about it");
+    else if (files.items.length && !reaskAfterFiles) flash(ear.armed ? "Got it. Say “Hey Oreo” and ask about it" : "Got it. Ask me about it");
+    if (reaskAfterFiles && files.items.length && !files.items.some(x => x.busy)) { const q = reaskAfterFiles; reaskAfterFiles = ""; ask(q); }
   }
   async function addFiles(list) {
     const skipped = [];
@@ -1553,7 +1554,7 @@ void main(){
   /* What Oreo is told about the user's folders for a question about their files. */
   async function diskContext(question) {
     const snap = await diskSnapshot();
-    if (!snap.allowed) return { text: "[Oreo has folders connected on this computer but the browser hasn't given permission to look right now. Tell the user to tap the orb (or Settings → Folders → Allow) and ask again.]", attach: [] };
+    if (!snap.allowed) return { allowed: 0, text: "[Oreo has folders connected on this computer but the browser hasn't given permission to look right now. Tell the user in one short line to tap the \"Let Oreo look\" button under your answer.]", attach: [] };
     const when = ms => new Date(ms).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
     const fmt = r => r.path + " | " + prettySize(r.size) + " | " + when(r.modified);
     let text = "[Files in the folders the user connected on this computer, newest first (" + snap.files.length + " files; folders: " +
@@ -1573,7 +1574,7 @@ void main(){
         if (item) { attach.push(item); text += "\n[Oreo opened " + pick.path + " so you can see what's in it.]"; }
       } catch {}
     }
-    return { text, attach };
+    return { allowed: snap.allowed, text, attach };
   }
   async function loadFolders() {
     if (!FS_OK) return;
@@ -1602,15 +1603,42 @@ void main(){
       box.append(row);
     }
   }
-  if (FS_OK) $("addFolderBtn").addEventListener("click", async () => {
+  async function pickFolder() {
     let h;
-    try { h = await window.showDirectoryPicker({ id: "oreo", mode: "read", startIn: "downloads" }); } catch { return; }
-    for (const f of disk.list) { try { if (await f.handle.isSameEntry(h)) return renderFolders(); } catch {} }
+    try { h = await window.showDirectoryPicker({ id: "oreo", mode: "read", startIn: "downloads" }); } catch { return false; }
+    for (const f of disk.list) { try { if (await f.handle.isSameEntry(h)) return true; } catch {} }
     const id = "f" + Date.now();
     try { await idb.put(id, h); } catch {}
     disk.list.push({ id, handle: h }); disk.snapAt = 0;
-    renderFolders();
-  });
+    return true;
+  }
+  if (FS_OK) $("addFolderBtn").addEventListener("click", async () => { await pickFolder(); renderFolders(); });
+
+  /* Asked about their own files but Oreo can't see them yet: one tap fixes it, then Oreo answers again by itself. */
+  const OWN_FILES = /\b(my|mine|i(?:'ve| have)? (?:got|downloaded|saved|made))\b[^.?!]*\b(files?|downloads?|documents?|docs?|desktop|folders?|photos?|pictures?|pics?|screenshots?|notes?|essays?|homework|pdfs?|mods?|worlds?|stuff|computer|pc|laptop)\b|\b(latest|last|newest|recent)\b[^.?!]*\bdownload|\bdownloaded\b/i;
+  let reaskAfterFiles = "";
+  function fileHelp(question, extra) {
+    if (!OWN_FILES.test(question) || files.items.length) return;
+    if (FS_OK && disk.list.length && extra && extra.allowed) return;
+    noteEl.innerHTML = "";
+    const msg = document.createElement("span"), btn = document.createElement("button");
+    btn.type = "button"; btn.className = "text-btn";
+    if (FS_OK) {
+      const needsOk = disk.list.length > 0;
+      msg.innerHTML = needsOk ? "<b>One tap and I can look.</b> Your browser wants your OK first. " : "<b>Let me into your Downloads.</b> Pick the folder once and I'll remember it from then on. ";
+      btn.textContent = needsOk ? "Let Oreo look" : "Pick Downloads";
+      btn.addEventListener("click", async () => {
+        if (needsOk) await allowFolders(); else if (!(await pickFolder())) return;
+        disk.snapAt = 0; ask(question);
+      });
+    } else {
+      msg.innerHTML = "<b>Show me the file.</b> iPads only let websites see files you pick. ";
+      btn.textContent = "Pick a file";
+      btn.addEventListener("click", () => { reaskAfterFiles = question; filePick.click(); });
+    }
+    noteEl.append(msg, document.createElement("br"), btn);
+    noteEl.hidden = false;
+  }
   loadFolders();
 
 
@@ -1636,8 +1664,8 @@ void main(){
       "- A website: search for it and share the most interesting facts about it in your own words.",
       "- Files: when the user shows you files (photos, screenshots, documents, PDFs, code or a whole folder), they come with their message. Look at them properly and answer about them directly. \"This\", \"it\", \"my file\" or \"my folder\" means those files. For code or game files, explain simply and point out anything useful.",
       FS_OK
-        ? "- Files on this computer: if the message includes a list of files from the user's folders, use it (\"latest download\" = the newest file in their Downloads folder; give its name and when it arrived). If they ask about files and no list is included, tell them to connect folders in Oreo's Settings → Folders (for example Downloads), or tap the paperclip to show you one file. Never just say you can't."
-        : "- Files: on this device you only see files the user shows you with the paperclip button. If they ask about files on their device and none are attached, tell them to tap the paperclip and pick it, or to open Oreo on a computer in Chrome or Edge to let it look through folders. Never just say you can't.",
+        ? "- Files on this computer: if the message includes a list of files from the user's folders, use it (\"latest download\" = the newest file in their Downloads folder; give its name and when it arrived). If they ask about their files and no list is included, say in one short friendly line that they just need to tap the button under your answer to let you into their Downloads. Never just say you can't."
+        : "- Files: on this device you only see files the user picks. If they ask about their files and none are attached, say in one short friendly line that they can tap the \"Pick a file\" button under your answer and you'll take a look. Never just say you can't.",
       "- \"x by y by z\" means multiply. Double-check any maths.",
       ...(state.settings.speak && useNatural() ? [
         "- A very natural human voice reads your words out. Write exactly how a relaxed person talks: contractions, short sentences, commas and dashes for little pauses, and the odd \"so\", \"yeah\" or \"honestly\" where it fits naturally. No lists, symbols or abbreviations.",
@@ -1846,7 +1874,10 @@ void main(){
       const rest = text.slice(said);
       let cut = -1;
       if (all) cut = rest.length;
-      else { const re = /[.!?…]["'”’)\]*]*\s+/g; let m; while ((m = re.exec(rest))) cut = m.index + m[0].length; }
+      else {
+        const re = /[.!?…]["'”’)\]*]*\s+/g; let m; while ((m = re.exec(rest))) cut = m.index + m[0].length;
+        if (cut < 0 && said === 0) { const c = /^[^]{30,}?[,;:]\s/.exec(rest); if (c) cut = c[0].length; }   // start talking at the first pause
+      }
       if (cut > 0) { say(rest.slice(0, cut)); said += cut; }
     }
     return {
@@ -1885,7 +1916,7 @@ void main(){
   const b64bytes = s => { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; };
   function ttsDownUntil() { return Number(state.settings.ttsDown) || 0; }
   function useNatural() {
-    return state.settings.voiceMode !== "ipad" && !!(state.settings.gemKey || "").trim() && Date.now() >= ttsDownUntil();
+    return state.settings.studio === true && !!(state.settings.gemKey || "").trim() && Date.now() >= ttsDownUntil();
   }
   function stopGoogleVoice() {
     gtts.gen++;
@@ -2210,6 +2241,7 @@ void main(){
       answerDone = true;
       if (!streamed) streamed = stripTags(answer);
       if (natural) studio.end(raw || answer); else talk.end(streamed);
+      fileHelp(text, extra);
     } catch (e) {
       setBusy(false);
       talk.cancel(); stopGoogleVoice();
@@ -2321,18 +2353,18 @@ void main(){
 
   /* voice settings: guy or girl, studio voice on or off, and the device voice */
   function showVoiceMode() {
-    const g = oreoGender(), studio = state.settings.voiceMode !== "ipad";
+    const g = oreoGender(), studio = state.settings.studio === true;
     $("genderM").checked = g === "m"; $("genderF").checked = g === "f";
     $("studio").checked = studio;
     $("studioField").hidden = !studio;
-    $("deviceHead").textContent = studio ? "Backup voice (when the studio voice can't be used)" : "Device voice";
+    $("deviceHead").textContent = studio ? "Backup voice (when the studio voice can't be used)" : "Oreo's voice (starts talking instantly)";
     const pace = state.settings.pace || "normal";
     $({ relaxed: "paceRelaxed", normal: "paceNormal", brisk: "paceBrisk" }[pace] || "paceNormal").checked = true;
     const gHint = $("gVoiceHint");
     if (studio) {
       if (!(state.settings.gemKey || "").trim()) gHint.textContent = "Add your free Google key at the top of Settings to use the studio voice. Until then Oreo uses the device voice below.";
       else if (Date.now() < ttsDownUntil()) gHint.textContent = gtts.why || "The studio voice is resting for a bit, so Oreo is using the device voice below.";
-      else gHint.textContent = "Google's free plan only allows a limited number of studio-voice answers each day. After that, Oreo uses the backup voice below, still a " + (g === "f" ? "girl" : "guy") + ". For one voice all the time, turn this off.";
+      else gHint.textContent = "Sounds the most real, but Google takes a few seconds to start talking, and only allows a limited number a day. For instant answers, turn this off.";
       renderGVoices();
     }
     renderVoices();
@@ -2369,7 +2401,7 @@ void main(){
     showVoiceMode();
   }));
   $("studio").addEventListener("change", e => {
-    state.settings.voiceMode = e.target.checked ? "natural" : "ipad";
+    state.settings.studio = e.target.checked;
     if (e.target.checked) state.settings.ttsDown = 0;
     persist(); stopGoogleVoice(); stopSpeaking();
     showVoiceMode();
