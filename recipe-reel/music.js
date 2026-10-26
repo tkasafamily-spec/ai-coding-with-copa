@@ -298,6 +298,7 @@
   GenPlayer.prototype.noiseSrc = function (t) {
     var s = this.ctx.createBufferSource();
     s.buffer = this.noise;
+    s.loop = true;                 // long tails (open hat, brushes) never run off the buffer's end
     s.start(t, this.R() * 1.6);
     return s;
   };
@@ -613,7 +614,7 @@
     if (this.dead) return;
     var ctx = this.ctx, now = ctx.currentTime, self = this;
     when = isNum(when) ? Math.max(when, now) : now;
-    if (!this.started) { this.cleanup(); return; }
+    if (!this.started || ctx.state === 'closed') { this.cleanup(); return; }
     if (this.stopping && (when >= this.stopAt || now >= this.stopAt)) return;
     var g = this.out.gain;
     if (this.stopping) { try { g.cancelScheduledValues(when); } catch (e) { /* ignore */ } }
@@ -1098,7 +1099,8 @@
     found = false;
     for (i = n - 1; i >= 0 && !found; i--) { for (c = 0; c < chs; c++) { if (Math.abs(data[c][i]) > thr) { last = i; found = true; break; } } }
     var s = Math.max(0, first - Math.floor(sr * 0.005));
-    var e = Math.min(n, last + Math.floor(sr * 0.03));
+    var e = Math.min(n, last + 1 + Math.floor(sr * 0.001));   // end right at the last audible sample: an abrupt
+                                                               // song ending falls where the crossfade weight is ~0
     var L = e - s;
     var info;
     var X = Math.min(Math.floor(sr * 0.35), Math.floor(L / 4));
@@ -1132,7 +1134,7 @@
     this.comp = ctx.createDynamicsCompressor();
     this.comp.threshold.value = -14; this.comp.knee.value = 8; this.comp.ratio.value = 4;
     this.comp.attack.value = 0.004; this.comp.release.value = 0.25;
-    this.level = 0.55;
+    this.level = 0.36;            // the compressor adds make-up gain; this lands peaks near -12 dBFS
     this.out = ctx.createGain(); this.out.gain.value = this.level;
     this.norm.connect(this.fade); this.fade.connect(this.comp); this.comp.connect(this.out);
     this.output = this.out;
@@ -1157,7 +1159,7 @@
     if (this.dead) return;
     var ctx = this.ctx, now = ctx.currentTime, self = this;
     when = isNum(when) ? Math.max(when, now) : now;
-    if (!this.started) { this.cleanup(); return; }
+    if (!this.started || ctx.state === 'closed') { this.cleanup(); return; }
     if (this.stopping && (when >= this.stopAt || now >= this.stopAt)) return;
     var g = this.out.gain;
     if (this.stopping) { try { g.cancelScheduledValues(when); } catch (e) { /* ignore */ } }

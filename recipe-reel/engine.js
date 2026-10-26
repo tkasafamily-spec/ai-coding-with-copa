@@ -666,6 +666,7 @@
           sslots[k].pool.url = url;
           try {
             var pp = el.play();
+            if (pp && typeof pp.catch === 'function') pp.catch(noop); // never an unhandled rejection (e.g. cancelled early)
             unlocks.push(pp && typeof pp.then === 'function' ? pp : Promise.resolve());
           } catch (e) { /* ignore */ }
         }
@@ -755,12 +756,15 @@
       });
     }
 
+    var curState = 'preparing';
     function status(state, message, extra) {
+      if (!extra || !extra.warning) curState = state;
       var s = { state: state, message: message };
       if (extra) for (var k in extra) s[k] = extra[k];
       try { onStatus(s); } catch (e) { /* ignore */ }
     }
-    function notify(message) { status(paused ? 'paused' : 'recording', message, { warning: true }); }
+    // A heads-up (e.g. a clip was skipped). Keeps the current state; UI can show it as a toast.
+    function notify(message) { status(paused ? 'paused' : curState, message, { warning: true }); }
 
     // ================================================================ drawing kit
     var snap = null, snapG = null, snapValid = false;
@@ -1486,6 +1490,20 @@
       } catch (e) { /* ignore */ }
       return true;
     }
+    // Browsers without audioTracks (Chrome): once a clip has played a little, no decoded audio
+    // bytes while video bytes flow means the clip has no sound, so the music needn't duck.
+    function provedSilent(el) {
+      try {
+        if (el.audioTracks && typeof el.audioTracks.length === 'number') return false;
+        var ab = el.webkitAudioDecodedByteCount, vb = el.webkitVideoDecodedByteCount;
+        return typeof ab === 'number' && typeof vb === 'number' && ab === 0 && vb > 50000;
+      } catch (e) { return false; }
+    }
+    function checkSilent(v, tc, el) {
+      if (!v.audible || v.silentChecked || tc < 0.8) return;
+      v.silentChecked = true;
+      if (provedSilent(el)) { v.audible = false; duck(false); }
+    }
     function clipGain(speed) { return speed <= 1.25 ? 1.0 : (speed <= 2 ? 0.55 : 0.25); }
 
     var vCursor = 0;
@@ -1523,10 +1541,15 @@
           var d = el.duration;
           if (isFinite(d) && d > 0) target = Math.min(target, Math.max(0, d - 0.1));
           if (Math.abs(el.currentTime - target) < 0.02 && el.readyState >= 2 && !el.seeking) return null;
+          // iOS may not buffer a frame for a paused element: once 'seeked' fired, that's good enough.
+          var seekedFired = false;
+          var onSeeked = function () { seekedFired = true; };
+          el.addEventListener('seeked', onSeeked);
           try { el.currentTime = target; } catch (e) { /* ignore */ }
           return waitEl(el, ['seeked', 'loadeddata', 'canplay', 'canplaythrough'], function () {
-            return !el.seeking && el.readyState >= 2;
-          }, 8000).catch(function (e) {
+            return !el.seeking && (el.readyState >= 2 || seekedFired);
+          }, 8000).then(function () { el.removeEventListener('seeked', onSeeked); }, function (e) {
+            el.removeEventListener('seeked', onSeeked);
             alive();
             if (el.error) throw e;
             dbg('seek wait soft-timeout', seg.mediaId);
@@ -1739,6 +1762,7 @@
         if (ct > v.lastCT + 0.004) { v.lastCT = ct; v.lastProgress = clock; }
         else if (clock - v.lastProgress > STALL_SECS) { finishView(v, 'stalled'); return; }
         if (el.paused && !paused && clock - v.lastPlayTry > 0.8) { v.lastPlayTry = clock; setRate(el, sp); playEl(el); }
+        checkSilent(v, tc, el);
         if (tc > v.dur * 2.5 + 15) { finishView(v, 'timeout'); return; }
       } else {
         if (v.slot && !v.held) {
@@ -1753,6 +1777,7 @@
             if (ct > v.lastCT + 0.004) { v.lastCT = ct; v.lastProgress = clock; }
             else if (clock - v.lastProgress > STALL_SECS) { v.held = true; try { el.pause(); } catch (e) { /* ignore */ } }
             if (!v.held && el.paused && !paused && clock - v.lastPlayTry > 0.8) { v.lastPlayTry = clock; playEl(el); }
+            checkSilent(v, tc, el);
           }
         }
         if (v.slot && !v.held && v.dur - tc <= 0.1 && !v.fadingOut) { v.fadingOut = true; v.slot.ramp.to(0, 0.08); }
@@ -2071,6 +2096,7 @@
 
     function doRun() {
       if (initError) return Promise.reject(initError);
+      if (aborted) return Promise.reject(aborted);
       if (!segs.length) return Promise.reject(mkErr('failed', 'There’s nothing to put in the video yet — add a step first.'));
       status('preparing', 'Getting your clips ready…');
       document.addEventListener('visibilitychange', onVisibility);
