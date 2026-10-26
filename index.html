@@ -968,7 +968,8 @@ void main(){
       ear.fails = 0;
       let all = "";
       for (let i = 0; i < e.results.length; i++) all += e.results[i][0].transcript + " ";
-      onHeard(all.replace(/\s+/g, " ").trim());
+      const last = e.results[e.results.length - 1];
+      onHeard(all.replace(/\s+/g, " ").trim(), !!(last && last.isFinal));
     };
     r.onerror = e => {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
@@ -1027,7 +1028,7 @@ void main(){
     if (msg) setStatus(msg); else idleStatus();
     killRec(); setTimeout(startRec, 200);   // fresh session, so old words are forgotten
   }
-  function onHeard(all) {
+  function onHeard(all, final) {
     if (!ear.armed || ear.paused) return;
     ear.all = all;
     if (!ear.awake) {
@@ -1041,7 +1042,8 @@ void main(){
     clearTimeout(ear.quietT);
     if (ear.cmd.length > 1) {
       clearTimeout(ear.wakeT);
-      ear.quietT = setTimeout(sendHeard, 1500);
+      /* Send as soon as the browser says the sentence is finished; otherwise after a short pause. */
+      ear.quietT = setTimeout(sendHeard, final ? 300 : 900);
     }
   }
   function sendHeard() {
@@ -1305,62 +1307,186 @@ void main(){
     }
     return { text: String(text || "").trim(), cites };
   }
-  async function callGemini(key) {
+  /* Does this question need live information from the web? If not, skip Google Search: it's much faster. */
+  const LIVE_RE = /\b(today|tonight|yesterday|tomorrow|now|currently|current|latest|recent|recently|news|this (week|weekend|month|year|season)|last (night|week|weekend|month|year|season|game|match)|score|scores|won|win|winner|winning|result|results|ladder|standings|price|prices|cost|costs|worth|stock|shares|crypto|bitcoin|ethereum|forecast|best[- ]?sell\w*|top selling|trending|popular|release|released|coming out|new|update|open|opening|hours|who is the|president|prime minister|ceo|election|2025|2026|2027|website|site|\.com|\.au|\.net|\.org|https?)\b/i;
+  const THINK = { "gemini-3.6-flash": "minimal", "gemini-3.5-flash-lite": "minimal", "gemini-3-flash-preview": "minimal", "gemini-3.8-flash": "low", "gemini-2.5-flash": "low" };
+
+  /* One streamed request. Calls onText with the whole answer so far as words arrive. */
+  async function geminiRequest(key, body, signal, onText) {
+    let res;
+    try {
+      res = await fetch(GEMINI_URL, {
+        method: "POST", signal,
+        headers: { "content-type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify(Object.assign({ stream: true }, body))
+      });
+    } catch (e) {
+      if (e && e.name === "AbortError") throw e;
+      throw new Error("Can't reach Google. Check your internet connection.");
+    }
+    if (!res.ok) return { ok: false, status: res.status, data: await res.json().catch(() => null) };
+    const type = res.headers.get("content-type") || "";
+    if (!res.body || !/event-stream/i.test(type)) {
+      const out = parseGemini(await res.json().catch(() => null));
+      if (out.text) onText(out.text);
+      return { ok: true, out };
+    }
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    const cites = [], seen = new Set(), stepType = {};
+    let buf = "", text = "";
+    const addCite = (u, t) => { if (u && /^https?:/.test(u) && !seen.has(u)) { seen.add(u); cites.push({ url: u, title: t || hostOf(u) }); } };
+    const handle = ev => {
+      if (!ev || typeof ev !== "object") return;
+      if (ev.event_type === "error") throw geminiError((ev.error && ev.error.code) || 500, { error: ev.error });
+      if (ev.event_type === "step.start" && ev.step) stepType[ev.index] = ev.step.type;
+      if (ev.event_type === "step.delta" && ev.delta) {
+        const st = stepType[ev.index];
+        if (ev.delta.type === "text" && typeof ev.delta.text === "string" && (!st || st === "model_output")) { text += ev.delta.text; onText(text); }
+        for (const a of (Array.isArray(ev.delta.annotations) ? ev.delta.annotations : [])) addCite(a.url || (a.url_citation && a.url_citation.url), a.title || (a.url_citation && a.url_citation.title));
+      }
+      if (ev.event_type === "interaction.completed" && ev.interaction) {
+        const o = parseGemini(ev.interaction);
+        if (!text && o.text) { text = o.text; onText(text); }
+        o.cites.forEach(c => addCite(c.url, c.title));
+      }
+    };
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+        const d = chunk.split("\n").filter(l => l.startsWith("data:")).map(l => l.slice(5).trim()).join("\n");
+        if (!d || d === "[DONE]") continue;
+        let ev; try { ev = JSON.parse(d); } catch { continue; }
+        handle(ev);
+      }
+    }
+    return { ok: true, out: { text: text.trim(), cites } };
+  }
+
+  async function callGemini(key, question, onText) {
     const ctl = new AbortController(); state.ctl = ctl;
-    const hist = historyMessages();
+    const hist = historyMessages().slice(-7);
     const q = hist.length ? hist[hist.length - 1].content : "";
-    const prior = hist.slice(0, -1).map(m => (m.role === "user" ? "User: " : "Oreo: ") + m.content).join("\n");
+    const prior = hist.slice(0, -1).map(m => (m.role === "user" ? "User: " : "Oreo: ") + m.content.slice(0, 600)).join("\n");
     const input = prior ? "Earlier in this conversation:\n" + prior + "\n\nNow the user says: " + q : q;
     const NO_SEARCH_NOTE = "\n\n(Google Search isn't available right now. If this needs live or recent information, say in one short line that you can't check live right now, then give what you know, flagged as possibly out of date.)";
+    const live = LIVE_RE.test(question);
+    const slot = live ? "gemLive" : "gemFast";
 
-    /* Free Google plans don't cover every model or Google Search, so try the free options in turn
-       and remember the first one that works. */
+    /* Free Google plans don't cover every model or Google Search, so try the fast free options in turn
+       and remember the first one that works for each kind of question. */
     const plan = [];
-    const add = (model, search) => { if (!plan.some(p => p.model === model && p.search === search)) plan.push({ model, search }); };
-    const cached = state.settings.gemCombo;
-    if (cached && cached.model) add(cached.model, !!cached.search);
-    add("gemini-3.8-flash", true); add("gemini-3.8-flash", false);
-    add("gemini-2.5-flash", true); add("gemini-2.5-flash", false);
-    add("gemini-3.5-flash-lite", false); add("gemini-2.5-flash-lite", false);
+    const add = (model, search, note) => { if (!plan.some(p => p.model === model && p.search === search)) plan.push({ model, search, note: !!note }); };
+    const cached = state.settings[slot];
+    if (cached && cached.model) add(cached.model, !!cached.search, cached.note);
+    if (live) {
+      add("gemini-3.6-flash", true); add("gemini-3.8-flash", true); add("gemini-2.5-flash", true);
+      add("gemini-3.5-flash-lite", false, true); add("gemini-2.5-flash-lite", false, true); add("gemini-3.6-flash", false, true);
+    } else {
+      add("gemini-3.5-flash-lite", false); add("gemini-3.6-flash", false); add("gemini-2.5-flash-lite", false);
+      add("gemini-2.5-flash", false); add("gemini-3.8-flash", false);
+    }
 
     let lastErr = null, lastRaw = "", gone = new Set();
     for (const step of plan) {
       if (gone.has(step.model)) continue;
-      setStatus(lastErr ? "Still thinking" : "Thinking", true);
-      const body = { model: step.model, system_instruction: rules("gemini"), input: step.search ? input : input + NO_SEARCH_NOTE };
+      if (lastErr) setStatus("Still thinking", true);
+      const body = { model: step.model, system_instruction: rules("gemini"), input: step.note ? input + NO_SEARCH_NOTE : input };
       if (step.search) body.tools = [{ type: "google_search" }];
-      let res;
-      try {
-        res = await fetch(GEMINI_URL, {
-          method: "POST", signal: ctl.signal,
-          headers: { "content-type": "application/json", "x-goog-api-key": key },
-          body: JSON.stringify(body)
-        });
-      } catch (e) {
-        if (e && e.name === "AbortError") throw e;
-        throw new Error("Can't reach Google. Check your internet connection.");
+      if (THINK[step.model]) body.generation_config = { thinking_level: THINK[step.model] };
+      let r = await geminiRequest(key, body, ctl.signal, onText);
+      if (!r.ok && r.status === 400 && body.generation_config) {   // model didn't like the speed setting: try once without it
+        delete body.generation_config;
+        r = await geminiRequest(key, body, ctl.signal, onText);
       }
-      const data = await res.json().catch(() => null);
-      if (res.ok) {
-        const out = parseGemini(data);
-        if (out.text) {
-          if (!cached || cached.model !== step.model || !!cached.search !== step.search) { state.settings.gemCombo = step; persist(); }
-          return out;
+      if (r.ok) {
+        if (r.out.text) {
+          if (!cached || cached.model !== step.model || !!cached.search !== step.search) { state.settings[slot] = step; persist(); }
+          return r.out;
         }
         lastErr = new Error("Oreo came up blank. Try asking a different way.");
         continue;
       }
-      lastErr = geminiError(res.status, data);
+      lastErr = geminiError(r.status, r.data);
       lastRaw = lastErr.raw || lastRaw;
-      if (cached && cached.model === step.model && !!cached.search === step.search) { state.settings.gemCombo = null; persist(); }
-      const keyProblem = /api key not valid|api_key_invalid|invalid api key|unauthenticated/i.test(lastErr.raw || "") || res.status === 401;
+      if (cached && cached.model === step.model && !!cached.search === step.search) { state.settings[slot] = null; persist(); }
+      const keyProblem = /api key not valid|api_key_invalid|invalid api key|unauthenticated/i.test(lastErr.raw || "") || r.status === 401;
       if (keyProblem) throw lastErr;
-      if (res.status === 404) gone.add(step.model);   // this model isn't offered: skip it
+      if (r.status === 404) gone.add(step.model);   // this model isn't offered: skip it
     }
     const e = lastErr || new Error("Google couldn't answer that.");
     if (lastRaw && e.status === 429) e.message = "Google says this key has no free uses left right now. Try again later. (Google said: " + lastRaw.slice(0, 140) + ")";
     else if (lastRaw && !e.message.includes(lastRaw.slice(0, 40))) e.message += " (Google said: " + lastRaw.slice(0, 140) + ")";
     throw e;
+  }
+
+  /* ---------- talking while the answer is still arriving ---------- */
+  const talk = (() => {
+    let on = false, said = 0, pending = 0, ended = false, guard = 0, lastActivity = 0;
+    function done() {
+      if (!on) return;
+      on = false; clearInterval(guard);
+      doneSpeaking();
+    }
+    function say(chunk) {
+      const plain = toSpeech(chunk);
+      if (!plain) return;
+      try {
+        const u = new SpeechSynthesisUtterance(plain);
+        const v = currentVoice();
+        if (v) { u.voice = v; u.lang = v.lang; }
+        u.rate = 1; u.pitch = 1;
+        pending++;
+        u.onstart = () => { lastActivity = Date.now(); setOrb("speaking"); };
+        u.onend = u.onerror = () => { pending = Math.max(0, pending - 1); lastActivity = Date.now(); if (ended && !pending) done(); };
+        speechSynthesis.speak(u);
+        lastActivity = Date.now();
+      } catch {}
+    }
+    /* Speak every finished sentence that hasn't been spoken yet. */
+    function flush(text, all) {
+      const rest = text.slice(said);
+      let cut = -1;
+      if (all) cut = rest.length;
+      else { const re = /[.!?…]["'”’)\]*]*\s+/g; let m; while ((m = re.exec(rest))) cut = m.index + m[0].length; }
+      if (cut > 0) { say(rest.slice(0, cut)); said += cut; }
+    }
+    return {
+      start() {
+        on = !!state.settings.speak && canSpeak();
+        said = 0; pending = 0; ended = false;
+        if (on) { pauseEar(); stopSpeaking(); }
+      },
+      feed(text) { if (on) flush(text, false); },
+      end(text) {
+        if (!on) { doneSpeaking(); return; }
+        flush(text, true); ended = true;
+        if (!pending) { done(); return; }
+        /* Safety net in case the browser never reports that speech ended. */
+        clearInterval(guard);
+        guard = setInterval(() => {
+          let talking = false; try { talking = speechSynthesis.speaking || speechSynthesis.pending; } catch {}
+          if (!talking && Date.now() - lastActivity > 1500) done();
+        }, 500);
+      },
+      cancel() { if (on) { stopSpeaking(); pending = 0; done(); } }
+    };
+  })();
+
+  /* Questions Oreo can answer on the spot, with no brain needed. */
+  function localAnswer(text) {
+    const t = M.stripWake(text).toLowerCase().replace(/[?.!,]/g, "").replace(/\s+/g, " ").trim();
+    const now = new Date();
+    if (/^(what('?s| is) the )?time( is it)?( now| right now)?$|^what time is it( now| right now)?$|^whats the time$/.test(t))
+      return "It's **" + now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) + "**.";
+    if (/^(what('?s| is) )?(the |today'?s )?(date|day)( is it)?( today)?$|^what day is it( today)?$|^whats the date( today)?$/.test(t))
+      return "It's **" + now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) + "**.";
+    if (/^(hi|hey|hello|yo|sup|g'?day)( there| oreo)?$/.test(t)) return "Hey! What can I do for you?";
+    if (/^(thanks|thank you|cheers|ta)( oreo| mate| heaps)?$/.test(t)) return "Any time!";
+    return null;
   }
 
   /* ---------- asking ---------- */
@@ -1418,6 +1544,8 @@ void main(){
 
     const quick = M.quick(text);
     if (quick) { finish(quick.md, quick.say); return; }
+    const local = localAnswer(text);
+    if (local) { finish(local); return; }
 
     const key = (state.settings.apiKey || "").trim();
     const gem = (state.settings.gemKey || "").trim();
@@ -1437,13 +1565,34 @@ void main(){
         keyNote();
         return;
       }
-      const { text: answer, cites } = key ? await callClaude(key) : await callGemini(gem);
+      if (key) {
+        const { text: answer, cites } = await callClaude(key);
+        setBusy(false);
+        if (!answer) { fail("Oreo came up blank. Try asking a different way.", text); return; }
+        const src = cites.slice(0, 3).map(c => `[${c.title.replace(/[\[\]]/g, "")}](${c.url})`).join(", ");
+        finish(answer + (src ? "\n\nSources: " + src : ""), answer);
+        return;
+      }
+      /* Google: show and speak the answer while it streams in. */
+      talk.start();
+      let first = true, streamed = "";
+      const { text: answer, cites } = await callGemini(gem, text, partial => {
+        if (first) { first = false; setStatus(""); }
+        streamed = partial;
+        renderAnswer(partial);
+        talk.feed(partial);
+      });
       setBusy(false);
-      if (!answer) { fail("Oreo came up blank. Try asking a different way.", text); return; }
+      if (!answer) { talk.cancel(); fail("Oreo came up blank. Try asking a different way.", text); return; }
       const src = cites.slice(0, 3).map(c => `[${c.title.replace(/[\[\]]/g, "")}](${c.url})`).join(", ");
-      finish(answer + (src ? "\n\nSources: " + src : ""), answer);
+      const md = answer + (src ? "\n\nSources: " + src : "");
+      renderAnswer(md); idleStatus();
+      state.turns.push({ role: "assistant", content: md });
+      persist(); renderHistory();
+      talk.end(streamed || answer);
     } catch (e) {
       setBusy(false);
+      talk.cancel();
       if (e && e.name === "AbortError") { showError("Stopped."); state.turns.pop(); persist(); renderHistory(); restOrb(); resumeEar(); return; }
       fail(String(e && e.message || "Something went wrong."), text);
     }
@@ -1468,7 +1617,7 @@ void main(){
   /* ---------- the orb and mic button ---------- */
   orbBtn.addEventListener("click", () => {
     unlockSpeech(); chime.prime();
-    if (Orb.state === "speaking" && !state.busy) { stopSpeaking(); doneSpeaking(); return; }
+    if (Orb.state === "speaking" && !state.busy) { talk.cancel(); stopSpeaking(); doneSpeaking(); return; }
     if (state.busy) return;
     if (!ear.armed) { arm(true); return; }
     if (ear.awake) { dozeOff(); return; }
