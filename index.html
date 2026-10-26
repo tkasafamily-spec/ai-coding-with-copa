@@ -361,9 +361,9 @@ button{cursor:pointer}
 
       <div class="field">
         <label class="label" for="gemKey">Free brain: Google Gemini key</label>
-        <input type="password" id="gemKey" placeholder="AIza…" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <input type="password" id="gemKey" placeholder="Paste your Google key" autocomplete="off" autocapitalize="off" spellcheck="false">
         <div class="inline-row"><button class="text-btn" id="gemSave" type="button">Save key</button><button class="text-btn" id="gemClear" type="button">Remove key</button></div>
-        <p class="hint" id="gemHint">Free, no credit card. Go to <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>, sign in with Google, tap Create API key, copy it and paste it here. Google says you must be 18 or older to use it. The key stays on this device and is only sent to Google.</p>
+        <p class="hint" id="gemHint">Free, no credit card. Go to <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>, sign in with Google, tap Create API key, then Copy key, and paste it here. Google says you must be 18 or older to use it. The key stays on this device and is only sent to Google.</p>
       </div>
 
       <div class="field">
@@ -1515,7 +1515,7 @@ void main(){
     keyEl.placeholder = k ? "Saved: ••••" + k.slice(-4) : "sk-ant-…";
     const g = (state.settings.gemKey || "").trim();
     gemEl.value = "";
-    gemEl.placeholder = g ? "Saved: ••••" + g.slice(-4) : "AIza…";
+    gemEl.placeholder = g ? "Saved: ••••" + g.slice(-4) : "Paste your Google key";
   }
   $("gemSave").addEventListener("click", () => {
     const v = gemEl.value.trim();
