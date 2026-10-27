@@ -2035,6 +2035,8 @@
     invalidate: invalidate,
     sceneCanvas: sceneCanvas,
     drawSticker: drawSticker,
+    isSkinTexture: isSkinTexture,
+    renderSkinPreview: renderSkinPreview,
     _stats: function () { return { entries: cache.size, megapixels: +(cachePx / 1e6).toFixed(2), fontEpoch: fontEpoch }; }
   };
 })();

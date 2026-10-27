@@ -1376,8 +1376,7 @@ details.more[open] summary::after { content: "–"; }
     dirty = false; everChanged = !opts.fresh; nudgeDismissed = false;
     setMode(d.theme);
     var slots = emptySlots();
-    panelMode = (slots.length || !hasAnyPhoto()) ? 'photo' : 'bg';
-    if (opts.fromIdea && slots.length && !bgSlotEmpty()) { selectedId = slots[0].id; panelMode = 'layer'; }
+    panelMode = (slots.length || bgOpen() || !hasAnyPhoto()) ? 'photo' : 'bg';
     if (!$('home').hidden) homeScroll = window.scrollY || 0;
     $('home').hidden = true;
     $('editor').hidden = false;
@@ -1446,7 +1445,7 @@ details.more[open] summary::after { content: "–"; }
   function requestRender() { if (rq) return; rq = true; requestAnimationFrame(function () { rq = false; drawEditor(); }); }
   function drawEditor() {
     if (!design || $('editor').hidden) return;
-    var res = paint(cv, design, {});
+    var res = paint(cv, design, { emptyOutline: true });
     drawOverlay();
     // during resizes the renderer may use a soft cached size; draw once more when things settle
     clearTimeout(settleTimer);
@@ -1548,7 +1547,7 @@ details.more[open] summary::after { content: "–"; }
   function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 400); }
   function makePreview(d) {
     var c = makeCanvas(480, 270);
-    if (!paint(c, d, { placeholders: true })) return '';
+    if (!paint(c, d, {})) return '';
     try { return c.toDataURL('image/jpeg', 0.78); } catch (e) { return ''; }
   }
   function saveNow() {
@@ -1569,13 +1568,15 @@ details.more[open] summary::after { content: "–"; }
     return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
   }
   function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
-  function sizeOf(l) { return { size: l.size, maxWidth: l.maxWidth, w: l.w }; }
+  function sizeOf(l) { return { size: l.size, maxWidth: l.maxWidth, w: l.w, h: l.h }; }
   function applyScale(l, s0, f) {
     if (l.type === 'text') {
       l.size = Math.round(clamp(num(s0.size, 100) * f, 12, 700));
       if (s0.maxWidth) l.maxWidth = Math.round(clamp(s0.maxWidth * f, 80, 3000));
     } else if (l.type === 'emoji') {
       l.size = Math.round(clamp(num(s0.size, 120) * f, 16, 1000));
+    } else if (l.type === 'skin') {
+      l.h = Math.round(clamp(num(s0.h, 500) * f, 60, 2400));
     } else {
       l.w = Math.round(clamp(num(s0.w, 300) * f, 20, 3200));
     }
@@ -1652,7 +1653,7 @@ details.more[open] summary::after { content: "–"; }
       gesture.moved = true;
       applyScale(l, gesture.s0, f);
       // keep the opposite corner still
-      var f2 = l.type === 'text' ? l.size / num(gesture.s0.size, 1) : l.type === 'emoji' ? l.size / num(gesture.s0.size, 1) : l.w / num(gesture.s0.w, 1);
+      var f2 = l.type === 'text' ? l.size / num(gesture.s0.size, 1) : l.type === 'emoji' ? l.size / num(gesture.s0.size, 1) : l.type === 'skin' ? l.h / num(gesture.s0.h, 1) : l.w / num(gesture.s0.w, 1);
       l.x = Math.round(A.x + (gesture.c0.x - A.x) * f2); l.y = Math.round(A.y + (gesture.c0.y - A.y) * f2);
       requestRender();
     } else if (gesture.type === 'rotate' && l) {
@@ -1701,7 +1702,7 @@ details.more[open] summary::after { content: "–"; }
     if (g.type === 'move' && !g.moved) {
       var l = layerById(g.id);
       if (l && l.type === 'text' && g.wasSel) tapText = g.id;
-      if (l && l.type === 'image' && !l.imageId) tapSlot = g.id;
+      if (l && l.type === 'image' && !l.imageId && !l.fill) tapSlot = g.id;
     }
     if (g.moved) commitGesture(g); else requestRender();
   }
@@ -1779,12 +1780,17 @@ details.more[open] summary::after { content: "–"; }
   function setPanel(m) { panelMode = m; if (m !== 'layer') selectedId = null; renderPanel(); requestRender(); }
   function emptySlots() { return design ? design.layers.filter(function (l) { return l.type === 'image' && !l.imageId; }) : []; }
   function bgSlotEmpty() { return !!(design && design.background.kind === 'image' && !design.background.imageId); }
-  function bgSlotLabel() { var t = String(design.background.placeholder || (design.theme === 'smp' ? 'Your screenshot' : 'Your food photo')); return t.replace(/\s*\(background\)\s*/i, ''); }
+  // the background is made-up art standing in for the owner's own screenshot / photo
+  function bgOpen() { var b = design && design.background; return !!b && (bgSlotEmpty() || (!!b.slotHint && !(b.kind === 'image' && b.imageId))); }
+  function slotName(l) { return String((l && (l.slotHint || l.placeholder)) || ''); }
+  function hasDesignSkin() { return !!(design && design.layers.some(function (l) { return l.type === 'skin'; })); }
   function hasAnyPhoto() { return !!(design && (design.background.kind === 'image' && design.background.imageId || design.layers.some(function (l) { return l.type === 'image' && l.imageId; }))); }
   function updateNudge() {
     var sl = selLayer();
     var asking = panelMode === 'photo' || (sl && sl.type === 'image' && !sl.imageId) || (panelMode === 'bg' && bgSlotEmpty());
-    var show = !!design && !nudgeDismissed && !hasAnyPhoto() && !asking && cv.clientHeight >= 300;
+    // only for old designs with a truly empty box: made-for-you pictures are finished, no nagging
+    var legacyEmpty = !!design && (bgSlotEmpty() || design.layers.some(function (l) { return l.type === 'image' && !l.imageId && !l.fill; }));
+    var show = !!design && legacyEmpty && !nudgeDismissed && !hasAnyPhoto() && !asking && cv.clientHeight >= 300;
     $('nudge').hidden = !show;
     if (show) $('nudgeText').textContent = design.theme === 'smp' ? 'Add your own screenshot' : 'Add your own food photo';
   }
@@ -1867,6 +1873,7 @@ details.more[open] summary::after { content: "–"; }
     var h = '';
     if (l && l.type === 'text') h = textPanel(l, t);
     else if (l && l.type === 'image') h = imagePanel(l, t);
+    else if (l && l.type === 'skin') h = skinPanel(l, t);
     else if (l && l.type === 'sticker') h = stickerPanel(l, t);
     else if (l && l.type === 'emoji') h = emojiPanel(l, t);
     else if (panelMode === 'photo') h = photoPanel(t);
@@ -1931,11 +1938,13 @@ details.more[open] summary::after { content: "–"; }
     return h;
   }
   function imagePanel(l, t) {
-    var h = head(l.imageId ? 'Photo' : (l.placeholder || 'Photo box'), '<button type="button" class="icon-btn" data-act="deselect" aria-label="Done">' + icon('i-check') + '</button>');
+    var made = !l.imageId && !!l.fill;
+    var h = head(l.imageId ? 'Photo' : made ? (/^food:/.test(l.fill) ? 'Food picture' : 'Picture') : (niceTitle(slotName(l)) || 'Photo box'), '<button type="button" class="icon-btn" data-act="deselect" aria-label="Done">' + icon('i-check') + '</button>');
     if (!l.imageId) {
-      h += '<div class="bigbtns"><button type="button" class="btn primary big" data-act="pick-replace">' + icon('i-photo') + 'Add ' + esc((l.placeholder || 'a photo').replace(/^your /i, 'your ')) + '</button>' +
+      if (made) h += '<p class="tip">This picture was made for you, so it’s ready to save. Want your own' + (slotName(l) ? ' (' + esc(slotName(l)) + ')' : '') + ' instead?</p>';
+      h += '<div class="bigbtns"><button type="button" class="btn primary big" data-act="pick-replace" data-testid="use-own-photo">' + icon('i-photo') + (t === 'smp' && !/^food:/.test(l.fill || '') ? 'Use my own screenshot' : 'Use my own photo') + '</button>' +
         '<button type="button" class="btn" data-act="video-replace">' + icon('i-video') + 'Grab a frame from a video</button></div>';
-      var wantsCut = /face|skin|cut|you\b|person|player|me\b/i.test(l.placeholder || '') || l.shape === 'none';
+      var wantsCut = /face|skin|cut|you\b|person|player|me\b/i.test(slotName(l)) || (l.shape === 'none' && !made);
       if (wantsCut) {
         h += '<div class="grp"><div class="lbl"><span>Or paste a cut-out</span></div><div class="paste" contenteditable="true" inputmode="none" data-testid="paste-field" role="textbox" aria-label="Paste here" data-ph="Touch and hold here, then tap Paste"></div></div>';
         h += '<p class="tip"><b>Cut yourself out:</b> in Photos, touch and hold yourself (or your Minecraft skin) until it glows, tap <b>Copy</b>, come back, touch and hold the box above and tap <b>Paste</b>.</p>';
@@ -1989,18 +1998,47 @@ details.more[open] summary::after { content: "–"; }
     h += actRow(l);
     return h;
   }
+  function skinPanel(l, t) {
+    var theirs = l.slotHint === 'their skin';
+    var h = head(theirs ? 'Other player' : 'Your character', '<button type="button" class="icon-btn" data-act="deselect" aria-label="Done">' + icon('i-check') + '</button>');
+    h += '<div class="bigbtns">';
+    if (me.skinId && l.imageId !== me.skinId) h += '<button type="button" class="btn primary big" data-act="use-my-skin" data-testid="use-skin">' + icon('i-check') + 'Use my skin</button>';
+    h += '<button type="button" class="btn' + (me.skinId && l.imageId !== me.skinId ? '' : ' primary big') + '" data-act="pick-skin"' + (me.skinId && l.imageId !== me.skinId ? '' : ' data-testid="use-skin"') + '>' + icon('i-photo') + (l.imageId ? 'Choose a different skin' : me.skinId ? 'Choose a different skin' : 'Use my skin') + '</button>';
+    if (l.imageId) h += '<button type="button" class="btn" data-act="skin-default">' + icon('i-undo') + 'Use the built-in player</button>';
+    h += '</div>';
+    if (!l.imageId) h += '<p class="tip"><b>Your skin:</b> the 64×64 skin file from your skin site or launcher works best. A screenshot or picture of your character works too.</p>';
+    h += segCtl('Pose', 'pose', [['stand', 'Stand'], ['shock', 'Shocked'], ['point', 'Point'], ['run', 'Run']], l.pose || 'stand', {});
+    h += segCtl('Looking', 'facing', [['left', 'Left'], ['right', 'Right']], l.facing || 'right', {});
+    h += rangeCtl('Size', 'h', 120, 1400, 2, l.h, { def: 500 });
+    var o = l.outline || {}, g = l.glow || {}, s = l.shadow || {};
+    h += rangeCtl('Outline', 'outline.width', 0, 40, 1, o.width, { def: 0 });
+    h += swatchCtl('', 'outline.color', LINE_COLORS, o.color, {});
+    h += rangeCtl('Glow', 'glow.size', 0, 80, 1, g.size, { def: 0 });
+    h += swatchCtl('', 'glow.color', GLOW_COLORS, g.color, {});
+    h += rangeCtl('Shadow', 'shadow.blur', 0, 60, 1, s.blur, { def: 0 });
+    h += '<details class="more"><summary>More</summary>' + rangeCtl('Tilt', 'rotation', -45, 45, 0.5, l.rotation || 0, { fmt: 'deg' }) + '</details>';
+    h += actRow(l);
+    return h;
+  }
   function photoPanel(t) {
     var slots = emptySlots();
-    var h = head(t === 'smp' ? 'Add your screenshot' : 'Add your photo');
-    var bgEmpty = bgSlotEmpty();
-    if (slots.length || bgEmpty) {
-      h += '<div class="lbl"><span>Fill a box</span></div><div class="bigbtns">' + (bgEmpty ? '<button type="button" class="btn primary" data-act="pick-bg">' + icon('i-image-bg') + esc(bgSlotLabel()) + ' (background)</button>' : '') + slots.map(function (s, i) {
-        return '<button type="button" class="btn' + (i === 0 && !bgEmpty ? ' primary' : '') + '" data-act="fill-slot" data-id="' + esc(s.id) + '">' + icon('i-photo') + esc(s.placeholder || 'Photo box') + '</button>';
-      }).join('') + '</div>';
+    var smpT = t === 'smp';
+    var h = head('Your pictures');
+    var bgEmpty = bgOpen();
+    var skins = design.layers.filter(function (l) { return l.type === 'skin' && l.slotHint !== 'their skin'; });
+    if (slots.length || bgEmpty || skins.length) {
+      h += '<p class="tip">' + (hasAnyPhoto() ? 'Swap in more of your own pictures:' : 'This thumbnail is ready to save. Want your own ' + (smpT ? 'screenshot or skin' : 'photos') + ' in it? Swap them in:') + '</p><div class="bigbtns">' +
+        (bgEmpty ? '<button type="button" class="btn primary" data-act="pick-bg" data-testid="use-own-shot">' + icon('i-image-bg') + (smpT ? 'Use my own screenshot' : 'Use my own photo') + ' (background)</button>' : '') +
+        skins.map(function (s, i) { return '<button type="button" class="btn' + (!bgEmpty && i === 0 ? ' primary' : '') + '" data-act="skin-slot" data-id="' + esc(s.id) + '">' + icon('i-photo') + (s.imageId ? 'Change my skin' : 'Use my skin') + '</button>'; }).join('') +
+        slots.map(function (s, i) {
+          var nm = slotName(s);
+          return '<button type="button" class="btn' + (i === 0 && !bgEmpty && !skins.length ? ' primary' : '') + '" data-act="fill-slot" data-id="' + esc(s.id) + '">' + icon('i-photo') + (s.fill ? (smpT && !/^food:/.test(s.fill) ? 'Use my own screenshot' : 'Use my own photo') + (nm ? ': ' + esc(nm) : '') : esc(niceTitle(nm) || 'Photo box')) + '</button>';
+        }).join('') + '</div>';
     }
     h += '<div class="bigbtns">' +
-      '<button type="button" class="btn' + (slots.length || bgEmpty ? '' : ' primary') + '" data-act="pick-new">' + icon('i-plus') + 'Add a photo on top</button>' +
+      '<button type="button" class="btn' + (slots.length || bgEmpty || skins.length ? '' : ' primary') + '" data-act="pick-new">' + icon('i-plus') + 'Add a photo on top</button>' +
       (bgEmpty ? '' : '<button type="button" class="btn" data-act="pick-bg">' + icon('i-image-bg') + 'Use a photo as the background</button>') +
+      (smpT && !hasDesignSkin() ? '<button type="button" class="btn" data-act="add-skin">' + icon('i-plus') + 'Add my Minecraft character</button>' : '') +
       '<button type="button" class="btn" data-act="pick-video">' + icon('i-video') + 'Grab a frame from a video</button></div>';
     h += '<div class="grp"><div class="lbl"><span>Paste a cut-out</span></div><div class="paste" contenteditable="true" inputmode="none" data-testid="paste-field" role="textbox" aria-label="Paste here" data-ph="Touch and hold here, then tap Paste"></div></div>';
     h += '<p class="tip"><b>Cut yourself out (or your food):</b> in Photos, touch and hold the person or plate until it glows, tap <b>Copy</b>, come back here, touch and hold the box above and tap <b>Paste</b>.</p>';
@@ -2046,8 +2084,8 @@ details.more[open] summary::after { content: "–"; }
     h += '<p class="tip" style="margin-bottom:12px">Top of the list is in front. Tap one to change it.</p><ul class="layers">';
     var L = design.layers.slice().reverse();
     L.forEach(function (l, i) {
-      var name = l.type === 'text' ? (l.text || 'Text').split('\n')[0] : l.type === 'emoji' ? l.char : l.type === 'sticker' ? ((stickerById(l.sticker) || {}).name || 'Sticker') : (l.imageId ? 'Photo' : (l.placeholder || 'Photo box'));
-      var kind = { text: 'Text', image: l.imageId ? 'Photo' : 'Empty box', sticker: 'Sticker', emoji: 'Emoji' }[l.type] || '';
+      var name = l.type === 'text' ? (l.text || 'Text').split('\n')[0] : l.type === 'emoji' ? l.char : l.type === 'sticker' ? ((stickerById(l.sticker) || {}).name || 'Sticker') : l.type === 'skin' ? (l.slotHint === 'their skin' ? 'Other player' : 'Your character') : (l.imageId ? 'Photo' : (niceTitle(slotName(l)) || 'Photo box'));
+      var kind = { text: 'Text', image: l.imageId ? 'Photo' : l.fill ? 'Made for you' : 'Empty box', sticker: 'Sticker', emoji: 'Emoji', skin: l.imageId ? 'Your skin' : 'Built-in player' }[l.type] || '';
       h += '<li class="' + (l.id === selectedId ? 'on' : '') + (l.hidden ? ' off' : '') + '" data-id="' + esc(l.id) + '">' +
         '<button type="button" class="ln" data-lact="sel"><span>' + esc(name) + '</span><small>' + kind + '</small></button>' +
         '<button type="button" class="icon-btn" data-lact="hide" aria-label="' + (l.hidden ? 'Show' : 'Hide') + '">' + icon(l.hidden ? 'i-eyeoff' : 'i-eye') + '</button>' +
@@ -2062,13 +2100,17 @@ details.more[open] summary::after { content: "–"; }
     var b = design.background;
     var kind = b.kind === 'gradient' ? 'color' : b.kind;
     var h = head('Background');
+    if (bgOpen() && kind !== 'image') {
+      h += '<button type="button" class="btn primary big block" data-act="pick-bg" data-testid="use-own-shot" style="margin-bottom:10px">' + icon('i-photo') + (t === 'smp' ? 'Use my own screenshot' : 'Use my own photo') + '</button>';
+      h += '<p class="tip">' + (t === 'smp' ? 'This scene was made for you, so it’s ready to save. Want your own screenshot? Tap the button above (or Photo below).' : 'This background was made for you, so it’s ready to save. Want your own photo? Tap the button above.') + '</p>';
+    }
     h += '<div class="grp"><div class="pseg" data-bgkind="1"><button type="button" data-kind="image" aria-pressed="' + (kind === 'image') + '">Photo</button><button type="button" data-kind="scene" aria-pressed="' + (kind === 'scene') + '">Scene</button><button type="button" data-kind="color" aria-pressed="' + (kind === 'color') + '">Colour</button></div></div>';
     if (kind === 'image') {
       h += '<div class="row" style="margin-bottom:16px"><button type="button" class="btn grow" data-act="pick-bg">' + icon('i-photo') + (b.imageId ? 'Change photo' : 'Choose photo') + '</button><button type="button" class="btn grow" data-act="pick-video-bg">' + icon('i-video') + 'From video</button></div>';
     } else if (kind === 'scene') {
       var sc = (R.scenes || []).filter(function (s) { return (s.themes || []).indexOf(t) >= 0; });
       h += '<div class="grp"><div class="scenes">' + sc.map(function (s) { return '<button type="button" data-scene="' + esc(s.id) + '" aria-pressed="' + (b.scene === s.id) + '"><canvas width="320" height="180"></canvas><span>' + esc(s.name) + '</span></button>'; }).join('') + '</div></div>';
-      h += '<button type="button" class="btn block" data-act="pick-bg" style="margin-bottom:16px">' + icon('i-photo') + 'Use my own photo instead</button>';
+      if (!bgOpen()) h += '<button type="button" class="btn block" data-act="pick-bg" style="margin-bottom:16px">' + icon('i-photo') + (t === 'smp' ? 'Use my own screenshot instead' : 'Use my own photo instead') + '</button>';
     } else {
       h += swatchCtl('Colour', 'color', BG_COLORS, b.color, { target: 'bg' });
       h += segCtl('', 'kind', [['color', 'One colour'], ['gradient', 'Fade']], b.kind, { target: 'bg', rebuild: true });
@@ -2214,6 +2256,16 @@ details.more[open] summary::after { content: "–"; }
       case 'pick-replace': pickTarget = { kind: 'replace', id: l && l.id }; $('photoInput').click(); break;
       case 'video-replace': videoTarget = { kind: 'replace', id: l && l.id }; $('videoInput').click(); break;
       case 'fill-slot': pickTarget = { kind: 'replace', id: el.getAttribute('data-id') }; $('photoInput').click(); break;
+      case 'skin-slot': {
+        var sk = layerById(el.getAttribute('data-id')); if (!sk) break;
+        if (me.skinId && sk.imageId !== me.skinId) { selectedId = sk.id; panelMode = 'layer'; useMySkin(sk); }
+        else { selectedId = sk.id; panelMode = 'layer'; renderPanel(); requestRender(); pickTarget = { kind: 'replace', id: sk.id }; $('photoInput').click(); }
+        break;
+      }
+      case 'use-my-skin': if (l && l.type === 'skin') useMySkin(l); break;
+      case 'pick-skin': pickTarget = { kind: 'replace', id: l && l.id }; $('photoInput').click(); break;
+      case 'skin-default': if (l && l.type === 'skin') { beginChange(null); l.imageId = null; changed({ panel: true }); } break;
+      case 'add-skin': addSkinLayer(); break;
       case 'pick-new': pickTarget = { kind: 'new' }; $('photoInput').click(); break;
       case 'pick-bg': pickTarget = { kind: 'bg' }; $('bgPhotoInput').click(); break;
       case 'pick-video': videoTarget = null; $('videoInput').click(); break;
@@ -2225,6 +2277,18 @@ details.more[open] summary::after { content: "–"; }
         design.background.tint = null; changed({ panel: true }); break;
       default: layerAct(act);
     }
+  }
+  function useMySkin(l) {
+    beginChange(null); l.imageId = me.skinId; changed({ panel: true });
+    toast('Your skin is in!');
+  }
+  function addSkinLayer() {
+    var l = { id: newId('l'), type: 'skin', imageId: me.skinId || null, pose: 'point', facing: 'left', x: 1000, y: 430, h: 520, rotation: 0,
+      outline: { width: 10, color: '#FFFFFF' }, glow: { size: 30, color: '#55FF55' }, shadow: { blur: 26, color: 'rgba(0,0,0,0.55)', dx: 0, dy: 12 }, slotHint: 'your skin' };
+    beginChange(null);
+    var firstText = -1; design.layers.forEach(function (x, i) { if (firstText < 0 && x.type === 'text') firstText = i; });
+    if (firstText >= 0) design.layers.splice(firstText, 0, l); else design.layers.push(l);
+    selectedId = l.id; panelMode = 'layer'; changed({ panel: true });
   }
   function makeItPop() {
     var b = design.background;
@@ -2318,19 +2382,19 @@ details.more[open] summary::after { content: "–"; }
     pickTarget = null;
     if (f) addPhotoFile(f, { kind: 'bg' });
   });
-  function isCutSlot(l) { var p = String(l.placeholder || ''); return l.shape === 'none' || (/face|skin|cut-?out|yourself|selfie/i.test(p) && !/screenshot/i.test(p)); }
+  function isCutSlot(l) { var p = slotName(l); return (l.shape === 'none' && !/^food:/.test(l.fill || '')) || (/face|skin|cut-?out|yourself|selfie/i.test(p) && !/screenshot/i.test(p)); }
   // Where a photo goes when the owner didn't pick a box: the selected photo box; else an empty box that suits it
   // (a see-through cut-out -> the face / cut-out box; a normal photo -> a photo box, then the empty background);
   // else any empty box; else a new photo on top.
   function defaultPhotoTarget(alpha) {
     var l = selLayer();
-    if (l && l.type === 'image') return { kind: 'replace', id: l.id };
+    if (l && (l.type === 'image' || l.type === 'skin')) return { kind: 'replace', id: l.id };
     var slots = emptySlots();
     var fit = slots.filter(function (s) { return isCutSlot(s) === !!alpha; })[0];
     if (fit) return { kind: 'replace', id: fit.id };
-    if (!alpha && bgSlotEmpty()) return { kind: 'bg' };
+    if (!alpha && bgOpen()) return { kind: 'bg' };
     if (slots[0]) return { kind: 'replace', id: slots[0].id };
-    if (bgSlotEmpty()) return { kind: 'bg' };
+    if (bgOpen()) return { kind: 'bg' };
     return { kind: 'new' };
   }
   function addPhotoFile(file, tgt) {
@@ -2338,9 +2402,13 @@ details.more[open] summary::after { content: "–"; }
     if (file.type && !/^image\//.test(file.type)) { toast('That isn’t a photo. Try a different file.'); return; }
     toast('Adding your photo…', { ms: 8000 });
     var d = design;
-    importImageFile(file).then(function (info) {
+    var tl = tgt && tgt.kind === 'replace' ? layerById(tgt.id) : null;
+    var forSkin = !!(tl && tl.type === 'skin');
+    (forSkin ? importSkinFile(file) : importImageFile(file)).then(function (info) {
       if (design !== d) return;
       hideToast();
+      // a skin picked in the editor is remembered too, so it's used in the next ideas
+      if (forSkin && tl.slotHint !== 'their skin') { me.skinId = info.id; protectImages[info.id] = true; saveMe(); updateMeRow(); }
       placeImage(info, tgt || defaultPhotoTarget(info.alpha));
     }, function () { toast('Couldn’t open that photo. Try a different one.'); });
   }
@@ -2356,9 +2424,15 @@ details.more[open] summary::after { content: "–"; }
     }
     var l = tgt.kind === 'replace' ? layerById(tgt.id) : null;
     var asp = info.w / info.h;
+    if (l && l.type === 'skin') {
+      l.imageId = info.id;
+      selectedId = l.id; panelMode = 'layer';
+      changed({ panel: true });
+      return;
+    }
     if (l && l.type === 'image') {
       var b = boxOf(l);
-      l.imageId = info.id;
+      l.imageId = info.id; l.fill = null;
       if (b && b.w > 0 && b.h > 0) l.w = Math.round(Math.min(b.w, b.h * asp) * (info.alpha ? 1.05 : 1));
     } else {
       l = defaults('image'); l.imageId = info.id;
@@ -2423,7 +2497,7 @@ details.more[open] summary::after { content: "–"; }
     if (!f || !design) return;
     var tgt = videoTarget || (selLayer() && selLayer().type === 'image' ? { kind: 'replace', id: selectedId } : null);
     videoTarget = tgt;
-    var defBg = tgt ? tgt.kind === 'bg' : (bgSlotEmpty() || (!hasBgPhoto() && !emptySlots().length));
+    var defBg = tgt ? tgt.kind === 'bg' : (bgOpen() || (!hasBgPhoto() && !emptySlots().length));
     setFrameTarget(defBg ? 'bg' : 'layer');
     if (frameUrl) { try { URL.revokeObjectURL(frameUrl); } catch (e) {} }
     frameUrl = URL.createObjectURL(f);
@@ -2545,7 +2619,7 @@ details.more[open] summary::after { content: "–"; }
       var h = Math.round(w * 9 / 16);
       var c = makeCanvas(Math.round(w * DPR), Math.round(h * DPR));
       c.style.width = w + 'px'; c.style.height = h + 'px';
-      paint(c, design, { placeholders: true });
+      paint(c, design, {});
       el.appendChild(c);
       var d = document.createElement('span'); d.className = 'dur'; d.textContent = '12:34'; el.appendChild(d);
     });
@@ -2566,15 +2640,12 @@ details.more[open] summary::after { content: "–"; }
   function fileName(ext) { return slug(nameOf(design)) + '-thumbnail.' + ext; }
   function canShareFile(f) { try { return !!(navigator.canShare && navigator.share && navigator.canShare({ files: [f] })); } catch (e) { return false; } }
   function isFramed() { try { return window.top !== window.self; } catch (e) { return true; } }
-  // an empty background / photo box is left out of the saved picture, so its circle and arrow would point at
-  // nothing (an empty face cut-out is fine to skip)
-  function missingMainPhoto() { return bgSlotEmpty() || emptySlots().some(function (l) { return !isCutSlot(l); }); }
   $('saveAddPhoto').addEventListener('click', function () { closeSheet('saveSheet'); setPanel('photo'); updateNudge(); });
   $('saveBtn').addEventListener('click', function () {
     if (!design) return;
     flushSave();
     var d = viewDesign(design);
-    var missing = missingMainPhoto();
+    var missing = false; // every slot has a made-for-you picture: save straight away
     clearSaveUrl(); saveResult = null;
     $('savePreview').removeAttribute('src');
     $('saveMeta').textContent = 'Getting it ready…';
@@ -2585,7 +2656,7 @@ details.more[open] summary::after { content: "–"; }
     $('saveGo').classList.toggle('primary', !missing); // "Add my screenshot" is the main button then
     if (missing) {
       var smpT = design.theme === 'smp';
-      $('saveWarnText').textContent = smpT ? 'Add your screenshot first. The words and the red circle need your game behind them.' : 'Add your food photo first. The words and arrow need your real food behind them.';
+      $('saveWarnText').textContent = smpT ? 'Want your own screenshot in it?' : 'Want your own photo in it?';
       $('saveAddLbl').textContent = smpT ? 'Add my screenshot' : 'Add my photo';
     }
     openSheet('saveSheet');
@@ -2669,7 +2740,9 @@ details.more[open] summary::after { content: "–"; }
   window.__thumbDebug = {
     getDesign: function () { return design ? clone(design) : null; },
     select: function (id) { if (!design) return; select(id && layerById(id) ? id : null); },
-    images: function () { return Object.keys(images); }
+    images: function () { return Object.keys(images); },
+    me: function () { return meCopy(); },
+    ideaDesigns: function () { return lastIdeas ? clone(lastIdeas.res.designs) : []; }
   };
   // ensureFonts gives up after 3 s (an iPad on cellular, first visit): repaint the previews when the real
   // fonts land, so the owner doesn't judge ideas drawn in Impact/Arial
