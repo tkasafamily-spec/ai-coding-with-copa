@@ -380,8 +380,6 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
 .keep-open{ display:flex; gap:10px; align-items:flex-start; color:#CDB7A0; font-size:15px; margin:0; }
 .keep-open .ico{ width:20px; height:20px; margin-top:1px; color:#EDB948; }
 .paused{ padding:14px 16px; border-radius:14px; background:#EDB948; color:#2A1E16; font-weight:700; }
-#frameNote{ align-items:center; width:calc(100% - 2 * var(--gutter)); }
-#frameNote .grow{ flex:1; min-width:0; }
 .render .btn{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.16); color:#F7EDDF; }
 .render .btn:hover{ background:rgba(255,255,255,.14); }
 .render .btn.primary{ background:#F2643B; color:#fff; border:0; }
@@ -458,6 +456,8 @@ input.slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; back
 .spinner{ width:22px; height:22px; border-radius:50%; border:3px solid var(--tomato-soft); border-top-color:var(--tomato); animation:spin .8s linear infinite; }
 @keyframes spin{ to{ transform:rotate(360deg); } }
 .engine-missing{ max-width:760px; margin:12px auto 0; }
+#frameNote{ align-items:center; width:calc(100% - 2 * var(--gutter)); }
+#frameNote .grow{ flex:1; min-width:0; }
 
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{ animation-duration:.001s !important; animation-iteration-count:1 !important; transition-duration:.001s !important; scroll-behavior:auto !important; }
