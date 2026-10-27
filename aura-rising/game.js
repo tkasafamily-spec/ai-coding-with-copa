@@ -2326,6 +2326,8 @@ export function createGame(canvas, opts = {}) {
     if (cp >= 1 && !powers.includes(learnId) && learnId !== 'punch') powers.push(learnId);
     restoreGrimoires(n, o); if (equipped) tintBook(GRIM(equipped).color);
     const pos = L.checkpoints[cp]; player.pos.copy(pos); player.safe.copy(pos); player.lastPos.copy(pos); player.yaw = 0; cam.yaw = 0; syncFighter(player, 0);
+    // a checkpoint start runs no scene, so drop the title/ending orbit camera and start right behind Ren
+    cam.mode = 'follow'; cam.pos.copy(pos).add(new THREE.Vector3(0, 2.6, -6)); cam.look.copy(pos).add(new THREE.Vector3(0, 1.45, 0));
     emit('music', { track: THEMES[n].music });
     const stageBoss = () => {
       reachZ(134, () => {
