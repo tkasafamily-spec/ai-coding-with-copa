@@ -1516,7 +1516,10 @@ function onMouseDown(e) {
 function onMouseUp(e) { if (e.button === 0) mouseBtn.attack = false; if (e.button === 2) mouseBtn.power = false; }
 window.addEventListener('mouseup', e => { if (document.pointerLockElement) onMouseUp(e); });
 window.addEventListener('mousedown', e => { if (document.pointerLockElement && mode === 'game' && !paused && !modal) { if (e.button === 0) { mouseBtn.attack = true; latch.attack = true; } if (e.button === 2) { mouseBtn.power = true; latch.power = true; } } });
-document.addEventListener('mousemove', e => { if (document.pointerLockElement) { lookDX += e.movementX || 0; lookDY += e.movementY || 0; } });
+// clamp each event: some browsers report one huge movementX spike right after the mouse locks, which spun the camera around
+const mClamp = v => Math.max(-120, Math.min(120, v || 0));
+let lockFresh = false; document.addEventListener('pointerlockchange', () => { lockFresh = !!document.pointerLockElement; });
+document.addEventListener('mousemove', e => { if (document.pointerLockElement) { if (lockFresh) { lockFresh = false; return; } lookDX += mClamp(e.movementX); lookDY += mClamp(e.movementY); } });
 let lockedOnce = false;
 document.addEventListener('pointerlockchange', () => {
   if (document.pointerLockElement) { lockedOnce = true; return; }
