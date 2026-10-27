@@ -1026,6 +1026,7 @@ function startChapter(n, { fromCheckpoint = false } = {}) {
   if (!fromCheckpoint) { const c = chapterById(n); showCard({ kind: 'chapter', label: 'CHAPTER ' + c.id, title: c.name, sub: c.place || '', dur: 2600 }); }
   else toast('CHECKPOINT');
   G('startChapter', n, { fromCheckpoint, powers: powersFor(n, fromCheckpoint) });
+  G('resume'); // the game pauses itself when the page is hidden (even on the title screen); always start running
 }
 function startBossRush() { Audio.init(); hideAllPanels(); mode = 'game'; paused = false; modal = null; curChapter = LAST; setPlayUI(true); hudReset(); showCard({ kind: 'boss', label: 'UNLOCKED', title: 'BOSS RUSH', sub: 'Every boss. No breaks.' }); G('startBossRush', { powers: CHAPTERS.map(c => c.power && c.power.id).filter(Boolean) }); }
 function quitToTitle() { G('quit'); exitPointerLock(); showTitle(); }
@@ -1492,7 +1493,19 @@ function frame(now) {
   // the game may end a scene silently (e.g. skipScene) — drop a stale dialogue box
   if (!curLine && !$('#dlg').hidden && st.screen && st.screen !== 'scene' && st.screen !== 'ending') hideDialogue(true);
   if (st.screen === 'ending' && mode === 'game' && !curLine && !endingPending && !modal) { endingPending = true; }
+  // never leave the game frozen: if it paused itself but the menu isn't showing, carry on
+  if (mode === 'game' && !paused && !modal && st.paused && !document.hidden) G('resume');
+  // safety net: a story scene with no line on screen for a while → show Skip and let any tap continue
+  if (mode === 'game' && !paused && !modal && st.screen === 'scene' && !curLine && !cardBusy) { stuckT += dt; if (stuckT > 1.5) show('#skipBtn', true); } else stuckT = 0;
 }
+let stuckT = 0;
+// during a story scene, a tap anywhere (except a button) goes to the next line, even if the box is hard to see
+document.addEventListener('pointerdown', e => {
+  if (mode !== 'game' || paused || modal || e.target.closest('button')) return;
+  if (getState().screen !== 'scene') return;
+  e.preventDefault(); e.stopPropagation();
+  if (curLine) advance(); else { stuckT = 0; G('advanceDialogue'); }
+}, true);
 
 /* ============================================================
    resize, visibility, orientation
