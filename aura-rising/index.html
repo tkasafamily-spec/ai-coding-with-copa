@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b0820">
-<title>Aura Rising</title>
+<title>Oreok's Kakusei</title>
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="apple-touch-icon" href="icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -91,7 +91,7 @@ button{font:inherit;color:inherit;-webkit-user-select:none;user-select:none;-web
 #title .t-inner{pointer-events:auto;padding:calc(var(--sat) + 24px) 24px calc(var(--sab) + 24px) calc(var(--gut) + 28px);
   width:min(560px,52vw);display:flex;flex-direction:column;gap:14px}
 .logo{position:relative;margin-bottom:10px;transform:rotate(-4deg);transform-origin:left center}
-.logo .l1{font-family:Bangers,Impact,sans-serif;font-size:clamp(84px,13vw,168px);line-height:.82;letter-spacing:6px;
+.logo .l1{font-family:Bangers,Impact,sans-serif;font-size:clamp(60px,9vw,124px);line-height:.82;letter-spacing:6px;
   background:linear-gradient(175deg,#ffffff 8%,#cdbfff 34%,#7b5cff 62%,#2fd0ff 92%);-webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(5px 6px 0 #0b0820) drop-shadow(0 0 22px rgba(123,92,255,.75));padding-right:8px}
 .logo .l2{display:inline-block;margin-top:6px;margin-left:clamp(30px,5vw,70px);background:var(--red);padding:6px 26px 4px;transform:skewX(-18deg);
@@ -109,13 +109,13 @@ button{font:inherit;color:inherit;-webkit-user-select:none;user-select:none;-web
   #title{align-items:stretch;background:linear-gradient(180deg,rgba(11,8,32,.85) 0%,rgba(11,8,32,0) 32%,rgba(11,8,32,0) 55%,rgba(11,8,32,.92) 82%)}
   #title .t-inner{width:100%;justify-content:space-between;align-items:center;padding:calc(var(--sat) + 40px) var(--gutr) calc(var(--sab) + 36px) var(--gut)}
   .logo{transform:rotate(-4deg);transform-origin:center;text-align:center}
-  .logo .l1{font-size:clamp(90px,22vw,190px)}
+  .logo .l1{font-size:clamp(64px,14vw,130px)}
   .tagline{text-align:center;margin:0}
   .menu{width:min(420px,90vw)}
 }
 @media (max-height:500px) and (orientation:landscape){
   #title .t-inner{gap:8px;padding-top:calc(var(--sat) + 10px);padding-bottom:calc(var(--sab) + 10px)}
-  .logo .l1{font-size:78px}
+  .logo .l1{font-size:56px}
   .logo .l2 span{font-size:20px}
   .logo{margin-bottom:2px}
   .menu{gap:7px}
@@ -410,7 +410,7 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
 </style>
 </head>
 <body>
-<canvas id="game" tabindex="-1" aria-label="Aura Rising game view"></canvas>
+<canvas id="game" tabindex="-1" aria-label="Oreok's Kakusei game view"></canvas>
 
 <div id="fx" class="layer"><div class="low"></div><div class="vig"></div><div class="flash"></div></div>
 
@@ -469,8 +469,8 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
 <div id="title" class="layer panel-layer clear-bg" hidden>
   <div class="t-inner">
     <div>
-      <div class="logo" aria-label="Aura Rising"><div class="l1">AURA</div><div class="l2"><span>RISING</span></div><div class="glint"></div></div>
-      <p class="tagline">A first-year sorcerer. A hidden power. Rise.</p>
+      <div class="logo" aria-label="Oreok's Kakusei"><div class="l1">OREOK'S</div><div class="l2"><span>KAKUSEI</span></div><div class="glint"></div></div>
+      <p class="tagline">A first-year sorcerer. A hidden power. Awaken.</p>
     </div>
     <div class="menu" id="mainMenu">
       <button class="mbtn primary" data-testid="continue" id="btnContinue"><span>Continue</span><span class="sub" id="contSub"></span></button>
@@ -588,7 +588,7 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
     <h4>ART, MUSIC &amp; CODE</h4><p>Built from scratch: shapes, shaders and synthesizers</p>
     <h4>SPECIAL THANKS</h4><p>You, for playing!</p>
     <h4>UNLOCKED</h4><p id="rushNote">All chapters, ready to replay for an S rank</p>
-    <div class="bigend">AURA RISING</div>
+    <div class="bigend">OREOK'S KAKUSEI</div>
   </div>
   <button class="mbtn primary small credits-btn" data-testid="credits-done" id="btnCreditsDone" style="width:auto"><span>Back to title</span></button>
 </div>
@@ -607,7 +607,7 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
 </div>
 <div class="fps" id="fps"></div>
 
-<div id="boot" class="layer"><div class="b-logo">AURA RISING</div><div class="b-bar"><i></i></div><div class="b-msg" id="bootMsg">Loading&hellip;</div></div>
+<div id="boot" class="layer"><div class="b-logo">OREOK'S KAKUSEI</div><div class="b-bar"><i></i></div><div class="b-msg" id="bootMsg">Loading&hellip;</div></div>
 
 <script>
 // Boot watchdog: shows a friendly message if the game module fails to load.
