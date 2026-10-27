@@ -9,8 +9,24 @@ export const CHAPTERS = [
   { id: 4, name: 'Infinite Sanctum', place: 'Sky Gate', power: { id: 'domain', name: 'Domain: Infinite Sanctum', desc: 'When your aura is full, press ULTIMATE. Time slows and everything inside your Domain feels your power.' }, boss: { id: 'null', name: 'Sovereign Null', title: 'The Empty Crown' } },
 ];
 
+// ---------- grimoires (data-driven: Part 2 adds an entry here + a SPELLS[kind] function for each new boss) ----------
+// from: boss id that drops it (null = Ren's own). spell: kind picks the behaviour in SPELLS; the rest are its tuning.
+export const GRIMOIRES = [
+  { id: 'crimson', name: 'Crimson Pages', color: '#ff5a2a', icon: 'flame', from: null, desc: 'Ren\'s own fire grimoire. Five homing blades of fire seek out enemies.', spell: { kind: 'fire', cd: 3.5, dmg: 11, count: 5 } },
+  { id: 'gale', name: 'Gale Grimoire', color: '#5cf2c8', icon: 'wind', from: 'kaze', desc: 'Three wide wind slashes that pierce through every enemy in their path.', spell: { kind: 'gale', cd: 3.2, dmg: 14, count: 3, speed: 24, range: 22 } },
+  { id: 'shadow', name: 'Shadow Grimoire', color: '#9a5aff', icon: 'mask', from: 'twin', desc: 'Summons two shadow clones of Ren that fight beside you for 6 seconds.', spell: { kind: 'shadow', cd: 10, dmg: 6, count: 2, life: 6 } },
+  { id: 'thorn', name: 'Thorn Grimoire', color: '#6ad04a', icon: 'leaf', from: 'warden', desc: 'Old roots burst from the ground and trap nearby enemies in place.', spell: { kind: 'thorn', cd: 7, dmg: 10, radius: 10, root: 2.8, bossRoot: 1.4 } },
+  { id: 'void', name: 'Void Grimoire', color: '#c86aff', icon: 'orb', from: 'null', desc: 'A void orb that drags enemies in, then bursts with crushing force.', spell: { kind: 'void', cd: 8, dmg: 28, tick: 3, pull: 8.5, radius: 5, hold: 1.6 } },
+];
+// difficulty multipliers (the old balance was roughly 'easy': all 1)
+export const DIFFICULTY = {
+  easy: { eHp: 1, dmg: 1, bHp: 1, poise: 1, aura: 1, atkCd: 1, tokens: 2, gap: 0, wind: 1, bossCd: 1, react: 0.3, guardHits: 99, chain: 0, ranged: 0.5 },
+  normal: { eHp: 1.45, dmg: 1.3, bHp: 1.6, poise: 2.2, aura: 0.7, atkCd: 0.8, tokens: 2, gap: 0.45, wind: 1, bossCd: 0.85, react: 1, guardHits: 6, chain: 0, ranged: 1 },
+  hard: { eHp: 1.8, dmg: 1.75, bHp: 2.1, poise: 3, aura: 0.55, atkCd: 0.65, tokens: 3, gap: 0.22, wind: 0.86, bossCd: 0.68, react: 1.6, guardHits: 4, chain: 1, ranged: 1.3 },
+};
+
 const TAU = Math.PI * 2;
-const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const clamp =(v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
 const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
 const angDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
@@ -667,6 +683,7 @@ export function createGame(canvas, opts = {}) {
     let tl = teles.find((x) => !x.active);
     if (!tl) { const m = new THREE.Mesh(G.plane, teleMat()); scene.add(m); tl = { m }; teles.push(tl); }
     tl.active = true; tl.t = 0; tl.dur = dur; tl.m.visible = true;
+    tl.shape = shape; tl.cx = pos.x; tl.cz = pos.z; tl.a = a; tl.b = b; tl.yaw = yaw || 0; // geometry kept for getState().danger
     const u = tl.m.material.uniforms; u.shape.value = shape === 'circle' ? 0 : 1;
     tl.m.position.copy(pos); tl.m.position.y += 0.06; tl.m.rotation.set(-Math.PI / 2, 0, 0); tl.m.rotation.z = yaw || 0;
     if (shape === 'circle') tl.m.scale.set(a * 2, a * 2, 1);
@@ -676,9 +693,9 @@ export function createGame(canvas, opts = {}) {
   const nums = [];
   for (let i = 0; i < 12; i++) { const [c, x] = cvs(128, 64); const t = new THREE.CanvasTexture(c); const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false })); s.visible = false; s.renderOrder = 10; scene.add(s); nums.push({ s, c, x, t, life: 0 }); }
   let nI = 0;
-  function dmgNumber(pos, val, heavy) {
-    const n = nums[nI = (nI + 1) % nums.length]; const x = n.x; x.clearRect(0, 0, 128, 64);
-    x.font = `900 ${heavy ? 48 : 40}px Impact, "Arial Black", sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 8; x.strokeStyle = '#1a0a2a'; x.strokeText(String(val), 64, 34); x.fillStyle = heavy ? '#ffb020' : '#ffffff'; x.fillText(String(val), 64, 34);
+  function dmgNumber(pos, val, heavy, col) {
+    const n = nums[nI = (nI + 1) % nums.length]; const x = n.x; x.clearRect(0, 0, 128, 64); const word = typeof val === 'string';
+    x.font = `900 ${word ? 30 : heavy ? 48 : 40}px Impact, "Arial Black", sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 8; x.strokeStyle = '#1a0a2a'; x.strokeText(String(val), 64, 34); x.fillStyle = col || (heavy ? '#ffb020' : '#ffffff'); x.fillText(String(val), 64, 34);
     n.t.needsUpdate = true; n.s.visible = true; n.s.position.copy(pos).add(new THREE.Vector3(rand(-0.3, 0.3), 0, rand(-0.3, 0.3))); n.life = 0.8; n.s.scale.set(heavy ? 1.5 : 1.1, heavy ? 0.75 : 0.55, 1);
   }
 
@@ -715,9 +732,14 @@ export function createGame(canvas, opts = {}) {
   let enemies = [], projectiles = [], pickups = [], npcs = [];
   let player = null;
   const input = { moveX: 0, moveY: 0, lookDX: 0, lookDY: 0 };
-  const pressed = { attack: false, jump: false, dodge: false, power: false, ultimate: false, lockOn: false };
-  const held = { attack: false, jump: false, dodge: false, power: false, ultimate: false, lockOn: false };
-  let settings = { cameraSensitivity: 1 };
+  const pressed = { attack: false, jump: false, dodge: false, power: false, ultimate: false, lockOn: false, swapGrimoire: false };
+  const held = { attack: false, jump: false, dodge: false, power: false, ultimate: false, lockOn: false, swapGrimoire: false };
+  let settings = { cameraSensitivity: 1, difficulty: 'normal' };
+  const D = () => DIFFICULTY[settings.difficulty] || DIFFICULTY.normal;
+  // grimoire collection: ids in the order they were taken, the equipped one, per-grimoire cooldowns
+  let grims = [], equipped = null; const gcd = {}; let castLock = 0;
+  const GRIM = (id) => GRIMOIRES.find((g) => g.id === id);
+  let allies = [], spells = [], dropFx = null, tokenGapT = 0, slotT = 0, atkSerial = 0;
   let cam = { yaw: 0, pitch: 0.28, dist: 6, shake: 0, fov: 55, mode: 'follow', shot: null, pos: new THREE.Vector3(0, 3, -6), look: new THREE.Vector3() };
   let hitStop = 0, timeScale = 1, slowT = 0, impact = 0, god = false, lockTarget = null, domainT = 0, flashT = 0;
   let powers = [];
@@ -1270,27 +1292,45 @@ export function createGame(canvas, opts = {}) {
 
   function damageEnemy(e, dmg, o = {}) {
     if (e.dead) return;
-    if (e.boss && e.def.armorMul) dmg = Math.round(dmg * e.def.armorMul);
-    e.hp -= dmg; state.hits++; state.combo++; state.comboT = 2.2; gainAura(o.heavy ? 6 : 3.5);
     const hp = e.pos.clone(); hp.y += 1.3 * (e.rig.cfg.scale || 1);
+    const src = o.from || (player ? player.pos : e.pos);
+    const front = Math.abs(angDiff(e.yaw, Math.atan2(src.x - e.pos.x, src.z - e.pos.z))) < 1.35;
+    // i-frames: some boss moves, enemy evades
+    if (e.iframe > 0 || e.state === 'evade') { if (!o.tick) { dmgNumber(hp.clone().add(new THREE.Vector3(0, 0.6, 0)), 'MISS', false, '#9ff8ff'); flash(hp, 1, 0x9ff8ff); } return; }
+    // guard: blocks frontal hits; heavy hits / spells break a normal enemy's guard
+    if (e.state === 'guard' && (e.boss || front)) {
+      if (!e.boss && (o.heavy || o.spell)) { e.state = 'stagger'; e.st = -0.7; e.guardFx && (e.guardFx.visible = false); dmgNumber(hp.clone().add(new THREE.Vector3(0, 0.9, 0)), 'BREAK', true, '#ffd27a'); shockRing(e.pos, 1.6, 0x7ad8ff, 0.3); sfx('guardBreakHit'); }
+      else {
+        const chip = Math.max(1, Math.round(dmg * 0.12)); e.hp -= chip; state.combo++; state.comboT = 2.2;
+        if (!o.tick) { dmgNumber(hp.clone().add(new THREE.Vector3(0, 0.6, 0)), 'BLOCK', false, '#7ad8ff'); flash(hp, 1.3, 0x7ad8ff); sfx('blockHit'); hitStop = Math.max(hitStop, 0.03); }
+        if (!e.boss) e.kb.set(e.pos.x - src.x, 0, e.pos.z - src.z).normalize().multiplyScalar(2);
+        if (e.hp <= 0) killEnemy(e); return;
+      }
+    }
+    if (e.boss && e.def.armorMul) dmg = Math.round(dmg * e.def.armorMul);
+    e.hp -= dmg; state.hits++; state.combo++; state.comboT = 2.2; gainAura((o.heavy ? 6 : o.tick ? 1 : 3.5) * (o.ult ? 0 : D().aura));
+    // bosses read a long string of hits and answer with a guard + counter
+    if (e.boss && !o.ally && !o.tick) { e.chainHits = (e.recentT > 0 ? e.chainHits || 0 : 0) + 1; e.recentT = 1.1; if (e.chainHits >= D().guardHits && (e.state === 'idle' || e.state === 'chase') && e.hp > 0) { e.chainHits = 0; e.wantGuard = true; } }
     dmgNumber(hp.clone().add(new THREE.Vector3(0, 0.6, 0)), dmg, o.heavy); flash(hp, o.heavy ? 2.4 : 1.4, o.color || 0xfff2a0);
     burst(hp.x, hp.y, hp.z, o.heavy ? 18 : 9, o.color || 0xffd27a, 7, 0.35, 0.2);
     hitStop = Math.max(hitStop, o.heavy ? 0.11 : 0.05); cam.shake = Math.max(cam.shake, o.heavy ? 0.35 : 0.14);
     if (o.heavy && quality !== 'low') impact = 2;
     emit('hit', { damage: dmg, heavy: !!o.heavy, combo: state.combo });
-    const dir = o.dir || new THREE.Vector3(e.pos.x - player.pos.x, 0, e.pos.z - player.pos.z).normalize();
-    if (!e.boss || e.stagger) {
+    const dir = o.dir || new THREE.Vector3(e.pos.x - src.x, 0, e.pos.z - src.z).normalize();
+    if (!e.boss && e.rootT > 0) { /* rooted in place: takes the hit without moving */ }
+    else if (!e.boss && o.tick) { /* void pull ticks don't knock back */ }
+    else if (!e.boss || e.stagger) {
       e.kb.copy(dir).multiplyScalar(o.kb || 3);
       if (o.launch && !e.boss) { e.vel.y = o.launch; e.grounded = false; e.state = 'launched'; e.st = 0; play(e.rig, 'launched'); }
       else if (e.state !== 'launched') { e.state = 'stagger'; e.st = 0; play(e.rig, 'hurt', 0.4); }
       else { e.vel.y = Math.max(e.vel.y, 4); }
-    } else { e.poise = (e.poise || 0) + dmg; if (e.poise > (e.def.poise || 70)) { e.poise = 0; e.state = 'stagger'; e.st = -1.2; play(e.rig, e.def.id === 'warden' ? 'kneel' : 'hurt', 1.5); cancelTele(e); } }
+    } else if (!(e.poiseLock > 0)) { e.poise = (e.poise || 0) + dmg; if (e.poise > (e.def.poise || 70) * D().poise && e.state !== 'rage') { e.poise = 0; e.poiseLock = 5; e.wantGuard = false; e.chainHits = 0; e.state = 'stagger'; e.st = -1.2; play(e.rig, e.def.id === 'warden' ? 'kneel' : 'hurt', 1.5); cancelTele(e); endBossAttackFx(e); } }
     if (e.hp <= 0) killEnemy(e);
   }
   function killEnemy(e) {
     if (e.dead) return;
     if (e.boss && e.def.onDefeat) { e.hp = 0; e.dead = true; e.def.onDefeat(e); return; }
-    e.dead = true; e.state = 'dying'; e.st = 0; play(e.rig, 'down'); cancelTele(e);
+    e.dead = true; e.state = 'dying'; e.st = 0; play(e.rig, 'down'); cancelTele(e); relTok(e);
     const p = e.pos; burst(p.x, p.y + 1, p.z, 30, e.decoy ? 0xff2a4a : 0xb48cff, 6, 0.7, 0.35, 2);
     if (!e.decoy) { emit('enemyDown', {}); sfx('enemyDown'); if (Math.random() < 0.35) spawnHeal(p); }
     if (lockTarget === e) lockTarget = null;
@@ -1300,6 +1340,7 @@ export function createGame(canvas, opts = {}) {
     const p = player; if (!p || p.dead || state.screen !== 'play') return false;
     if (p.inv > 0) { if (p.state === 'dodge' && !p.perfect) { p.perfect = true; slowT = 0.5; gainAura(12); sfx('perfect'); flash(p.pos.clone().add(new THREE.Vector3(0, 1.2, 0)), 2.5, 0x9ff8ff); } return false; }
     if (god) return false;
+    dmg = Math.max(1, Math.round(dmg * D().dmg));
     p.hp -= dmg; state.hitsTaken++; p.inv = 0.7; state.combo = 0;
     if (from) { const d = new THREE.Vector3(p.pos.x - from.x, 0, p.pos.z - from.z).normalize(); p.kb.copy(d).multiplyScalar(7); }
     cam.shake = 0.4; hitStop = 0.06; burst(p.pos.x, p.pos.y + 1.2, p.pos.z, 12, 0xff4a5a, 6, 0.4, 0.25);
@@ -1314,6 +1355,7 @@ export function createGame(canvas, opts = {}) {
   function updatePlayer(dt) {
     const p = player, rig = p.rig; if (!p) return;
     for (const k in p.cd) p.cd[k] = Math.max(0, p.cd[k] - dt);
+    for (const k in gcd) gcd[k] = Math.max(0, gcd[k] - dt); castLock = Math.max(0, castLock - dt);
     p.inv = Math.max(0, p.inv - dt); p.st += dt;
     if (p.book.visible) { p.bookT -= dt; const tgt = p.pos.clone().add(new THREE.Vector3(Math.sin(p.yaw + 0.9) * 0.7, 1.9 + Math.sin(rig.t * 3) * 0.08, Math.cos(p.yaw + 0.9) * 0.7)); p.book.position.lerp(tgt, 1 - Math.exp(-10 * dt)); p.book.rotation.y = p.yaw; if (p.bookT < 0) p.book.visible = false; if (Math.random() < 0.3) spawnP(PA, p.book.position.x, p.book.position.y, p.book.position.z, rand(-0.5, 0.5), 1, rand(-0.5, 0.5), 0.5, 0.18, 0xff7a2a); }
     if (p.dead) { p.vel.x = p.vel.z = 0; physics(p, dt); return; }
@@ -1335,12 +1377,14 @@ export function createGame(canvas, opts = {}) {
         if (wl > 0.1) p.yaw = Math.atan2(wx, wz);
         p.dodgeDir = new THREE.Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw)); sfx('dodge');
       } else if (pressed.power && !busy) {
-        const hasG = powers.includes('grimoire'), hasD = powers.includes('dash');
-        if (hasG && p.cd.power <= 0) castGrimoire(); else if (hasD && p.cd.dash <= 0) startDash();
+        // the equipped grimoire's spell; while it recharges (or with none equipped) Power is Aura Dash
+        const hasD = powers.includes('dash');
+        if (equipped && GRIM(equipped) && (gcd[equipped] || 0) <= 0 && castLock <= 0) castSpell(equipped); else if (hasD && p.cd.dash <= 0) startDash();
       } else if (pressed.jump && p.state !== 'ult' && p.state !== 'hurt' && (p.jumps > 0)) {
         const first = p.grounded || p.coyote > 0; if (first || p.jumps > 0) { p.vel.y = first ? 9.5 : 8.5; p.grounded = false; p.coyote = 0; p.jumps--; if (!first) { play(rig, 'flip', 0.45); burst(p.pos.x, p.pos.y + 0.2, p.pos.z, 10, 0xb48cff, 3, 0.4, 0.25, 0); } sfx('jump'); if (p.state === 'atk') p.state = 'idle'; }
       }
       if (pressed.attack) p.atkBuf = 0.35;
+      if (pressed.swapGrimoire && grims.length) { const i = grims.indexOf(equipped); equipGrimoire(grims[(i + 1) % grims.length], true); }
     }
     p.atkBuf = Math.max(0, (p.atkBuf || 0) - dt);
     if (p.atkBuf > 0 && playing && (p.state === 'idle' || (p.state === 'atk' && p.st > COMBO[p.combo].hit + 0.06))) {
@@ -1350,7 +1394,7 @@ export function createGame(canvas, opts = {}) {
       p.combo = next; p.state = 'atk'; p.st = 0; p.hitDone = false; const c = COMBO[next]; play(rig, c.anim, c.dur);
       const t = lockTarget || nearestEnemy(p.pos, 5.5, wl > 0.1 ? Math.atan2(wx, wz) : p.yaw, 1.8);
       if (t) faceTarget(p, t); else if (wl > 0.1) p.yaw = Math.atan2(wx, wz);
-      p.lungeT = t; sfx('whoosh');
+      p.lungeT = t; sfx('whoosh'); atkSerial++;
       if (!p.grounded) p.vel.y = Math.max(p.vel.y, 2.5);
     }
     p.comboWin = Math.max(0, p.comboWin - dt);
@@ -1369,6 +1413,8 @@ export function createGame(canvas, opts = {}) {
         }
       }
       if (p.st >= c.dur) { p.state = 'idle'; p.comboWin = 0.35; if (p.combo === 3) p.comboWin = 0; }
+    } else if (p.state === 'dodge' && p.atkBuf > 0 && p.st > 0.05 && playing && powers.includes('dash') && p.cd.dash <= 0) {
+      p.atkBuf = 0; startDash(); // dodge + attack = Aura Dash strike
     } else if (p.state === 'dodge') {
       const k = p.st < 0.28 ? 15 : 3; p.vel.x = p.dodgeDir.x * k; p.vel.z = p.dodgeDir.z * k;
       if (Math.random() < 0.6) spawnP(PA, p.pos.x + rand(-0.3, 0.3), p.pos.y + rand(0.3, 1.5), p.pos.z, 0, 0.5, 0, 0.35, 0.35, 0x9a8cff);
@@ -1421,15 +1467,217 @@ export function createGame(canvas, opts = {}) {
     const t = lockTarget || nearestEnemy(p.pos, 12, p.yaw, 1.0); if (t) faceTarget(p, t);
     OV.speed.value = 1; sfx('dash'); cam.shake = 0.15;
   }
-  function castGrimoire() {
-    const p = player; p.state = 'cast'; p.st = 0; p.cd.power = 3.5; play(p.rig, 'cast', 0.5); p.book.visible = true; p.bookT = 3; p.book.position.copy(p.pos).add(new THREE.Vector3(0, 1.8, 0)); sfx('fire');
-    const targets = enemies.filter((e) => !e.dead && !e.decoyHidden && e.pos.distanceTo(p.pos) < 22);
-    for (let i = 0; i < 5; i++) {
-      const m = new THREE.Mesh(G.cone, new THREE.MeshBasicMaterial({ color: 0xff7a2a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); m.scale.set(0.12, 0.8, 0.12); scene.add(m);
-      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff4a1a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); glow.scale.setScalar(1.2); m.add(glow);
-      const a = p.yaw + (i - 2) * 0.35; const pos = p.pos.clone().add(new THREE.Vector3(0, 1.9, 0));
-      projectiles.push({ mesh: m, pos, vel: new THREE.Vector3(Math.sin(a) * 9, 3, Math.cos(a) * 9), owner: 'player', dmg: 11, life: 2.5, target: targets.length ? targets[i % targets.length] : null, delay: i * 0.06, color: 0xff7a2a, radius: 0.9 });
+  // ---------- grimoire collection + spells ----------
+  const hexOf = (c) => new THREE.Color(c).getHex();
+  function addGrimoire(id) { if (GRIM(id) && !grims.includes(id)) grims.push(id); }
+  function equipGrimoire(id, fx) {
+    if (id != null && !grims.includes(id)) return false;
+    equipped = id == null ? null : id; const g = GRIM(equipped);
+    if (player && g) {
+      tintBook(g.color);
+      if (fx && state.screen === 'play') { const p = player; if (!p.book.visible) p.book.position.copy(p.pos).add(new THREE.Vector3(0, 1.8, 0)); p.book.visible = true; p.bookT = Math.max(p.bookT, 1.2); shockRing(p.pos, 1.8, g.color, 0.35); burst(p.pos.x, p.pos.y + 1.4, p.pos.z, 14, g.color, 3, 0.5, 0.3, 0); }
     }
+    emit('equip', { id: equipped, name: g ? g.name : 'Aura Dash', color: g ? g.color : null, icon: g ? g.icon : null }); if (fx) sfx('equip');
+    return true;
+  }
+  // recolour Ren's floating book to the equipped grimoire (covers + glow; near-white page materials are left alone)
+  function tintBook(col) {
+    const p = player; if (!p || !p.book) return; const c = new THREE.Color(col);
+    p.book.traverse((o) => {
+      if (o.isSprite && o.material) o.material.color.copy(c);
+      else if (o.isMesh && o.material && o.material.isMeshToonMaterial && !o.userData.outline) {
+        // the book shares cached toon materials, so give it its own copies once
+        if (!o.userData.bookMat) { o.material = o.material.clone(); o.userData.bookMat = true; o.userData.page = o.material.color.r + o.material.color.g + o.material.color.b > 2.4; }
+        if (!o.userData.page) { o.material.color.copy(c).multiplyScalar(0.8); o.material.emissive.copy(c).multiplyScalar(0.35); }
+      }
+    });
+  }
+  function castSpell(id) {
+    const g = GRIM(id), S = g.spell, fn = SPELLS[S.kind]; if (!fn || !player) return;
+    const p = player; p.state = 'cast'; p.st = 0; play(p.rig, 'cast', 0.5); gcd[id] = S.cd; castLock = 0.7;
+    if (!p.book.visible) p.book.position.copy(p.pos).add(new THREE.Vector3(0, 1.8, 0)); p.book.visible = true; p.bookT = 2.5; tintBook(g.color);
+    const t = lockTarget || nearestEnemy(p.pos, 16, p.yaw, 1.4); if (t) faceTarget(p, t);
+    fn(S, hexOf(g.color), t);
+    emit('cast', { id, name: g.name });
+  }
+  const SPELLS = {
+    // Crimson Pages: homing fire blades (the original grimoire)
+    fire(S, col) {
+      const p = player; sfx('spellFire');
+      const targets = enemies.filter((e) => !e.dead && !e.decoyHidden && e.pos.distanceTo(p.pos) < 22);
+      for (let i = 0; i < S.count; i++) {
+        const m = new THREE.Mesh(G.cone, new THREE.MeshBasicMaterial({ color: 0xff7a2a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); m.scale.set(0.12, 0.8, 0.12); scene.add(m);
+        const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff4a1a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); glow.scale.setScalar(1.2); m.add(glow);
+        const a = p.yaw + (i - (S.count - 1) / 2) * 0.35; const pos = p.pos.clone().add(new THREE.Vector3(0, 1.9, 0));
+        projectiles.push({ mesh: m, pos, vel: new THREE.Vector3(Math.sin(a) * 9, 3, Math.cos(a) * 9), owner: 'player', dmg: S.dmg, life: 2.5, target: targets.length ? targets[i % targets.length] : null, delay: i * 0.06, color: 0xff7a2a, trail: 0xff6a1a, radius: 0.9 });
+      }
+    },
+    // Gale: wide horizontal wind crescents that pierce everything in a line
+    gale(S, col) {
+      const p = player; sfx('galeWind'); cam.shake = Math.max(cam.shake, 0.15); OV.speed.value = Math.max(OV.speed.value, 0.5);
+      for (let i = 0; i < S.count; i++) {
+        const a = p.yaw + (i - (S.count - 1) / 2) * 0.2;
+        const m = new THREE.Mesh(ARC_G, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.scale.setScalar(2.1);
+        const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); gl.scale.setScalar(1.4); m.add(gl); scene.add(m);
+        const pos = p.pos.clone().add(new THREE.Vector3(Math.sin(a) * 0.6, 0.9 + i * 0.22, Math.cos(a) * 0.6));
+        projectiles.push({ mesh: m, pos, vel: new THREE.Vector3(Math.sin(a) * S.speed, 0, Math.cos(a) * S.speed), owner: 'player', dmg: S.dmg, life: S.range / S.speed, delay: 0, color: col, trail: 0xc8fff0, radius: 1.5, pierce: true, hitSet: new Set(), arc: true, flat: true, yaw: a, kb: 4 });
+      }
+      slashArc(p.pos.clone().add(new THREE.Vector3(Math.sin(p.yaw) * 0.8, 1.2, Math.cos(p.yaw) * 0.8)), p.yaw, 0.1, 2.2, col);
+    },
+    // Shadow: two shadow clones of Ren that fight on their own for a few seconds
+    shadow(S, col) {
+      const p = player; sfx('shadowClone'); for (const a of allies) a.life = Math.min(a.life, 0.05);
+      for (let i = 0; i < S.count; i++) { const side = i % 2 ? 1 : -1; spawnAlly(p.pos.clone().add(new THREE.Vector3(Math.cos(p.yaw) * side * 1.5, 0, -Math.sin(p.yaw) * side * 1.5)), S, col, i); }
+      shockRing(p.pos, 3, col, 0.45); burst(p.pos.x, p.pos.y + 1, p.pos.z, 30, col, 5, 0.6, 0.4, 0);
+    },
+    // Thorn: roots erupt under nearby enemies and hold them in place
+    thorn(S, col) {
+      const p = player; sfx('thornRoot'); cam.shake = Math.max(cam.shake, 0.3); shockRing(p.pos, S.radius, col, 0.5);
+      const list = enemies.filter((e) => !e.dead && !e.decoyHidden && e.state !== 'spawn' && e.pos.distanceTo(p.pos) < S.radius).sort((a, b) => a.pos.distanceTo(p.pos) - b.pos.distanceTo(p.pos)).slice(0, 8);
+      for (const e of list) {
+        spikeBurst(e.pos.clone(), 0x4a8a2a); e.rootT = e.boss ? S.bossRoot : S.root; showVine(e, col);
+        damageEnemy(e, S.dmg, { spell: true, kb: 0, color: col });
+        if (!e.boss && !e.dead && e.state !== 'launched') { e.state = 'rooted'; e.st = 0; relTok(e); cancelTele(e); play(e.rig, 'hurt', 0.4); }
+      }
+      if (!list.length) for (let i = 1; i <= 4; i++) spikeBurst(p.pos.clone().add(new THREE.Vector3(Math.sin(p.yaw) * i * 2, 0, Math.cos(p.yaw) * i * 2)), 0x4a8a2a);
+    },
+    // Void: an orb that drags enemies in, then bursts
+    void(S, col, t) {
+      const p = player; sfx('voidCharge');
+      let to = t ? t.pos.clone() : p.pos.clone().add(new THREE.Vector3(Math.sin(p.yaw) * 7, 0, Math.cos(p.yaw) * 7));
+      const off = to.clone().sub(p.pos).setY(0); if (off.length() > 12) to = p.pos.clone().add(off.setLength(12));
+      to.y = (t ? t.pos.y : p.pos.y) + 1.4;
+      const core = new THREE.Mesh(G.sphere, new THREE.MeshBasicMaterial({ color: 0x07000f })); core.scale.setScalar(0.15);
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); halo.scale.setScalar(5); core.add(halo);
+      const ring = new THREE.Mesh(G.torus, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })); ring.scale.set(1.5, 1.5, 0.35); core.add(ring);
+      const ring2 = ring.clone(); ring2.rotation.x = Math.PI / 2; core.add(ring2);
+      scene.add(core); core.position.copy(p.pos).setY(p.pos.y + 1.4);
+      spells.push({ kind: 'void', mesh: core, ring, ring2, from: core.position.clone(), to, t: 0, S, col, tickT: 0.2 });
+    },
+  };
+  // shadow clones: Ren's rig recoloured as a living shadow, reused between casts
+  const shadowRigs = []; let shadowMat = null, shadowFaceMat = null;
+  function makeShadowRig() {
+    const rig = makeRen(); rig.fight = true; rig.blinkT = Infinity;
+    if (!shadowMat) { shadowMat = new THREE.MeshToonMaterial({ color: 0x1c0c34, gradientMap: GRAD, emissive: 0x3a0c7a, emissiveIntensity: 0.7 }); shadowFaceMat = shadowMat.clone(); shadowFaceMat.emissive.set(0x5a1aaa); }
+    rig.root.traverse((o) => { if (!o.isMesh || !o.material) return; if (o.userData.outline) o.material = OUT_AURA; else if (o === rig.face) o.material = shadowFaceMat; else if (o.material.isMeshToonMaterial) o.material = shadowMat; });
+    if (rig.aura) { rig.aura.visible = true; rig.aura.traverse((m) => { if (m.material && m.material.uniforms && m.material.uniforms.c1) { m.material.uniforms.c1.value.set(0x7a2aff); m.material.uniforms.c2.value.set(0x1a0040); } }); }
+    return rig;
+  }
+  function spawnAlly(pos, S, col, i) {
+    const rig = shadowRigs[i] || (shadowRigs[i] = makeShadowRig()); rig.root.scale.setScalar(0.01); rig.anim = 'idle';
+    const a = makeFighter(rig, { kind: 'ally', life: S.life, dmg: S.dmg, swingI: i, col, hitDone: true });
+    a.pos.copy(pos); a.pos.y = player.pos.y; a.yaw = player.yaw; a.lastPos.copy(a.pos); syncFighter(a, 0);
+    burst(pos.x, pos.y + 1, pos.z, 20, col, 4, 0.5, 0.35, 0); allies.push(a); return a;
+  }
+  function removeAllies() { for (const a of allies) removeFighter(a); allies = []; }
+  function updateAllies(dt) {
+    for (let i = allies.length - 1; i >= 0; i--) {
+      const a = allies[i], rig = a.rig; a.life -= dt; a.st += dt;
+      if (a.life <= 0 || !player || player.dead) { burst(a.pos.x, a.pos.y + 1, a.pos.z, 18, a.col, 4, 0.5, 0.3, 1); removeFighter(a); allies.splice(i, 1); continue; }
+      rig.root.scale.setScalar(a.life < 0.35 ? Math.max(0.01, a.life / 0.35) : Math.min(1, a.st / 0.25 + 0.01));
+      let t = null, bd = 24; for (const e of enemies) { if (e.dead || e.decoyHidden || e.state === 'spawn') continue; const d = e.pos.distanceTo(a.pos); if (d < bd) { bd = d; t = e; } }
+      a.vel.x = a.vel.z = 0;
+      if (a.state === 'atk') {
+        const c = COMBO[a.swingI % 3];
+        if (a.st < c.hit) { a.vel.x = Math.sin(a.yaw) * 3; a.vel.z = Math.cos(a.yaw) * 3; }
+        if (!a.hitDone && a.st >= c.hit) {
+          a.hitDone = true; slashArc(a.pos.clone().add(new THREE.Vector3(Math.sin(a.yaw) * 0.8, 1.15, Math.cos(a.yaw) * 0.8)), a.yaw, c.tilt, 1.4, a.col, a.swingI % 2);
+          for (const e of enemies) { if (e.dead || e.decoyHidden) continue; const dx = e.pos.x - a.pos.x, dz = e.pos.z - a.pos.z, d = Math.hypot(dx, dz); if (d < 2.1 + e.radius && Math.abs(angDiff(a.yaw, Math.atan2(dx, dz))) < 1.4) damageEnemy(e, Math.round((a.dmg + rand(0, 2)) * (e.boss ? 0.5 : 1)), { kb: 1.5, ally: true, color: a.col, from: a.pos, dir: new THREE.Vector3(dx, 0, dz).normalize() }); }
+        }
+        if (a.st >= c.dur + 0.12) { a.state = 'idle'; a.st = 0; a.swingI++; }
+      } else if (t) {
+        const dx = t.pos.x - a.pos.x, dz = t.pos.z - a.pos.z, d = Math.hypot(dx, dz) || 1, ty = Math.atan2(dx, dz); a.yaw += angDiff(a.yaw, ty) * (1 - Math.exp(-12 * dt));
+        if (d > 1.6 + t.radius) { a.vel.x = dx / d * 8.5; a.vel.z = dz / d * 8.5; rig.anim = 'run'; }
+        else { a.state = 'atk'; a.st = 0; a.hitDone = false; a.yaw = ty; const c = COMBO[a.swingI % 3]; play(rig, c.anim, c.dur); }
+      } else {
+        const side = allies.indexOf(a) % 2 ? 1 : -1, gx = player.pos.x + Math.cos(player.yaw) * side * 1.6, gz = player.pos.z - Math.sin(player.yaw) * side * 1.6, dx = gx - a.pos.x, dz = gz - a.pos.z, d = Math.hypot(dx, dz);
+        if (d > 0.8) { a.vel.x = dx / d * Math.min(9, d * 3); a.vel.z = dz / d * Math.min(9, d * 3); a.yaw += angDiff(a.yaw, Math.atan2(dx, dz)) * (1 - Math.exp(-10 * dt)); rig.anim = 'run'; } else { rig.anim = 'idle'; a.yaw += angDiff(a.yaw, player.yaw) * (1 - Math.exp(-6 * dt)); }
+      }
+      if (Math.random() < 0.35 * qMul) spawnP(PA, a.pos.x + rand(-0.3, 0.3), a.pos.y + rand(0.2, 1.6), a.pos.z + rand(-0.3, 0.3), 0, rand(0.5, 1.5), 0, 0.5, 0.3, Math.random() < 0.5 ? a.col : 0x2a0a5a);
+      physics(a, dt); syncFighter(a, dt);
+    }
+  }
+  // rooted enemies: a ring of vines around their legs
+  function showVine(e, col) {
+    if (!e.vine) {
+      const g = new THREE.Group(), m = toon(0x3a7a22, { em: 0x2a6a10, ei: 0.5 });
+      for (let i = 0; i < 3; i++) { const t = new THREE.Mesh(G.torus, m); t.rotation.x = Math.PI / 2; t.position.y = 0.2 + i * 0.28; t.scale.set(0.5 - i * 0.06, 0.5 - i * 0.06, 0.7); g.add(t); }
+      for (let i = 0; i < 5; i++) { const c = new THREE.Mesh(G.cone, m); const a = i / 5 * TAU; c.position.set(Math.sin(a) * 0.45, 0.35, Math.cos(a) * 0.45); c.scale.set(0.06, 0.7, 0.06); c.rotation.set(Math.cos(a) * 0.4, 0, -Math.sin(a) * 0.4); g.add(c); }
+      e.rig.root.add(g); e.vine = g;
+    }
+    e.vine.visible = true;
+  }
+  function updateSpells(dt) {
+    for (let i = spells.length - 1; i >= 0; i--) {
+      const s = spells[i]; s.t += dt;
+      if (s.kind !== 'void') continue;
+      const S = s.S, travel = 0.35;
+      s.ring.rotation.z += dt * 6; s.ring2.rotation.y += dt * 5;
+      if (s.t < travel) { s.mesh.position.lerpVectors(s.from, s.to, sm(s.t / travel)); s.mesh.scale.setScalar(0.15 + 0.5 * s.t / travel); }
+      else if (s.t < travel + S.hold) {
+        const k = (s.t - travel) / S.hold; s.mesh.position.copy(s.to); s.mesh.scale.setScalar(0.65 + k * 0.45 + Math.sin(s.t * 30) * 0.03);
+        for (const e of enemies) {
+          if (e.dead || e.decoyHidden || e.state === 'spawn') continue; const dx = s.to.x - e.pos.x, dz = s.to.z - e.pos.z, d = Math.hypot(dx, dz); if (d > S.pull || d < 0.7) continue;
+          const f = (e.boss ? 1.4 : 7) * (1 - (d / S.pull) * 0.5), nx = e.pos.x + dx / d * f * dt, nz = e.pos.z + dz / d * f * dt;
+          if (!blocked(nx, e.pos.z, e.pos.y)) e.pos.x = nx; if (!blocked(e.pos.x, nz, e.pos.y)) e.pos.z = nz;
+          if (!e.boss && !['launched', 'rooted', 'dying'].includes(e.state)) { if (e.state !== 'stagger') play(e.rig, 'hurt', 0.4); e.state = 'stagger'; e.st = 0; relTok(e); cancelTele(e); }
+        }
+        s.tickT -= dt; if (s.tickT <= 0) { s.tickT = 0.32; for (const e of enemies) if (!e.dead && !e.decoyHidden && Math.hypot(e.pos.x - s.to.x, e.pos.z - s.to.z) < S.pull * 0.55) damageEnemy(e, S.tick, { tick: true, spell: true, color: s.col, from: s.to }); }
+        for (let k2 = 0; k2 < 3; k2++) { const a = rand(0, TAU), r = rand(2.5, S.pull); spawnP(PA, s.to.x + Math.cos(a) * r, s.to.y + rand(-1.2, 1), s.to.z + Math.sin(a) * r, -Math.cos(a) * r * 2.4, rand(-0.5, 0.5), -Math.sin(a) * r * 2.4, 0.38, 0.32, k2 % 2 ? s.col : 0xffffff, 0, 0); }
+      } else {
+        impact = quality !== 'low' ? 2 : 0; cam.shake = Math.max(cam.shake, 0.6); sfx('voidSmash'); OV.white.value = 0.25;
+        const gp = s.to.clone(); gp.y -= 1.4; shockRing(gp, S.radius + 1, s.col, 0.55); shockRing(gp, S.radius * 0.6, 0xffffff, 0.35); burst(s.to.x, s.to.y, s.to.z, 50, s.col, 12, 0.7, 0.45, 0); flash(s.to, 4.5, s.col);
+        for (const e of enemies) if (!e.dead && !e.decoyHidden && Math.hypot(e.pos.x - s.to.x, e.pos.z - s.to.z) < S.radius + e.radius) damageEnemy(e, S.dmg, { heavy: true, spell: true, kb: 8, launch: 7, color: s.col, from: gp });
+        scene.remove(s.mesh); spells.splice(i, 1);
+      }
+    }
+  }
+  function clearSpells() { for (const s of spells) scene.remove(s.mesh); spells = []; removeAllies(); }
+  // boss drop: the grimoire rises out of the beaten boss, flies to Ren's hand, then tucks into his book
+  function makeGrimBook(col) {
+    const book = new THREE.Group(); const cov = toon(col, { em: col, ei: 0.35 }), pg = toon(0xfff4e0);
+    for (const s of [-1, 1]) { const half = new THREE.Group(); half.rotation.y = s * 0.5; book.add(half); part(half, G.box, cov, [s * 0.17, 0, 0], [0.34, 0.46, 0.04]); part(half, G.box, pg, [s * 0.16, 0, 0.03], [0.3, 0.42, 0.03], null, null); }
+    const bg = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); bg.scale.setScalar(2.4); book.add(bg);
+    return book;
+  }
+  function startDrop(b, id) {
+    const g = GRIM(id); if (!g || dropFx) return; const col = hexOf(g.color);
+    const book = makeGrimBook(col); const from = b.pos.clone(); from.y += 1.4 * (b.rig.cfg.scale || 1); book.position.copy(from); book.scale.setScalar(0.01); scene.add(book);
+    shockRing(b.pos, 4, col, 0.7); burst(from.x, from.y, from.z, 40, col, 6, 0.8, 0.4, 0); sfx('grimoireAppear');
+    dropFx = { id, g, col, book, from, t: 0, phase: 'rise' };
+  }
+  function grabDrop() {
+    const f = dropFx; if (!f || f.phase !== 'rise') return; f.phase = 'fly'; f.t = 0; f.flyFrom = f.book.position.clone();
+    addGrimoire(f.id); sfx('powerup');
+    emit('grimoireGet', { id: f.id, name: f.g.name, desc: f.g.desc, color: f.g.color, icon: f.g.icon });
+    equipGrimoire(f.id);
+    if (player) { player.state = 'pose'; player.vel.set(0, 0, 0); play(player.rig, 'victory', 3); setEmotion(player.rig, 'smile'); } // 'pose' keeps the idle logic from overriding the raised arm
+  }
+  function updateDrop(dt) {
+    const f = dropFx; if (!f) return; f.t += dt; const bk = f.book;
+    const hand = new THREE.Vector3(); if (player) { player.rig.J.haR.getWorldPosition(hand); hand.y += 0.3; }
+    if (f.phase === 'rise') { const k = sm(f.t / 1.1); bk.position.set(f.from.x, f.from.y + k * 1.2 + Math.sin(f.t * 3) * 0.08, f.from.z); bk.scale.setScalar(0.01 + k * 1.7); bk.rotation.y += dt * 3; if (Math.random() < 0.6) spawnP(PA, bk.position.x + rand(-0.6, 0.6), bk.position.y + rand(-0.6, 0.6), bk.position.z + rand(-0.6, 0.6), 0, 1, 0, 0.6, 0.3, f.col); }
+    else if (f.phase === 'fly') { const k = sm(f.t / 0.45); bk.position.lerpVectors(f.flyFrom, hand, k); bk.scale.setScalar(1.7 - k * 0.5); bk.position.y += Math.sin(k * Math.PI) * 0.8; bk.rotation.y += dt * 8; if (f.t >= 0.45) { f.phase = 'held'; f.t = 0; flash(hand, 3, f.col); shockRing(player ? player.pos : hand, 3, f.col, 0.5); burst(hand.x, hand.y, hand.z, 40, f.col, 6, 0.7, 0.35, 0); } }
+    else if (f.phase === 'held') { bk.position.copy(hand); bk.rotation.y = (player ? player.yaw : 0) + Math.sin(f.t * 2) * 0.3; bk.scale.setScalar(1.1 + Math.sin(f.t * 6) * 0.05); if (Math.random() < 0.5) spawnP(PA, hand.x + rand(-0.4, 0.4), hand.y + rand(-0.3, 0.5), hand.z + rand(-0.4, 0.4), 0, 1.2, 0, 0.5, 0.25, f.col); if (f.t > 1.8) { f.phase = 'tuck'; f.t = 0; } }
+    else { const k = f.t / 0.35; bk.scale.setScalar(Math.max(0.01, 1.1 * (1 - k))); bk.position.copy(hand); if (k >= 1) endDrop(); }
+  }
+  function endDrop() { if (dropFx) { scene.remove(dropFx.book); dropFx = null; } if (player && player.state === 'pose') player.state = 'idle'; }
+  // what threatens Ren right now (for the bot and for UI warnings): the most-filled telegraph he stands in, or a projectile closing in
+  function dangerNow() {
+    const p = player; if (!p || state.screen !== 'play') return null; let best = null;
+    for (const t of teles) {
+      if (!t.active || !t.m.visible) continue; const fill = clamp(t.t / (t.dur || 1), 0, 1); let ax = 0, az = 0, inside = false;
+      if (t.shape === 'circle') { const dx = p.pos.x - t.cx, dz = p.pos.z - t.cz, d = Math.hypot(dx, dz); inside = d < t.a + 0.6; ax = d > 0.05 ? dx / d : -Math.sin(p.yaw); az = d > 0.05 ? dz / d : -Math.cos(p.yaw); }
+      else { const fx = Math.sin(t.yaw), fz = Math.cos(t.yaw), lx = p.pos.x - t.cx, lz = p.pos.z - t.cz, along = lx * fx + lz * fz, perp = lx * fz - lz * fx; inside = along > -0.6 && along < t.b + 0.6 && Math.abs(perp) < t.a / 2 + 0.6; const sg = perp >= 0 ? 1 : -1; ax = fz * sg; az = -fx * sg; }
+      if (inside && (!best || fill > best.fill)) best = { fill, ax, az, kind: t.shape };
+    }
+    for (const pr of projectiles) {
+      if (pr.owner !== 'enemy') continue; const dx = p.pos.x - pr.pos.x, dz = p.pos.z - pr.pos.z, d = Math.hypot(dx, dz), v = Math.hypot(pr.vel.x, pr.vel.z) || 1;
+      if (d < 5 && (dx * pr.vel.x + dz * pr.vel.z) / (d * v) > 0.6) { const fill = 1 - d / 5; if (!best || fill > best.fill) best = { fill, ax: -pr.vel.z / v, az: pr.vel.x / v, kind: 'shot' }; }
+    }
+    for (const e of enemies) if (e.ring && !e.ring.hit) { const d = Math.hypot(p.pos.x - e.pos.x, p.pos.z - e.pos.z), gap = d - e.ring.r; if (gap > -0.5 && gap < 3) { const fill = 1 - gap / 3; if (!best || fill > best.fill) best = { fill, ax: (p.pos.x - e.pos.x) / (d || 1), az: (p.pos.z - e.pos.z) / (d || 1), kind: 'ring' }; } }
+    return best;
   }
   function startUlt() {
     const p = player; p.aura = 0; p.state = 'ult'; p.st = 0; p.inv = 99; lockTarget = lockTarget;
@@ -1446,7 +1694,7 @@ export function createGame(canvas, opts = {}) {
     if (!u.domain) {
       if (u.t > 0.6 && !u.fired) {
         u.fired = true; impact = 3; cam.shake = 0.8; shockRing(p.pos, 10, 0xb48cff, 0.6); shockRing(p.pos, 6, 0xffffff, 0.4); burst(p.pos.x, p.pos.y + 1, p.pos.z, 60, 0x8a6cff, 14, 0.8, 0.5, 0); sfx('explosion');
-        for (const e of enemies) if (!e.dead && e.pos.distanceTo(p.pos) < 10) damageEnemy(e, e.boss ? 35 : 45, { heavy: true, kb: 10, launch: 9, color: 0xb48cff });
+        for (const e of enemies) if (!e.dead && e.pos.distanceTo(p.pos) < 10) damageEnemy(e, e.boss ? 35 : 45, { heavy: true, kb: 10, launch: 9, color: 0xb48cff, ult: true });
       }
       if (u.t > 1.1) { endUlt(); }
     } else {
@@ -1456,7 +1704,7 @@ export function createGame(canvas, opts = {}) {
       if (u.t > 1.6) {
         if (p.state === 'ult') { p.state = 'idle'; p.inv = 0; setEmotion(p.rig, 'determined'); }
         OV.tintAmt.value = 0.35; domainT = 5 - (u.t - 1.6);
-        if (u.t - 1.6 > u.ticks * 0.9 && u.ticks < 6) { u.ticks++; for (const e of enemies) if (!e.dead && e.pos.distanceTo(dome.position) < 34) { damageEnemy(e, e.boss ? Math.round(e.maxHp * 0.035) : 30, { heavy: u.ticks === 6, kb: 1, color: 0xd8a0ff }); const q = e.pos.clone(); q.y += 1; shockRing(e.pos, 3, 0xd8a0ff, 0.4); } }
+        if (u.t - 1.6 > u.ticks * 0.9 && u.ticks < 6) { u.ticks++; for (const e of enemies) if (!e.dead && e.pos.distanceTo(dome.position) < 34) { damageEnemy(e, e.boss ? Math.round(e.maxHp * 0.025) : 30, { heavy: u.ticks === 6, kb: 1, color: 0xd8a0ff, ult: true }); const q = e.pos.clone(); q.y += 1; shockRing(e.pos, 3, 0xd8a0ff, 0.4); } }
         if (u.t > 6.6) { endUlt(); }
       }
     }
@@ -1465,41 +1713,127 @@ export function createGame(canvas, opts = {}) {
 
   // ---------- enemies ----------
   let attackTokens = 0;
-  function spawnEnemy(type, x, z, y) {
-    const def = ENEMY_DEFS[type]; const rig = def.mk(); rig.fight = true;
-    const e = makeFighter(rig, { type, def, hp: def.hp, maxHp: def.hp, kind: 'enemy', state: 'spawn', st: 0, atkCd: rand(0.5, 2) });
+  // AI traits per enemy type (stats live in ENEMY_DEFS): block/evade = chance to react to Ren's swing,
+  // ranged = may spawn as a ranged attacker that keeps its distance, chain = extra follow-up swings, shot = bolt colour
+  const ENEMY_AI = {
+    construct: { block: 0.22, evade: 0, ranged: true, chain: 0, shot: 0x2fd8c0 },
+    hollow: { block: 0, evade: 0.32, ranged: true, chain: 1, shot: 0xc040ff },
+    thornling: { block: 0.15, evade: 0.15, ranged: true, chain: 0, shot: 0xffb020 },
+    nullknight: { block: 0.38, evade: 0.05, ranged: true, chain: 1, shot: 0x7cf8ff },
+  };
+  function spawnEnemy(type, x, z, y, role) {
+    const def = ENEMY_DEFS[type]; const rig = def.mk(); rig.fight = true; const hp = Math.round(def.hp * D().eHp);
+    const e = makeFighter(rig, { type, def, hp, maxHp: hp, kind: 'enemy', state: 'spawn', st: 0, atkCd: rand(0.5, 2), role: role || 'melee', shotCd: rand(1.2, 2.6) });
     e.pos.set(x, y + 0.01, z); e.yaw = Math.PI; e.lastPos.copy(e.pos); syncFighter(e, 0);
-    burst(x, y + 0.5, z, 20, 0xb48cff, 4, 0.6, 0.35, 2); rig.root.scale.setScalar(0.01);
+    burst(x, y + 0.5, z, 20, role === 'ranged' ? 0xff8a3a : 0xb48cff, 4, 0.6, 0.35, 2); rig.root.scale.setScalar(0.01);
+    if (role === 'ranged') { const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: (ENEMY_AI[type] || {}).shot || 0xff8a3a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); g.scale.setScalar(0.45); g.position.set(0, 2.05, 0); rig.root.add(g); }
     enemies.push(e); return e;
   }
   function cancelTele(e) { if (e.tele) { for (const t of [].concat(e.tele)) { t.active = false; t.m.visible = false; } e.tele = null; } }
+  function enemyWindup(e, wind) {
+    e.state = 'windup'; e.st = 0; e.wind = wind; play(e.rig, 'claw', wind + 0.45); e.rig.animT = 0;
+    e.tele = telegraph('circle', e.pos.clone().add(new THREE.Vector3(Math.sin(e.yaw) * 1.3, 0, Math.cos(e.yaw) * 1.3)), 1.3, 0, 0, wind);
+  }
+  function enemyShot(e, yaw) {
+    const col = (ENEMY_AI[e.type] || {}).shot || 0xff3a5a;
+    const m = new THREE.Mesh(G.sphere, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); m.scale.setScalar(0.2);
+    const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); g.scale.setScalar(7); m.add(g); scene.add(m);
+    const pos = e.pos.clone().add(new THREE.Vector3(Math.sin(yaw) * 0.6, 1.1 * (e.rig.cfg.scale || 1), Math.cos(yaw) * 0.6));
+    projectiles.push({ mesh: m, pos, vel: new THREE.Vector3(Math.sin(yaw) * 13, 0, Math.cos(yaw) * 13), owner: 'enemy', dmg: Math.round(e.def.dmg * 0.8), life: 1.6, radius: 0.75, color: col });
+    sfx('enemyProjectile');
+  }
+  function showGuard(e, on) {
+    if (on && !e.guardFx) { const m = new THREE.Mesh(G.sphere, new THREE.MeshBasicMaterial({ color: 0x7ad8ff, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false })); m.scale.set(0.75, 0.95, 0.14); m.position.set(0, 1.1, 0.6); e.rig.root.add(m); e.guardFx = m; }
+    if (e.guardFx) e.guardFx.visible = !!on;
+  }
+  // the director: hands out attack turns and spreads the waiting enemies into a ring around Ren
+  function enemyDirector(dt) {
+    tokenGapT = Math.max(0, tokenGapT - dt);
+    attackTokens = 0; for (const e of enemies) { if (e.dead) e.hasTok = false; else if (e.hasTok) attackTokens++; }
+    slotT -= dt; if (slotT > 0 || !player) return; slotT = 0.35;
+    const list = enemies.filter((e) => !e.boss && !e.dead && !e.decoyHidden && e.role !== 'ranged' && !e.hasTok); if (!list.length) return;
+    const ang = (e) => Math.atan2(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
+    list.sort((a, b) => ang(a) - ang(b));
+    const step = TAU / Math.max(list.length, 3); let sx = 0, sz = 0;
+    list.forEach((e, i) => { const o = ang(e) - i * step; sx += Math.sin(o); sz += Math.cos(o); });
+    const base = Math.atan2(sx, sz); list.forEach((e, i) => { e.slotA = base + i * step; });
+  }
   function updateEnemy(e, dt) {
     const rig = e.rig; e.st += dt; const s = rig.cfg.scale || 1;
     if (e.state === 'spawn') { rig.root.scale.setScalar(s * sm(e.st / 0.6)); if (e.st > 0.6) { e.state = 'chase'; e.st = 0; } physics(e, dt); syncFighter(e, dt); rig.root.scale.setScalar(s * sm(e.st / 0.6 + (e.state === 'chase' ? 1 : 0))); return; }
     if (e.state === 'dying') { rig.root.scale.setScalar(s * Math.max(0.01, 1 - e.st * 1.6)); physics(e, dt); e.vel.x *= 0.9; e.vel.z *= 0.9; syncFighter(e, dt); if (e.st > 0.6) { removeFighter(e); e.removed = true; } return; }
     if (e.boss) { bossBrain(e, dt); }
     else {
-      const p = player, dx = p.pos.x - e.pos.x, dz = p.pos.z - e.pos.z, d = Math.hypot(dx, dz), ty = Math.atan2(dx, dz);
-      e.atkCd -= dt; e.vel.x = 0; e.vel.z = 0;
+      const p = player, dx = p.pos.x - e.pos.x, dz = p.pos.z - e.pos.z, d = Math.hypot(dx, dz) || 0.001, ty = Math.atan2(dx, dz), A = ENEMY_AI[e.type] || {}, Df = D();
+      e.atkCd -= dt; e.vel.x = 0; e.vel.z = 0; e.guardCd = (e.guardCd || 0) - dt; e.evadeCd = (e.evadeCd || 0) - dt;
+      if (e.rootT > 0) { e.rootT -= dt; if (e.vine) { e.vine.rotation.y += dt; if (e.rootT <= 0) e.vine.visible = false; } }
+      // read Ren's swing as it starts: some enemies block, some side-step (one roll per swing)
+      if (p.state === 'atk' && e.seenSwing !== atkSerial && (e.state === 'chase' || e.state === 'recover')) {
+        e.seenSwing = atkSerial;
+        if (d < 3.3 && Math.abs(angDiff(p.yaw, Math.atan2(-dx, -dz))) < 0.9) {
+          const r = Math.random(), pb = (A.block || 0) * Df.react, pe = (A.evade || 0) * Df.react;
+          if (pb && e.guardCd <= 0 && r < pb) { e.state = 'guard'; e.st = 0; e.guardCd = 3.2; e.yaw = ty; play(rig, 'sign', 1); showGuard(e, true); relTok(e); }
+          else if (pe && e.evadeCd <= 0 && r < pb + pe) { e.state = 'evade'; e.st = 0; e.evadeCd = 3.5; const sd = Math.random() < 0.5 ? 1 : -1; e.evDir = new THREE.Vector3(-dx / d * 0.7 + dz / d * sd, 0, -dz / d * 0.7 - dx / d * sd).normalize(); play(rig, 'dodge', 0.36); sfx('evade'); relTok(e); cancelTele(e); }
+        }
+      }
       switch (e.state) {
-        case 'chase':
+        case 'chase': {
           e.yaw += angDiff(e.yaw, ty) * (1 - Math.exp(-6 * dt));
-          if (d > 1.6) { const sp = e.def.speed * (d < 4 && attackTokens >= 2 ? 0.2 : 1); e.vel.x = dx / d * sp; e.vel.z = dz / d * sp; rig.anim = 'run'; } else rig.anim = 'idle';
-          if (d < 2.4 && e.atkCd <= 0 && attackTokens < 2 && !p.dead) { e.state = 'windup'; e.st = 0; attackTokens++; e.hasTok = true; play(rig, 'claw', e.def.wind + 0.45); rig.animT = 0; e.tele = telegraph('circle', e.pos.clone().add(new THREE.Vector3(Math.sin(e.yaw) * 1.3, 0, Math.cos(e.yaw) * 1.3)), 1.3, 0, 0, e.def.wind); }
+          const canTok = e.atkCd <= 0 && attackTokens < Df.tokens && tokenGapT <= 0 && !p.dead;
+          if (e.role === 'ranged' && !e.hasTok) {
+            // keep 6-10 m away, strafe, and fire telegraphed bolts while the others close in
+            if (e.strafeT === undefined || (e.strafeT -= dt) <= 0) { e.strafeT = rand(1.4, 2.8); e.strafe = Math.random() < 0.5 ? 1 : -1; }
+            const ux = dx / d, uz = dz / d; let vx = uz * e.strafe * 0.7, vz = -ux * e.strafe * 0.7;
+            if (d > 10) { vx += ux; vz += uz; } else if (d < 5.5) { vx -= ux * 1.2; vz -= uz * 1.2; }
+            const l = Math.hypot(vx, vz) || 1, sp = e.def.speed * 0.7; e.vel.x = vx / l * sp; e.vel.z = vz / l * sp; rig.anim = 'run';
+            e.shotCd -= dt; let aiming = 0; for (const o of enemies) if (o.state === 'aim') aiming++;
+            if (e.shotCd <= 0 && d < 17 && d > 3 && !p.dead && aiming < (Df.tokens >= 3 ? 2 : 1)) { e.state = 'aim'; e.st = 0; e.wind = 0.85 * Df.wind; e.aimYaw = ty; e.yaw = ty; play(rig, 'cast', e.wind + 0.4); e.tele = telegraph('line', e.pos.clone(), 1.1, Math.min(18, d + 4), ty, e.wind); }
+            else if (d < 2.4 && canTok) { e.hasTok = true; attackTokens++; e.tokT = 0; tokenGapT = Df.gap; }
+            break;
+          }
+          if (e.hasTok) {
+            // my turn: close in and strike
+            e.tokT = (e.tokT || 0) + dt;
+            if (d > 1.7) { e.vel.x = dx / d * e.def.speed; e.vel.z = dz / d * e.def.speed; rig.anim = 'run'; } else rig.anim = 'idle';
+            if (d < 2.4 && !p.dead) { e.chainLeft = (A.chain || 0) + Df.chain; enemyWindup(e, e.def.wind * Df.wind); }
+            else if (e.tokT > 3.5) { relTok(e); e.atkCd = rand(0.5, 1); }
+          } else {
+            // wait my turn on a ring around Ren
+            const sa = e.slotA !== undefined ? e.slotA : Math.atan2(-dx, -dz), ring = 3.6;
+            const gx = p.pos.x + Math.sin(sa) * ring - e.pos.x, gz = p.pos.z + Math.cos(sa) * ring - e.pos.z, gd = Math.hypot(gx, gz);
+            if (gd > 0.5) { const sp = e.def.speed * (gd > 3 ? 1 : 0.5); e.vel.x = gx / gd * sp; e.vel.z = gz / gd * sp; rig.anim = 'run'; } else rig.anim = 'idle';
+            if (canTok && d < 10) { e.hasTok = true; attackTokens++; e.tokT = 0; tokenGapT = Df.gap + rand(0, 0.3); }
+          }
           break;
+        }
         case 'windup':
-          rig.animT = Math.min(rig.animT, e.def.wind * 0.6);
-          if (e.st > e.def.wind) {
-            e.state = 'attack'; e.st = 0; rig.animT = e.def.wind * 0.62; sfx('enemyAtk');
+          rig.animT = Math.min(rig.animT, e.wind * 0.6);
+          if (e.tele && !Array.isArray(e.tele)) e.tele.m.material.uniforms.fill.value = e.st / e.wind;
+          if (e.st > e.wind) {
+            e.state = 'attack'; e.st = 0; rig.animT = e.wind * 0.62; sfx('enemyAtk');
             const c = e.pos.clone().add(new THREE.Vector3(Math.sin(e.yaw) * 1.3, 0, Math.cos(e.yaw) * 1.3)); cancelTele(e);
             slashArc(c.clone().setY(e.pos.y + 1.1), e.yaw, 1.2, 1.2, 0xff3a5a);
             if (Math.hypot(p.pos.x - c.x, p.pos.z - c.z) < 1.6 && Math.abs(p.pos.y - e.pos.y) < 1.6) hurtPlayer(e.def.dmg, e.pos);
             e.vel.x = Math.sin(e.yaw) * 4; e.vel.z = Math.cos(e.yaw) * 4;
           }
           break;
-        case 'attack': if (e.st > 0.5) { e.state = 'chase'; e.st = 0; e.atkCd = rand(1.6, 3); relTok(e); } break;
-        case 'stagger': relTok(e); cancelTele(e); if (e.st > 0.45) { e.state = 'chase'; e.st = 0; e.atkCd = Math.max(e.atkCd, 0.6); } break;
-        case 'launched': relTok(e); e.gravity = 18; if (e.grounded && e.st > 0.2) { e.state = 'down'; e.st = 0; play(rig, 'down'); e.gravity = 26; } break;
+        case 'attack':
+          if (e.st > 0.42) {
+            if (e.chainLeft > 0 && d < 3.2 && !p.dead && Math.random() < 0.4 * Df.react) { e.chainLeft--; e.yaw = ty; enemyWindup(e, 0.4); }
+            else { e.state = 'recover'; e.st = 0; relTok(e); e.atkCd = rand(1.7, 3.0) * Df.atkCd; }
+          }
+          break;
+        case 'recover': rig.anim = 'idle'; e.yaw += angDiff(e.yaw, ty) * (1 - Math.exp(-4 * dt)); if (e.st > 0.4) { e.state = 'chase'; e.st = 0; } break;
+        case 'aim':
+          e.yaw = e.aimYaw; if (e.tele && !Array.isArray(e.tele)) e.tele.m.material.uniforms.fill.value = e.st / e.wind;
+          if (Math.random() < 0.5) spawnP(PA, e.pos.x + Math.sin(e.yaw) * 0.6 + rand(-0.15, 0.15), e.pos.y + 1.2 + rand(-0.15, 0.15), e.pos.z + Math.cos(e.yaw) * 0.6, 0, 0.3, 0, 0.3, 0.35, A.shot || 0xff3a5a);
+          if (e.st > e.wind) { cancelTele(e); enemyShot(e, e.aimYaw); e.state = 'recover'; e.st = -0.1; e.shotCd = rand(2.6, 3.8) / Df.ranged; }
+          break;
+        case 'guard': e.yaw += angDiff(e.yaw, ty) * (1 - Math.exp(-10 * dt)); if (e.st > 0.95) { e.state = 'chase'; e.st = 0; showGuard(e, false); e.atkCd = Math.min(e.atkCd, 0.3); } break;
+        case 'evade': { const k = e.st < 0.28 ? 9 : 2; e.vel.x = e.evDir.x * k; e.vel.z = e.evDir.z * k; if (e.st > 0.36) { e.state = 'chase'; e.st = 0; e.atkCd = Math.min(e.atkCd, 0.4); } break; }
+        case 'rooted': rig.animT = Math.min(rig.animT, 0.15); if (!(e.rootT > 0)) { e.state = 'chase'; e.st = 0; } break;
+        case 'stagger': relTok(e); cancelTele(e); showGuard(e, false); if (e.st > 0.45) { e.state = 'chase'; e.st = 0; e.atkCd = Math.max(e.atkCd, 0.6); } break;
+        case 'launched': relTok(e); cancelTele(e); showGuard(e, false); e.gravity = 18; if (e.grounded && e.st > 0.2) { e.state = 'down'; e.st = 0; play(rig, 'down'); e.gravity = 26; } break;
         case 'down': if (e.st > 0.7) { e.state = 'chase'; e.st = 0; } break;
       }
     }
@@ -1515,16 +1849,18 @@ export function createGame(canvas, opts = {}) {
 
   // ---------- bosses ----------
   let bossActive = false;
+  // data-driven: attacks per phase, the rage move that opens each new phase, moves with i-frames, the gap-closer, and the grimoire it drops.
+  // Part 2 adds the chapter 5-8 bosses here (and their grimoires in GRIMOIRES).
   const BOSSES = {
-    kaze: { mk: makeKaze, hp: 320, speed: 4.5, poise: 60, attacks: ['windSlash', 'galeDash', 'melee'], p2: ['windSlash3', 'cyclone', 'galeDash', 'melee'], phases: [0.5], emo: 'determined' },
-    twin: { mk: makeTwin, hp: 380, speed: 5, poise: 70, attacks: ['galeDash', 'orbs', 'melee'], p2: ['galeDash', 'orbs', 'melee', 'clones'], phases: [0.5], emo: 'neutral', armorMul: 1 },
-    warden: { mk: makeWarden, hp: 520, speed: 2.4, poise: 90, attacks: ['slam', 'roots', 'sweep'], p2: ['slam', 'roots', 'roots', 'sweep'], phases: [0.5], emo: 'angry' },
-    null: { mk: makeNull, hp: 720, speed: 3.5, poise: 110, attacks: ['orbs', 'beam', 'blink'], p2: ['orbs', 'beam', 'blink', 'ringBurst', 'storm'], p3: ['orbs', 'beam', 'blink', 'ringBurst', 'storm', 'storm'], phases: [0.66, 0.33], emo: 'neutral', float: true },
+    kaze: { mk: makeKaze, hp: 320, speed: 4.5, poise: 60, attacks: ['windSlash', 'galeDash', 'combo'], p2: ['windSlash3', 'cyclone', 'galeDash', 'combo', 'multiDash'], p3: ['windSlash3', 'multiDash', 'combo', 'tornado', 'galeDash'], phases: [0.6, 0.3], rage: { 2: 'cyclone', 3: 'tornado' }, iframes: ['galeDash', 'multiDash', 'cyclone', 'tornado'], closer: 'galeDash', emo: 'determined', drop: 'gale' },
+    twin: { mk: makeTwin, hp: 380, speed: 5, poise: 70, attacks: ['galeDash', 'orbs', 'combo'], p2: ['galeDash', 'orbs', 'combo', 'clones', 'shadowStep'], p3: ['shadowStep', 'orbRing', 'clones', 'combo', 'galeDash'], phases: [0.6, 0.3], rage: { 2: 'clones', 3: 'orbRing' }, iframes: ['galeDash', 'shadowStep'], closer: 'shadowStep', emo: 'neutral', armorMul: 1, drop: 'shadow' },
+    warden: { mk: makeWarden, hp: 520, speed: 2.4, poise: 90, attacks: ['slam', 'roots', 'sweep'], p2: ['slam', 'roots', 'sweep', 'quake'], p3: ['quake', 'thornWall', 'roots', 'sweep', 'slam'], phases: [0.6, 0.3], rage: { 2: 'quake', 3: 'thornWall' }, iframes: [], closer: 'roots', emo: 'angry', drop: 'thorn' },
+    null: { mk: makeNull, hp: 720, speed: 3.5, poise: 110, attacks: ['orbs', 'beam', 'blink'], p2: ['orbs', 'beam', 'blink', 'ringBurst', 'storm', 'orbRing'], p3: ['orbRing', 'beam', 'blink2', 'ringBurst', 'storm', 'crossBeams'], phases: [0.66, 0.33], rage: { 2: 'ringBurst', 3: 'crossBeams' }, iframes: ['blink', 'blink2'], closer: 'blink', emo: 'neutral', drop: 'void' },
   };
   function spawnBoss(id) {
     const B = BOSSES[id]; const rig = B.mk(); rig.fight = id !== 'null';
-    const def = Object.assign({ id }, B);
-    const e = makeFighter(rig, { type: id, def, hp: B.hp, maxHp: B.hp, kind: 'enemy', boss: true, state: 'idle', st: 0, atkCd: 1.5, phase: 1, radius: id === 'warden' ? 1.3 : 0.55 });
+    const def = Object.assign({ id }, B); const hp = Math.round(B.hp * D().bHp);
+    const e = makeFighter(rig, { type: id, def, hp, maxHp: hp, kind: 'enemy', boss: true, state: 'idle', st: 0, atkCd: 1.5, phase: 1, radius: id === 'warden' ? 1.3 : 0.55 });
     const a = level.arena; e.pos.set(a.x, a.y, a.z + 6); e.yaw = Math.PI; e.lastPos.copy(e.pos); syncFighter(e, 0);
     setEmotion(rig, B.emo);
     def.onDefeat = (b) => bossDefeated(b);
@@ -1532,43 +1868,70 @@ export function createGame(canvas, opts = {}) {
     return e;
   }
   function bossBrain(e, dt) {
-    const p = player, rig = e.rig, B = e.def; const dx = p.pos.x - e.pos.x, dz = p.pos.z - e.pos.z, d = Math.hypot(dx, dz), ty = Math.atan2(dx, dz);
-    e.vel.x = 0; e.vel.z = 0; if (B.float) { e.gravity = 0; e.vel.y = 0; e.pos.y = lerp(e.pos.y, level.arena.y + 0.6, 0.05); }
-    const fast = e.phase >= 2 ? 1.35 : 1;
-    // phase check
+    const p = player, rig = e.rig, B = e.def; if (e.dead) return;
+    const dx = p.pos.x - e.pos.x, dz = p.pos.z - e.pos.z, d = Math.hypot(dx, dz) || 0.001, ty = Math.atan2(dx, dz), Df = D();
+    e.vel.x = 0; e.vel.z = 0; e.iframe = 0; e.recentT = Math.max(0, (e.recentT || 0) - dt); e.poiseLock = Math.max(0, (e.poiseLock || 0) - dt);
+    if (e.rootT > 0) { e.rootT -= dt; if (e.vine) { e.vine.rotation.y += dt; if (e.rootT <= 0) e.vine.visible = false; } }
+    // phase check: a new phase opens with a rage roar (i-frames, pushes Ren back) and its signature move
     const fr = e.hp / e.maxHp;
-    if (B.phases[e.phase - 1] !== undefined && fr <= B.phases[e.phase - 1]) { e.phase++; state.boss.phase = e.phase; emit('bossPhase', { phase: e.phase }); sfx('roar'); impact = 2; cam.shake = 0.6; shockRing(e.pos, 8, 0xff3a5a, 0.6); burst(e.pos.x, e.pos.y + 1.5, e.pos.z, 50, 0xff3a5a, 9, 0.8, 0.4, 0); setEmotion(rig, 'angry'); if (B.id === 'null' && e.phase === 3) { OV.tintAmt.value = 0.25; OV.tint.value.set(0xff2a6a); } e.state = 'idle'; e.st = 0; e.atkCd = 1; cancelTele(e); }
-    if (!bossActive || p.dead) { rig.anim = B.float ? 'float' : 'idle'; return; }
+    if (B.phases[e.phase - 1] !== undefined && fr <= B.phases[e.phase - 1]) {
+      e.phase++; state.boss.phase = e.phase; emit('bossPhase', { phase: e.phase }); sfx('roar'); impact = 2; cam.shake = 0.6; shockRing(e.pos, 8, 0xff3a5a, 0.6); burst(e.pos.x, e.pos.y + 1.5, e.pos.z, 50, 0xff3a5a, 9, 0.8, 0.4, 0); setEmotion(rig, 'angry');
+      if (B.id === 'null' && e.phase === 3) { OV.tintAmt.value = 0.25; OV.tint.value.set(0xff2a6a); }
+      endBossAttackFx(e); e.wantGuard = false; showGuard(e, false); e.state = 'rage'; e.st = 0; e.ragePushed = false; play(rig, 'power', 1.2); if (rig.aura) rig.aura.visible = true;
+    }
+    if (!bossActive || p.dead) { rig.anim = 'idle'; return; }
+    const rate = [1, 1.25, 1.5][e.phase - 1] / Df.bossCd;
     switch (e.state) {
       case 'idle': case 'chase': {
-        e.yaw += angDiff(e.yaw, ty) * (1 - Math.exp(-5 * dt)); e.atkCd -= dt * fast;
-        const want = B.id === 'warden' ? 3.5 : B.id === 'null' ? 8 : 4;
-        if (d > want + 1) { e.vel.x = dx / d * B.speed * fast; e.vel.z = dz / d * B.speed * fast; rig.anim = B.float ? 'float' : 'run'; }
-        else if (d < want - 2 && !B.float) { e.vel.x = -dx / d * 2; e.vel.z = -dz / d * 2; rig.anim = 'run'; }
-        else rig.anim = B.float ? 'float' : 'idle';
-        if (e.atkCd <= 0) { const list = e.phase === 3 && B.p3 ? B.p3 : e.phase >= 2 && B.p2 ? B.p2 : B.attacks; let a = list[Math.floor(Math.random() * list.length)]; if (a === 'melee' && d > 6) a = list[0]; startBossAttack(e, a); }
+        if (e.wantGuard) { e.wantGuard = false; e.state = 'guard'; e.st = 0; e.yaw = ty; play(rig, 'sign', 0.8); showGuard(e, true); flash(e.pos.clone().setY(e.pos.y + 1.4), 2.4, 0x7ad8ff); sfx('guardUp'); break; }
+        e.yaw += angDiff(e.yaw, ty) * (1 - Math.exp(-5 * dt)); e.atkCd -= dt * rate;
+        const want = B.id === 'warden' ? 3.5 : B.id === 'null' ? 8 : 4, rooted = e.rootT > 0;
+        if (!rooted && d > want + 1) { const sp = B.speed * [1, 1.15, 1.3][e.phase - 1]; e.vel.x = dx / d * sp; e.vel.z = dz / d * sp; rig.anim = 'run'; }
+        else if (!rooted && d < want - 2) { e.vel.x = -dx / d * 2; e.vel.z = -dz / d * 2; rig.anim = 'run'; }
+        else rig.anim = 'idle';
+        if (e.atkCd <= 0) {
+          const list = e.phase === 3 && B.p3 ? B.p3 : e.phase >= 2 && B.p2 ? B.p2 : B.attacks; const pick = () => list[Math.floor(Math.random() * list.length)];
+          let a = pick(); if (a === e.lastAtk) a = pick(); if ((a === 'melee' || a === 'combo') && d > 6) a = B.closer || list[0];
+          e.lastAtk = a; startBossAttack(e, a);
+        }
         break;
       }
-      case 'attack': bossAttackUpdate(e, dt * fast); break;
+      case 'attack': bossAttackUpdate(e, dt); break;
       case 'stagger': if (e.st > 0) { e.state = 'idle'; e.st = 0; e.atkCd = 0.8; } break;
+      case 'guard': e.yaw += angDiff(e.yaw, ty) * (1 - Math.exp(-12 * dt)); if (e.st > 0.4) { showGuard(e, false); startBossAttack(e, 'counter'); } break;
+      case 'rage':
+        e.iframe = 1; if (Math.random() < 0.6) spawnP(PA, e.pos.x + rand(-0.8, 0.8), e.pos.y + rand(0, 2.5), e.pos.z + rand(-0.8, 0.8), 0, 4, 0, 0.5, 0.45, 0xff3a5a);
+        if (e.st > 0.35 && !e.ragePushed) { e.ragePushed = true; shockRing(e.pos, 6, 0xff3a5a, 0.5); cam.shake = 0.5; if (d < 5.5) p.kb.set(dx / d * 12, 0, dz / d * 12); }
+        if (e.st > 1.1) { if (rig.aura && B.id !== 'null') rig.aura.visible = false; const list = e.phase === 3 && B.p3 ? B.p3 : B.p2 || B.attacks; const a = (B.rage && B.rage[e.phase]) || list[0]; e.lastAtk = a; startBossAttack(e, a); }
+        break;
     }
   }
   function aimYaw(e) { return Math.atan2(player.pos.x - e.pos.x, player.pos.z - e.pos.z); }
+  const fwdOf = (e, r) => e.pos.clone().add(new THREE.Vector3(Math.sin(e.yaw) * r, 0, Math.cos(e.yaw) * r));
+  function bossHit(c, r, dmg) { const p = player; if (Math.hypot(p.pos.x - c.x, p.pos.z - c.z) < r && p.pos.y - level.arena.y < 1.2) return hurtPlayer(dmg, c); return false; }
+  const CHAINED = ['combo', 'multiDash', 'quake', 'crossBeams', 'shadowStep', 'blink2'];
   function startBossAttack(e, a) {
     e.state = 'attack'; e.st = 0; e.atk = a; e.fired = 0; const rig = e.rig; e.yaw = aimYaw(e); sfx('telegraph');
-    const W = { windSlash: 0.85, windSlash3: 0.9, galeDash: 0.8, melee: 0.6, cyclone: 1.1, orbs: 0.7, clones: 0.8, slam: 1.1, roots: 1.0, sweep: 1.2, beam: 1.1, blink: 0.7, ringBurst: 1.0, storm: 1.0 }[a];
-    e.wind = W; const fwd = (r) => e.pos.clone().add(new THREE.Vector3(Math.sin(e.yaw) * r, 0, Math.cos(e.yaw) * r));
+    const W0 = { windSlash: 0.85, windSlash3: 0.9, galeDash: 0.8, melee: 0.6, combo: 0.7, cyclone: 1.1, orbs: 0.7, clones: 0.8, slam: 1.1, roots: 1.0, sweep: 1.2, beam: 1.1, blink: 0.7, ringBurst: 1.0, storm: 1.0, counter: 0.5, tornado: 1.1, orbRing: 0.85, thornWall: 1.0, multiDash: 0.75, quake: 0.9, crossBeams: 1.1, shadowStep: 0.45, blink2: 0.45 }[a] || 0.8;
+    // later phases and Hard wind up faster, but a telegraph never gets shorter than 0.45 s
+    const W = Math.max(Math.min(W0, 0.45), W0 / ([1, 1.1, 1.2][e.phase - 1] / D().wind));
+    e.wind = W; const fwd = (r) => fwdOf(e, r);
     e.pos.y = Math.max(e.pos.y, groundAt(e.pos.x, e.pos.z, e.pos.y + 1) || e.pos.y);
-    const gy = level.arena.y; const gp = (v) => v.setY(gy);
+    const gy = level.arena.y; const gp = (v) => v.setY(gy); const sc = rig.cfg.scale || 1;
+    if (CHAINED.includes(a)) { chainStart(e, a); return; }
     switch (a) {
       case 'windSlash': play(rig, 'slash', W + 0.5); e.tele = telegraph('line', gp(e.pos.clone()), 2.4, 22, e.yaw, W); break;
       case 'windSlash3': play(rig, 'slash', W + 0.5); e.tele = [-0.45, 0, 0.45].map((o) => telegraph('line', gp(e.pos.clone()), 2.2, 20, e.yaw + o, W)); break;
       case 'galeDash': play(rig, 'dash', W + 0.4); e.dashLen = Math.min(16, Math.hypot(player.pos.x - e.pos.x, player.pos.z - e.pos.z) + 4); e.tele = telegraph('line', gp(e.pos.clone()), 2.2, e.dashLen, e.yaw, W); break;
-      case 'melee': play(rig, B_melee(e), W + 0.4); e.tele = telegraph('circle', gp(fwd(1.8 * (e.rig.cfg.scale || 1))), 2.4, 0, 0, W); break;
+      case 'melee': play(rig, B_melee(e), W + 0.4); e.tele = telegraph('circle', gp(fwd(1.8 * sc)), 2.4, 0, 0, W); break;
+      case 'counter': play(rig, B_melee(e), W + 0.4); e.tele = telegraph('circle', gp(e.pos.clone()), 3.4 * Math.max(1, sc * 0.8), 0, 0, W); break;
       case 'cyclone': play(rig, 'raise', W + 0.6); e.tele = telegraph('circle', gp(e.pos.clone()), 5.5, 0, 0, W); break;
+      case 'tornado': play(rig, 'raise', W + 0.6); e.tele = telegraph('circle', gp(e.pos.clone()), 6, 0, 0, W); break;
       case 'orbs': play(rig, 'cast2', W + 0.5); break;
+      case 'orbRing': play(rig, 'cast2', W + 0.5); e.tele = telegraph('circle', gp(e.pos.clone()), 3, 0, 0, W); break;
       case 'clones': play(rig, 'raise', W + 0.4); break;
       case 'slam': play(rig, 'slam', W + 0.6); e.tele = telegraph('circle', gp(fwd(3.5)), 4.5, 0, 0, W); break;
+      case 'thornWall': play(rig, 'slam', W + 0.6); e.tele = telegraph('circle', gp(e.pos.clone()), 3.5, 0, 0, W); break;
       case 'roots': play(rig, 'raise', W + 0.5); { const n = e.phase >= 2 ? 6 : 4; e.rootPts = []; for (let i = 0; i < n; i++) { const pt = i === 0 ? player.pos.clone() : player.pos.clone().add(new THREE.Vector3(rand(-6, 6), 0, rand(-6, 6))); gp(pt); e.rootPts.push(pt); } e.tele = e.rootPts.map((pt) => telegraph('circle', pt, 1.8, 0, 0, W)); } break;
       case 'sweep': play(rig, 'slash', W + 0.5); e.tele = telegraph('circle', gp(e.pos.clone()), 7, 0, 0, W); break;
       case 'beam': play(rig, 'cast2', W + 0.7); e.tele = telegraph('line', gp(e.pos.clone()), 3, 30, e.yaw, W); break;
@@ -1578,6 +1941,76 @@ export function createGame(canvas, opts = {}) {
     }
   }
   function B_melee(e) { return e.def.id === 'warden' ? 'slam' : e.def.id === 'kaze' ? 'slash' : 'claw'; }
+  // multi-step attacks: each step has its own telegraph (setup), a hit (fire) and an active window (act)
+  const CHAINS = {
+    combo: {
+      n: (e) => (e.phase >= 2 ? 3 : 2) + D().chain, dur: 0.2, wind: (e, i) => (i ? Math.max(0.36, 0.5 - e.phase * 0.04) : e.wind),
+      setup(e, i, W) { e.yaw = aimYaw(e); play(e.rig, B_melee(e), W + 0.35); const sc = e.rig.cfg.scale || 1; e.cR = 2.3 * Math.max(1, sc * 0.85); e.tele = telegraph('circle', fwdOf(e, 1.9 * sc).setY(level.arena.y), e.cR, 0, 0, W); },
+      pre(e, i, t, W, dt) {
+        // step in toward Ren during the first half of the wind-up; the red circle travels with the boss
+        const p = player, dx = p.pos.x - e.pos.x, dz = p.pos.z - e.pos.z, d = Math.hypot(dx, dz) || 1, sc = e.rig.cfg.scale || 1;
+        if (t < W * 0.55) { e.yaw += angDiff(e.yaw, Math.atan2(dx, dz)) * (1 - Math.exp(-6 * dt)); if (d > 2.2 * sc && !(e.rootT > 0)) { e.vel.x = dx / d * 6; e.vel.z = dz / d * 6; } }
+        if (e.tele && !Array.isArray(e.tele)) { const c = fwdOf(e, 1.9 * sc); e.tele.m.position.set(c.x, level.arena.y + 0.06, c.z); e.tele.cx = c.x; e.tele.cz = c.z; }
+      },
+      fire(e, i) { const sc = e.rig.cfg.scale || 1, c = fwdOf(e, 1.9 * sc); slashArc(c.clone().setY(e.pos.y + 1.2), e.yaw, i % 2 ? -0.5 : 0.5, 2 * sc, i === e.cN - 1 ? 0xff7a2a : 0xff3a5a, i % 2); bossHit(c, e.cR, i === e.cN - 1 ? 13 : 10); sfx('whoosh'); if (i === e.cN - 1) cam.shake = Math.max(cam.shake, 0.3); },
+    },
+    multiDash: {
+      n: (e) => 3 + D().chain, dur: 0.3, wind: (e, i) => (i ? 0.5 : e.wind), iframe: (e, i, fired) => fired,
+      setup(e, i, W) { e.yaw = aimYaw(e); play(e.rig, 'dash', W + 0.3); e.dashLen = Math.min(14, Math.hypot(player.pos.x - e.pos.x, player.pos.z - e.pos.z) + 3); e.tele = telegraph('line', e.pos.clone().setY(level.arena.y), 2.2, e.dashLen, e.yaw, W); },
+      fire(e) { e.dashFrom = e.pos.clone(); e.hitP = false; sfx('dash'); },
+      act(e, i, t) { const k = clamp(t / 0.22, 0, 1), np = e.dashFrom.clone().add(new THREE.Vector3(Math.sin(e.yaw) * e.dashLen * k, 0, Math.cos(e.yaw) * e.dashLen * k)); if (!blocked(np.x, np.z, e.pos.y)) { e.pos.x = np.x; e.pos.z = np.z; } spawnP(PA, e.pos.x, e.pos.y + 1, e.pos.z, 0, 0, 0, 0.4, 0.6, 0x7affe0); if (!e.hitP && player.pos.distanceTo(e.pos) < 1.6) e.hitP = hurtPlayer(13, e.pos) || true; },
+    },
+    quake: {
+      n: (e) => 3 + D().chain, dur: 0.25, wind: (e, i) => (i ? 0.6 : e.wind),
+      setup(e, i, W) { e.yaw = aimYaw(e); play(e.rig, 'slam', W + 0.5); const off = player.pos.clone().sub(e.pos).setY(0); if (off.length() > 12) off.setLength(12); e.cPt = e.pos.clone().add(off).setY(level.arena.y); e.tele = telegraph('circle', e.cPt, 3, 0, 0, W); },
+      fire(e) { const c = e.cPt; shockRing(c, 4, 0xffb020, 0.45); burst(c.x, c.y + 0.3, c.z, 30, 0xc8a070, 8, 0.6, 0.5); cam.shake = Math.max(cam.shake, 0.5); sfx('slam'); bossHit(c, 3, 15); },
+    },
+    crossBeams: {
+      n: () => 2, dur: 0.55, wind: (e, i) => (i ? 0.8 : e.wind),
+      setup(e, i, W) { if (!i) e.cRot = rand(0, Math.PI / 2); play(e.rig, 'raise', W + 0.6); e.cYaws = [0, 1, 2, 3].map((k) => e.cRot + (i % 2 ? Math.PI / 4 : 0) + k * Math.PI / 2); e.tele = e.cYaws.map((y) => telegraph('line', e.pos.clone().setY(level.arena.y), 2.8, 26, y, W)); },
+      fire(e) {
+        const p = player, gy = level.arena.y; e.beams = []; sfx('beam'); cam.shake = 0.45; let hit = false;
+        for (const y of e.cYaws) {
+          const holder = new THREE.Group(), m = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({ color: 0xfff0a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); m.scale.set(0.8, 26, 0.8); m.rotation.x = Math.PI / 2; m.position.z = 13; holder.add(m); holder.position.set(e.pos.x, gy + 1.1, e.pos.z); holder.rotation.y = y; scene.add(holder); e.beams.push(holder);
+          const lx = p.pos.x - e.pos.x, lz = p.pos.z - e.pos.z, along = lx * Math.sin(y) + lz * Math.cos(y), perp = Math.abs(lx * Math.cos(y) - lz * Math.sin(y));
+          if (!hit && along > 0 && along < 26 && perp < 1.5 && p.pos.y - gy < 2) hit = hurtPlayer(16, e.pos) || true;
+        }
+      },
+      act(e, i, t) { if (e.beams) for (const b of e.beams) b.children[0].material.opacity = 1 - clamp(t / 0.55, 0, 1); },
+      end(e) { if (e.beams) { for (const b of e.beams) scene.remove(b); e.beams = null; } },
+    },
+    // vanish, reappear behind Ren, strike (twice for blink2 / Hard)
+    shadowStep: {
+      n: (e) => 2 * (1 + D().chain), dur: 0.15, wind: (e, i) => (i % 2 ? 0.6 : e.wind), iframe: (e, i) => i % 2 === 0,
+      setup(e, i, W) { const col = e.def.id === 'twin' ? 0xff2a4a : 0xffd24a; if (i % 2 === 0) { play(e.rig, 'raise', W + 0.3); burst(e.pos.x, e.pos.y + 1, e.pos.z, 20, col, 4, 0.4, 0.4, 0); } else { e.yaw = aimYaw(e); play(e.rig, 'slash', W + 0.4); e.rig.animT = 0.1; e.tele = telegraph('circle', fwdOf(e, 1.5).setY(level.arena.y), 2.6, 0, 0, W); } },
+      fire(e, i) {
+        const col = e.def.id === 'twin' ? 0xff2a4a : 0xffd24a;
+        if (i % 2 === 0) { burst(e.pos.x, e.pos.y + 1, e.pos.z, 25, col, 5, 0.5, 0.4, 0); const an = player.yaw + Math.PI + rand(-0.6, 0.6); let x = player.pos.x + Math.sin(an) * 2.6, z = player.pos.z + Math.cos(an) * 2.6; if (blocked(x, z, e.pos.y)) { x = player.pos.x - Math.sin(an) * 2.6; z = player.pos.z - Math.cos(an) * 2.6; } e.pos.x = x; e.pos.z = z; e.yaw = aimYaw(e); sfx('blink'); burst(e.pos.x, e.pos.y + 1, e.pos.z, 25, col, 5, 0.5, 0.4, 0); }
+        else { slashArc(e.pos.clone().setY(e.pos.y + 1.2), e.yaw, 0.2, 2.6, col); bossHit(fwdOf(e, 1.5), 2.6, 14); sfx('whoosh'); }
+      },
+    },
+  };
+  CHAINS.blink2 = Object.assign({}, CHAINS.shadowStep, { n: (e) => 4 + 2 * D().chain });
+  function chainStart(e, a) { const C = CHAINS[a]; e.cN = C.n(e); e.cI = 0; e.cT0 = e.st; e.cFired = false; e.cW = C.wind(e, 0); C.setup(e, 0, e.cW); }
+  function chainUpdate(e, dt) {
+    const C = CHAINS[e.atk], t = e.st - e.cT0;
+    if (C.iframe && C.iframe(e, e.cI, e.cFired)) e.iframe = 1;
+    if (!e.cFired) {
+      if (C.pre) C.pre(e, e.cI, t, e.cW, dt);
+      const fill = clamp(t / e.cW, 0, 1); if (e.tele) for (const tl of [].concat(e.tele)) tl.m.material.uniforms.fill.value = fill;
+      if (Math.random() < 0.35) spawnP(PA, e.pos.x + rand(-0.5, 0.5), e.pos.y + rand(0.5, 2.5) * (e.rig.cfg.scale || 1), e.pos.z + rand(-0.5, 0.5), 0, 2, 0, 0.4, 0.35, 0xff3a5a);
+      if (t >= e.cW) { e.cFired = true; cancelTele(e); C.fire(e, e.cI); }
+    } else {
+      if (C.act) C.act(e, e.cI, t - e.cW, dt);
+      if (t >= e.cW + C.dur) {
+        if (C.end) C.end(e, e.cI);
+        e.cI++; if (e.cI >= e.cN || player.dead) { bossAttackEnd(e); return; }
+        e.cT0 = e.st; e.cFired = false; e.cW = C.wind(e, e.cI); C.setup(e, e.cI, e.cW);
+      }
+    }
+  }
+  function endBossAttackFx(e) { cancelTele(e); if (e.beam) { scene.remove(e.beam); e.beam = null; } if (e.beams) { for (const b of e.beams) scene.remove(b); e.beams = null; } if (e.ringMesh) e.ringMesh.visible = false; e.ring = null; e.rig.pivot.rotation.y = 0; }
+  function bossAttackEnd(e) { endBossAttackFx(e); e.state = 'idle'; e.st = 0; e.atkCd = rand(1.0, 2.0); }
   function bossProj(e, yaw, speed, color, dmg, opts = {}) {
     const m = new THREE.Mesh(opts.arc ? ARC_G : G.sphere, new THREE.MeshBasicMaterial({ color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     if (opts.arc) { m.scale.setScalar(1.6); } else m.scale.setScalar(0.35);
@@ -1587,21 +2020,26 @@ export function createGame(canvas, opts = {}) {
     projectiles.push(pr); return pr;
   }
   function bossAttackUpdate(e, dt) {
+    if (CHAINS[e.atk]) { chainUpdate(e, dt); return; }
     const rig = e.rig, a = e.atk, W = e.wind, p = player, gy = level.arena.y;
     const firing = e.st >= W;
-    if (!firing) { if (['windSlash', 'galeDash', 'beam', 'slam', 'melee'].includes(a)) { /* hold aim */ } if (e.tele && !Array.isArray(e.tele)) e.tele.m.material.uniforms.fill.value = e.st / W; else if (e.tele) e.tele.forEach((t) => (t.m.material.uniforms.fill.value = e.st / W)); if (Math.random() < 0.4) spawnP(PA, e.pos.x + rand(-0.5, 0.5), e.pos.y + rand(0.5, 2.5) * (rig.cfg.scale || 1), e.pos.z + rand(-0.5, 0.5), 0, 2, 0, 0.4, 0.35, 0xff3a5a); return; }
+    if (firing && e.def.iframes && e.def.iframes.includes(a)) e.iframe = 1;
+    if (!firing) { if (e.tele && !Array.isArray(e.tele)) e.tele.m.material.uniforms.fill.value = e.st / W; else if (e.tele) e.tele.forEach((t) => (t.m.material.uniforms.fill.value = e.st / W)); if (Math.random() < 0.4) spawnP(PA, e.pos.x + rand(-0.5, 0.5), e.pos.y + rand(0.5, 2.5) * (rig.cfg.scale || 1), e.pos.z + rand(-0.5, 0.5), 0, 2, 0, 0.4, 0.35, 0xff3a5a); return; }
     const once = () => { if (e.fired) return false; e.fired = 1; cancelTele(e); return true; };
     const hitCircle = (c, r, dmg) => { if (Math.hypot(p.pos.x - c.x, p.pos.z - c.z) < r && p.pos.y - gy < 1.2) hurtPlayer(dmg, c); };
-    const fwd = (r) => e.pos.clone().add(new THREE.Vector3(Math.sin(e.yaw) * r, 0, Math.cos(e.yaw) * r));
+    const fwd = (r) => fwdOf(e, r); const sc = rig.cfg.scale || 1;
     let dur = 0.7;
     switch (a) {
       case 'windSlash': if (once()) { bossProj(e, e.yaw, 16, 0x7affe0, 12, { arc: true, radius: 1.3 }); sfx('wind'); } break;
       case 'windSlash3': if (once()) { for (const o of [-0.45, 0, 0.45]) bossProj(e, e.yaw + o, 15, 0x7affe0, 12, { arc: true, radius: 1.2 }); sfx('wind'); } break;
       case 'galeDash': { dur = 0.45; if (once()) { e.dashFrom = e.pos.clone(); sfx('dash'); e.hitP = false; } const k = clamp((e.st - W) / 0.25, 0, 1); const np = e.dashFrom.clone().add(new THREE.Vector3(Math.sin(e.yaw) * e.dashLen * k, 0, Math.cos(e.yaw) * e.dashLen * k)); if (!blocked(np.x, np.z, e.pos.y)) { e.pos.x = np.x; e.pos.z = np.z; } spawnP(PA, e.pos.x, e.pos.y + 1, e.pos.z, 0, 0, 0, 0.4, 0.6, e.def.id === 'twin' ? 0xff2a4a : 0x7affe0); if (!e.hitP && p.pos.distanceTo(e.pos) < 1.6) { e.hitP = hurtPlayer(14, e.pos) || true; } break; }
-      case 'melee': if (once()) { const c = fwd(1.8 * (rig.cfg.scale || 1)); slashArc(c.clone().setY(e.pos.y + 1.2), e.yaw, 0.2, 2, 0xff3a5a); hitCircle(c, 2.4, 12); sfx('whoosh'); } break;
+      case 'melee': if (once()) { const c = fwd(1.8 * sc); slashArc(c.clone().setY(e.pos.y + 1.2), e.yaw, 0.2, 2, 0xff3a5a); hitCircle(c, 2.4, 12); sfx('whoosh'); } break;
+      case 'counter': dur = 0.35; if (once()) { const r = 3.4 * Math.max(1, sc * 0.8); shockRing(e.pos, r + 0.4, 0x7ad8ff, 0.4); slashArc(e.pos.clone().setY(e.pos.y + 1.2), e.yaw, 0, 3 * sc, 0x7ad8ff); rig.pivot.rotation.y = 0; hitCircle(e.pos, r, 14); sfx('counterStrike'); cam.shake = Math.max(cam.shake, 0.4); } break;
       case 'cyclone': dur = 0.9; if (once()) { shockRing(e.pos, 6, 0x7affe0, 0.5); sfx('wind'); hitCircle(e.pos, 5.5, 15); } e.rig.pivot.rotation.y += dt * 30; for (let i = 0; i < 3; i++) { const an = rand(0, TAU); spawnP(PA, e.pos.x + Math.cos(an) * 4, e.pos.y + rand(0, 2), e.pos.z + Math.sin(an) * 4, -Math.sin(an) * 8, 1, Math.cos(an) * 8, 0.5, 0.4, 0x9affea); } break;
+      case 'tornado': dur = 1.0; if (once()) { shockRing(e.pos, 7, 0x7affe0, 0.6); sfx('wind'); hitCircle(e.pos, 6, 16); for (let i = 0; i < 8; i++) bossProj(e, e.yaw + i / 8 * TAU, 13, 0x7affe0, 10, { arc: true, radius: 1.1 }); cam.shake = 0.5; } e.rig.pivot.rotation.y += dt * 30; for (let i = 0; i < 4; i++) { const an = rand(0, TAU); spawnP(PA, e.pos.x + Math.cos(an) * 5, e.pos.y + rand(0, 3), e.pos.z + Math.sin(an) * 5, -Math.sin(an) * 10, 2, Math.cos(an) * 10, 0.5, 0.45, 0x9affea); } break;
       case 'orbs': if (once()) { const n = e.phase >= 2 ? 7 : 5; const col = e.def.id === 'twin' ? 0xff2a6a : 0xffd24a; for (let i = 0; i < n; i++) bossProj(e, e.yaw + (i - (n - 1) / 2) * 0.28, 7, col, 10, { homing: 1.2, h: 1.4, life: 3.5 }); sfx('orb'); } break;
-      case 'clones': if (once()) { const alive = enemies.filter((x) => x.decoy && !x.dead).length; for (let i = alive; i < 2; i++) { const an = rand(0, TAU); const c = spawnDecoy(e, level.arena.x + Math.cos(an) * 8, level.arena.z + Math.sin(an) * 8); } sfx('clone'); burst(e.pos.x, e.pos.y + 1, e.pos.z, 30, 0xff2a4a, 6, 0.6, 0.4, 0); } break;
+      case 'orbRing': if (once()) { const n = D().chain ? 16 : 12, col = e.def.id === 'twin' ? 0xff2a6a : 0xffd24a; for (let i = 0; i < n; i++) bossProj(e, e.yaw + (i + 0.5) / n * TAU, 7.5, col, 10, { h: 1.2, life: 3.5, radius: 0.8 }); shockRing(e.pos, 3, col, 0.4); sfx('orb'); } break;
+      case 'clones': if (once()) { const alive = enemies.filter((x) => x.decoy && !x.dead).length; for (let i = alive; i < 2; i++) { const an = rand(0, TAU); spawnDecoy(e, level.arena.x + Math.cos(an) * 8, level.arena.z + Math.sin(an) * 8); } sfx('clone'); burst(e.pos.x, e.pos.y + 1, e.pos.z, 30, 0xff2a4a, 6, 0.6, 0.4, 0); } break;
       case 'slam': if (once()) { const c = fwd(3.5); shockRing(c, 5.5, 0xffb020, 0.5); cam.shake = 0.6; sfx('slam'); burst(c.x, gy + 0.3, c.z, 40, 0xc8a070, 8, 0.6, 0.5); hitCircle(c, 4.5, 18); } dur = 0.9; break;
       case 'roots': if (once()) { sfx('roots'); for (const pt of e.rootPts) { spikeBurst(pt, 0x6a4a2a); hitCircle(pt, 1.8, 13); } } dur = 0.8; break;
       case 'storm': if (once()) { sfx('lightning'); flashT = 0.15; for (const pt of e.rootPts) { lightning(pt); hitCircle(pt, 2, 14); } } dur = 0.6; break;
@@ -1609,14 +2047,15 @@ export function createGame(canvas, opts = {}) {
       case 'beam': dur = 0.9; if (once()) { const len = 30; const m = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({ color: 0xfff0a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); m.scale.set(0.9, len, 0.9); m.rotation.x = Math.PI / 2; const c = fwd(len / 2); m.position.set(c.x, gy + 1.1, c.z); m.rotation.set(Math.PI / 2, 0, 0); m.rotation.z = 0; const holder = new THREE.Group(); holder.position.copy(m.position); holder.rotation.y = e.yaw; m.position.set(0, 0, 0); holder.add(m); scene.add(holder); e.beam = holder; sfx('beam'); cam.shake = 0.4;
           const lx = p.pos.x - e.pos.x, lz = p.pos.z - e.pos.z, along = lx * Math.sin(e.yaw) + lz * Math.cos(e.yaw), perp = Math.abs(lx * Math.cos(e.yaw) - lz * Math.sin(e.yaw)); if (along > 0 && along < len && perp < 1.6 && p.pos.y - gy < 2) hurtPlayer(20, e.pos); }
         if (e.beam) { e.beam.children[0].material.opacity = 1 - clamp((e.st - W) / dur, 0, 1); } break;
-      case 'blink': if (once()) { burst(e.pos.x, e.pos.y + 1, e.pos.z, 25, 0xffd24a, 5, 0.5, 0.4, 0); const an = p.yaw + Math.PI; e.pos.x = p.pos.x + Math.sin(an) * 2.5; e.pos.z = p.pos.z + Math.cos(an) * 2.5; e.yaw = aimYaw(e); sfx('blink'); e.blinkStrike = true; e.tele = telegraph('circle', p.pos.clone().setY(gy), 2.6, 0, 0, 0.6); e.fired = 1; e.bt = e.st; } if (e.blinkStrike && e.st - e.bt > 0.6) { e.blinkStrike = false; cancelTele(e); play(rig, 'slash', 0.6); rig.animT = 0.3; slashArc(e.pos.clone().setY(e.pos.y + 1.2), e.yaw, 0.2, 2.6, 0xffd24a); const c = fwd(1.5); hitCircle(c, 2.6, 14); } dur = 1.4; break;
+      case 'blink': if (once()) { burst(e.pos.x, e.pos.y + 1, e.pos.z, 25, 0xffd24a, 5, 0.5, 0.4, 0); const an = p.yaw + Math.PI; e.pos.x = p.pos.x + Math.sin(an) * 2.5; e.pos.z = p.pos.z + Math.cos(an) * 2.5; e.yaw = aimYaw(e); sfx('blink'); e.blinkStrike = true; e.tele = telegraph('circle', p.pos.clone().setY(gy), 2.6, 0, 0, 0.6); e.fired = 1; e.bt = e.st; } if (e.blinkStrike && e.st - e.bt > 0.6) { e.blinkStrike = false; cancelTele(e); play(rig, 'slash', 0.6); rig.animT = 0.3; slashArc(e.pos.clone().setY(e.pos.y + 1.2), e.yaw, 0.2, 2.6, 0xffd24a); const c = fwd(1.5); hitCircle(c, 2.6, 14); } else if (e.blinkStrike && e.tele && !Array.isArray(e.tele)) e.tele.m.material.uniforms.fill.value = (e.st - e.bt) / 0.6; if (e.blinkStrike) e.iframe = 0; dur = 1.4; break;
       case 'ringBurst': if (once()) { e.ring = { r: 0.5, hit: false }; sfx('wave'); } if (e.ring) { e.ring.r += dt * 9; shockRingAt(e, e.ring.r); const dd = Math.hypot(p.pos.x - e.pos.x, p.pos.z - e.pos.z); if (!e.ring.hit && Math.abs(dd - e.ring.r) < 0.8 && p.pos.y - gy < 0.8) { e.ring.hit = true; hurtPlayer(14, e.pos); } } dur = 2.2; break;
+      case 'thornWall': if (once()) { e.ring = { r: 0.5, hit: false, last: 0 }; sfx('roots'); cam.shake = 0.5; } if (e.ring) { e.ring.r += dt * 8; shockRingAt(e, e.ring.r, 0x6ad04a); if (e.ring.r - e.ring.last > 3 && e.ring.r < 18) { e.ring.last = e.ring.r; for (let k = 0; k < 3; k++) { const an = k / 3 * TAU + e.ring.r; spikeBurst(new THREE.Vector3(e.pos.x + Math.cos(an) * e.ring.r, gy, e.pos.z + Math.sin(an) * e.ring.r), 0x4a8a2a); } } for (let k = 0; k < 4; k++) { const an = rand(0, TAU); spawnP(PA, e.pos.x + Math.cos(an) * e.ring.r, gy + 0.3, e.pos.z + Math.sin(an) * e.ring.r, 0, 3, 0, 0.4, 0.4, 0x8ad04a); } const dd = Math.hypot(p.pos.x - e.pos.x, p.pos.z - e.pos.z); if (!e.ring.hit && Math.abs(dd - e.ring.r) < 0.9 && p.pos.y - gy < 0.8) { e.ring.hit = true; hurtPlayer(16, e.pos); } } dur = 2.2; break;
     }
-    if (e.st > W + dur) { if (e.beam) { scene.remove(e.beam); e.beam = null; } if (e.ringMesh) e.ringMesh.visible = false; e.ring = null; e.state = 'idle'; e.st = 0; e.atkCd = rand(1.0, 2.0); e.rig.pivot.rotation.y = 0; }
+    if (e.st > W + dur) bossAttackEnd(e);
   }
-  function shockRingAt(e, r) {
+  function shockRingAt(e, r, col = 0xffd24a) {
     if (!e.ringMesh) { e.ringMesh = new THREE.Mesh(new THREE.TorusGeometry(1, 0.08, 6, 64), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, blending: THREE.AdditiveBlending })); e.ringMesh.rotation.x = -Math.PI / 2; scene.add(e.ringMesh); }
-    e.ringMesh.visible = true; e.ringMesh.position.set(e.pos.x, level.arena.y + 0.4, e.pos.z); e.ringMesh.scale.set(r, r, 6);
+    e.ringMesh.visible = true; e.ringMesh.material.color.set(col); e.ringMesh.position.set(e.pos.x, level.arena.y + 0.4, e.pos.z); e.ringMesh.scale.set(r, r, 6);
   }
   function spikeBurst(pt, col) {
     const g = new THREE.Group(); g.position.copy(pt); scene.add(g);
@@ -1646,15 +2085,21 @@ export function createGame(canvas, opts = {}) {
         if (pr.delay > 0) { pr.delay -= dt; pr.mesh.position.copy(player.pos).add(new THREE.Vector3(0, 1.9, 0)); continue; }
         if (pr.owner === 'player') {
           if (pr.target && !pr.target.dead) { const tp = pr.target.pos.clone(); tp.y += 1.1 * (pr.target.rig.cfg.scale || 1); const want = tp.sub(pr.pos).normalize().multiplyScalar(18); pr.vel.lerp(want, 1 - Math.exp(-5 * dt)); }
-          if (Math.random() < 0.7) spawnP(PA, pr.pos.x, pr.pos.y, pr.pos.z, 0, 0.5, 0, 0.3, 0.4, 0xff6a1a);
-          for (const e of enemies) { if (e.dead || e.decoyHidden) continue; const c = e.pos.clone(); c.y += 1 * (e.rig.cfg.scale || 1); if (c.distanceTo(pr.pos) < pr.radius + e.radius * 0.8 + (e.boss && e.def.id === 'warden' ? 1 : 0)) { damageEnemy(e, pr.dmg, { kb: 3, color: 0xff7a2a }); pr.life = 0; burst(pr.pos.x, pr.pos.y, pr.pos.z, 12, 0xff5a1a, 6, 0.4, 0.3); break; } }
+          if (Math.random() < 0.7) spawnP(PA, pr.pos.x, pr.pos.y, pr.pos.z, 0, 0.5, 0, 0.3, 0.4, pr.trail || 0xff6a1a);
+          for (const e of enemies) {
+            if (e.dead || e.decoyHidden || (pr.hitSet && pr.hitSet.has(e))) continue; const c = e.pos.clone(); c.y += 1 * (e.rig.cfg.scale || 1);
+            if (c.distanceTo(pr.pos) < pr.radius + e.radius * 0.8 + (e.boss && e.def.id === 'warden' ? 1 : 0)) {
+              damageEnemy(e, pr.dmg, { kb: pr.kb || 3, color: pr.color || 0xff7a2a, spell: true, from: pr.pos.clone().sub(pr.vel.clone().setY(0).setLength(2)) }); burst(pr.pos.x, pr.pos.y, pr.pos.z, 12, pr.color || 0xff5a1a, 6, 0.4, 0.3);
+              if (pr.pierce) { pr.hitSet.add(e); continue; } pr.life = 0; break;
+            }
+          }
         } else {
           if (pr.homing && player) { const tp = player.pos.clone(); tp.y += 1.1; const sp = pr.vel.length(); const want = tp.sub(pr.pos).setY(0).normalize().multiplyScalar(sp); pr.vel.lerp(want, 1 - Math.exp(-pr.homing * dt)); }
           if (player && player.pos.clone().setY(player.pos.y + 1).distanceTo(pr.pos) < pr.radius) { if (hurtPlayer(pr.dmg, pr.pos) || player.inv > 0) { } pr.life = 0; burst(pr.pos.x, pr.pos.y, pr.pos.z, 10, pr.color, 5, 0.4, 0.3); }
         }
         pr.pos.addScaledVector(pr.vel, dt); pr.mesh.position.copy(pr.pos);
         if (pr.owner === 'player') pr.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pr.vel.clone().normalize());
-        if (pr.arc) { pr.mesh.rotation.set(0, 0, 0); pr.mesh.rotateY(pr.yaw - Math.PI / 2); pr.mesh.rotateX(0); }
+        if (pr.arc) { pr.mesh.rotation.set(0, 0, 0); pr.mesh.rotateY(pr.yaw - Math.PI / 2); if (pr.flat) pr.mesh.rotateX(Math.PI / 2); if (pr.owner === 'player') pr.mesh.material.opacity = Math.min(0.9, pr.life * 3); }
       }
       if (pr.life <= 0) { scene.remove(pr.mesh); projectiles.splice(i, 1); }
     }
@@ -1716,7 +2161,9 @@ export function createGame(canvas, opts = {}) {
   const ENEMY_BY_CH = { 1: ['construct'], 2: ['hollow'], 3: ['thornling', 'hollow'], 4: ['nullknight', 'hollow'] };
   function setObjective(text, total) { state.objective = { text, done: 0, total: total || 0 }; emit('objective', { text, done: 0, total: total || 0 }); }
   function wave(types, n, zc, y, label, onClear) {
-    const list = []; for (let i = 0; i < n; i++) { const a = (i / n) * TAU + rand(-0.3, 0.3); list.push(spawnEnemy(types[i % types.length], Math.sin(a) * 6, zc + Math.cos(a) * 5, y)); }
+    // some of each wave keep their distance and shoot (none in the chapter 1 tutorial wave)
+    const nR = state.chapter === 1 && n <= 3 ? 0 : Math.round(n * 0.25 * D().ranged);
+    const list = []; for (let i = 0; i < n; i++) { const a = (i / n) * TAU + rand(-0.3, 0.3), ty = types[i % types.length]; list.push(spawnEnemy(ty, Math.sin(a) * 6, zc + Math.cos(a) * 5, y, i >= n - nR && ENEMY_AI[ty] && ENEMY_AI[ty].ranged ? 'ranged' : 'melee')); }
     setObjective(label, n);
     triggers.push({ check: () => { const done = list.filter((e) => e.dead).length; if (state.objective && done !== state.objective.done) { state.objective.done = done; emit('objective', { text: label, done, total: n }); } return done >= n; }, fire: onClear });
   }
@@ -1727,6 +2174,7 @@ export function createGame(canvas, opts = {}) {
     emit('powerLearned', { id, name: ch.power.name, desc: ch.power.desc }); sfx('powerup');
     if (player) { play(player.rig, 'power', 2); player.rig.aura.visible = true; setTimeout(() => { if (player && player.state !== 'dash' && player.state !== 'ult') player.rig.aura.visible = false; }, 2200); burst(player.pos.x, player.pos.y + 1, player.pos.z, 60, 0xb48cff, 8, 0.9, 0.4, 0); shockRing(player.pos, 5, 0xb48cff, 0.6); }
     if (id === 'domain' && player) player.aura = 100;
+    if (id === 'grimoire') { addGrimoire('crimson'); equipGrimoire('crimson'); }
   }
   const SCRIPTS = {
     1: {
@@ -1755,10 +2203,24 @@ export function createGame(canvas, opts = {}) {
     },
   };
   const NPC_MK = { kaze: makeKaze };
+  function resetCombatFx() { clearSpells(); endDrop(); for (const k in gcd) gcd[k] = 0; castLock = 0; tokenGapT = 0; slotT = 0; attackTokens = 0; }
+  // the collection comes from the save ({ grimoires, equipped }); without one, keep what this session has and add what earlier chapters must have given
+  function restoreGrimoires(n, o) {
+    if (Array.isArray(o.grimoires)) grims = o.grimoires.filter((id, i, a) => GRIM(id) && a.indexOf(id) === i);
+    else {
+      for (const c of CHAPTERS) {
+        if (c.power.id === 'grimoire' && powers.includes('grimoire')) addGrimoire('crimson');
+        const d = c.id < n && BOSSES[c.boss.id] && BOSSES[c.boss.id].drop; if (d) addGrimoire(d);
+      }
+    }
+    if (powers.includes('grimoire') && !grims.includes('crimson')) addGrimoire('crimson');
+    if ('equipped' in o) equipped = o.equipped && grims.includes(o.equipped) ? o.equipped : null;
+    else if (!grims.includes(equipped)) equipped = grims.length ? grims[grims.length - 1] : null;
+  }
   function startChapter(n, o = {}) {
     if (n === 'rush') return startBossRush(o);
     n = Number(n); if (n >= 5) return showEnding();
-    endUlt(); clearLevel(); scene_ = null; state.paused = false;
+    endUlt(); clearLevel(); resetCombatFx(); scene_ = null; state.paused = false;
     state.chapter = n; state.time = 0; state.hits = 0; state.hitsTaken = 0; state.combo = 0; state.cp = 0; bossActive = false; attackTokens = 0;
     OV.tint.value.set(0x6a3cff);
     powers = (o.powers || powers || []).filter((p) => p !== 'punch'); for (const c of CHAPTERS) if (c.id < n && !powers.includes(c.power.id) && !o.powers) powers.push(c.power.id);
@@ -1772,6 +2234,7 @@ export function createGame(canvas, opts = {}) {
     const S = SCRIPTS[n], L = level, types = ENEMY_BY_CH[n];
     const learnId = CHAPTERS[n - 1].power.id;
     if (cp >= 1 && !powers.includes(learnId) && learnId !== 'punch') powers.push(learnId);
+    restoreGrimoires(n, o); if (equipped) tintBook(GRIM(equipped).color);
     const pos = L.checkpoints[cp]; player.pos.copy(pos); player.safe.copy(pos); player.lastPos.copy(pos); player.yaw = 0; cam.yaw = 0; syncFighter(player, 0);
     emit('music', { track: THEMES[n].music });
     const stageBoss = () => {
@@ -1815,7 +2278,7 @@ export function createGame(canvas, opts = {}) {
     const ch = CHAPTERS.find((c) => c.boss.id === boss.def.id);
     setScreen('bossIntro'); emit('bossIntro', { name: ch.boss.name, title: ch.boss.title, chapter: ch.id });
     emit('music', { track: boss.def.id === 'null' ? 'final' : 'boss' }); sfx('roar');
-    setShot({ type: 'hero', who: boss.def.id }); play(boss.rig, boss.def.float ? 'raise' : 'power', 2); setEmotion(boss.rig, 'angry');
+    setShot({ type: 'hero', who: boss.def.id }); play(boss.rig, 'power', 2); setEmotion(boss.rig, 'angry');
     burst(boss.pos.x, boss.pos.y + 1, boss.pos.z, 50, 0xff3a5a, 8, 0.9, 0.4, 0);
     introTimer = 2.6; introBoss = boss;
   }
@@ -1828,29 +2291,31 @@ export function createGame(canvas, opts = {}) {
     state.boss.hp = 0;
     setTimeout(() => {
       if (!player) return; endUlt();
-      play(b.rig, b.def.id === 'null' ? 'float' : 'kneel'); b.state = 'idle';
+      play(b.rig, 'kneel'); b.state = 'idle';
       player.pos.set(b.pos.x, level.arena.y, b.pos.z - 3.2); player.yaw = 0; b.yaw = Math.PI; b.rig.root.rotation.y = Math.PI; syncFighter(player, 0); syncFighter(b, 0); play(player.rig, 'victory', 2); player.rig.fight = false;
-      if (state.rush) { rushNext(); return; }
+      if (state.rush) { if (b.def.drop) addGrimoire(b.def.drop); rushNext(); return; }
       const n = state.chapter; const win = SCRIPTS[n].win.slice();
       if (n === 1 || n === 4) { spawnNpc('kaze_win', makeKaze, 3, b.pos.z - 1, -Math.PI / 2, level.arena.y); }
       const steps = win.map((s) => (s.say === 'kaze' ? Object.assign({}, s, { say: n === 1 ? 'kaze' : 'kaze2' }) : s));
       NAMES.kaze2 = 'Instructor Kaze';
       if (n === 1) { removeNpc('kaze_win'); }
       if (n === 4) { const kn = npcs.find((x) => x.id === 'kaze_win'); if (kn) kn.id = 'kaze2'; }
-      runScene([{ do: () => { play(player.rig, 'victory', 2); } }, { wait: 1.6, shot: { type: 'hero', who: 'ren' } }, ...steps], () => chapterClear());
+      const drop = b.def.drop && GRIM(b.def.drop) ? b.def.drop : null;
+      const dropSteps = drop ? [{ do: () => startDrop(b, drop) }, { wait: 1.3, shot: { type: 'two', a: 'ren', b: b.def.id } }, { do: () => grabDrop() }, { wait: 2.1, shot: { type: 'hero', who: 'ren' } }, { do: () => endDrop() }] : [{ wait: 1.6, shot: { type: 'hero', who: 'ren' } }];
+      runScene([{ do: () => { play(player.rig, 'victory', 2); } }, ...dropSteps, ...steps], () => chapterClear());
     }, 1300);
   }
   function chapterClear() {
     const n = state.chapter, t = state.time, par = [0, 240, 270, 300, 330][n] || 300;
-    const rank = state.hitsTaken <= 4 && t < par ? 'S' : state.hitsTaken <= 12 || t < par * 1.25 ? 'A' : 'B';
+    const rank = state.hitsTaken <= 6 && t < par ? 'S' : state.hitsTaken <= 16 || t < par * 1.25 ? 'A' : 'B';
     const learnId = CHAPTERS[n - 1].power.id; if (!powers.includes(learnId) && learnId !== 'punch') powers.push(learnId);
     try { localStorage.removeItem('aura-rising-cp'); } catch (e) { }
     setScreen('clear'); state.objective = null; bossActive = false;
-    emit('chapterClear', { chapter: n, time: Math.round(t), rank, hits: state.hits, hitsTaken: state.hitsTaken, powers: powers.slice() });
+    emit('chapterClear', { chapter: n, time: Math.round(t), rank, hits: state.hits, hitsTaken: state.hitsTaken, powers: powers.slice(), grimoires: grims.slice(), equipped, difficulty: settings.difficulty });
     if (player) { play(player.rig, 'victory', 2); setEmotion(player.rig, 'smile'); setShot({ type: 'hero', who: 'ren' }); }
   }
   function showEnding() {
-    endUlt(); clearLevel(); buildLevel(4); level.blockers = [];
+    endUlt(); clearLevel(); resetCombatFx(); buildLevel(4); level.blockers = [];
     if (player) { removeFighter(player); scene.remove(player.book); }
     player = makePlayer(); player.pos.set(0, 1, 152); syncFighter(player, 0); play(player.rig, 'victory', 2); player.rig.fight = false; player.rig.aura.visible = true; setEmotion(player.rig, 'smile');
     spawnNpc('kaze', makeKaze, 2.6, 153.5, -2.2, 1); play(npcs[0].rig, 'idle');
@@ -1859,10 +2324,10 @@ export function createGame(canvas, opts = {}) {
   }
   // Boss rush
   let rushIdx = 0;
-  function startBossRush(o = {}) { state.rush = true; rushIdx = 0; state.rushTime = 0; rushLoad(); }
+  function startBossRush(o = {}) { if (Array.isArray(o.grimoires)) grims = o.grimoires.filter((id, i, a) => GRIM(id) && a.indexOf(id) === i); if ('equipped' in o) equipped = o.equipped; if (o.difficulty && DIFFICULTY[o.difficulty]) settings.difficulty = o.difficulty; state.rush = true; rushIdx = 0; state.rushTime = 0; rushLoad(); }
   function rushLoad() {
-    const n = rushIdx + 1; endUlt(); clearLevel(); scene_ = null; state.chapter = n; bossActive = false;
-    powers = ['dash', 'grimoire', 'domain']; buildLevel(n);
+    const n = rushIdx + 1; endUlt(); clearLevel(); resetCombatFx(); scene_ = null; state.chapter = n; bossActive = false;
+    powers = ['dash', 'grimoire', 'domain']; addGrimoire('crimson'); for (const c of CHAPTERS) if (c.id < n && BOSSES[c.boss.id] && BOSSES[c.boss.id].drop) addGrimoire(BOSSES[c.boss.id].drop); if (!grims.includes(equipped)) equipped = grims[grims.length - 1] || null; buildLevel(n);
     if (player) { removeFighter(player); scene.remove(player.book); }
     const keepHp = player && rushIdx > 0 ? player.hp : 100;
     player = makePlayer(); player.hp = Math.min(100, keepHp + 40); player.pos.set(0, 1, 140); player.safe.copy(player.pos); syncFighter(player, 0);
@@ -1877,7 +2342,7 @@ export function createGame(canvas, opts = {}) {
 
   // ---------- title ----------
   function showTitleScene() {
-    endUlt(); clearLevel(); scene_ = null; state.rush = false;
+    endUlt(); clearLevel(); resetCombatFx(); scene_ = null; state.rush = false;
     const th = THEMES[0]; level = { id: 0, theme: th, plats: [], blockers: [], gates: [], tex: groundTex(th.ground, 0), spin: [], arena: { x: 0, z: 0, r: 30, y: 0 } };
     applyTheme(th); addCircle(level, 0, 0, 6, 0);
     for (let i = 0; i < 14; i++) { const a = i / 14 * TAU; const r = rand(10, 22); const m = part(levelGroup, G.oct, toon(0x6a4a9a), [Math.cos(a) * r, rand(-2, 6), Math.sin(a) * r], [rand(0.6, 1.8), rand(1, 2.5), rand(0.6, 1.8)], null, OUT_PROP); level.spin.push(m); }
@@ -1918,6 +2383,7 @@ export function createGame(canvas, opts = {}) {
   }
 
   // ---------- main loop ----------
+  let renderOn = !opts.noRender; // opts.noRender: test-only, runs the game without drawing (headless bots on slow machines)
   let clock = 0, last = performance.now(), raf = 0, running = true, hidden = false, ctxLost = false, frames = 0, fpsT = 0, lowFpsCount = 0, highFpsCount = 0;
   function frame(now) {
     raf = requestAnimationFrame(frame);
@@ -1927,7 +2393,7 @@ export function createGame(canvas, opts = {}) {
     if (fpsT >= 1) { state.fps = Math.round(frames / fpsT); frames = 0; fpsT = 0; emit('fps', { fps: state.fps }); autoQuality(); }
     if (!state.paused) update(dt);
     else { input.lookDX = input.lookDY = 0; for (const k in pressed) pressed[k] = false; }
-    render();
+    if (renderOn) render();
   }
   function update(rawDt) {
     clock += rawDt;
@@ -1942,10 +2408,12 @@ export function createGame(canvas, opts = {}) {
     if (player) updatePlayer(state.screen === 'play' || state.screen === 'scene' || state.screen === 'clear' || state.screen === 'dead' || state.screen === 'title' || state.screen === 'ending' || state.screen === 'bossIntro' ? dt : 0);
     updateUlt(rawDt);
     const eDt = domainT > 0 ? dt * 0.25 : dt;
-    attackTokens = Math.max(0, attackTokens);
+    enemyDirector(state.screen === 'play' ? eDt : 0);
     for (const e of enemies) if (!e.removed) updateEnemy(e, state.screen === 'play' || e.dead ? eDt : 0);
     enemies = enemies.filter((e) => !e.removed);
     if (state.boss) { const b = enemies.find((e) => e.boss); if (b) state.boss.hp = Math.max(0, Math.round(b.hp)); }
+    updateAllies(state.screen === 'play' ? dt : 0); updateSpells(state.screen === 'play' ? eDt : 0); updateDrop(rawDt);
+    for (const a of allies) animate(a.rig, state.screen === 'play' ? dt : 0);
     for (const n of npcs) animate(n.rig, rawDt);
     for (const e of enemies) animate(e.rig, eDt || (e.dead ? rawDt : 0));
     if (player) animate(player.rig, dt || rawDt * 0.05);
@@ -2021,7 +2489,8 @@ export function createGame(canvas, opts = {}) {
     startBossRush,
     showEnding,
     playEnding() { showEnding(); },
-    retry() { startChapter(state.chapter || 1, { fromCheckpoint: state.cp || true, powers: powers.slice() }); },
+    retry() { startChapter(state.chapter || 1, { fromCheckpoint: state.cp || true, powers: powers.slice(), grimoires: grims.slice(), equipped }); },
+    equipGrimoire(id) { return equipGrimoire(id == null ? null : String(id), state.screen === 'play'); },
     setInput(i = {}) {
       if (typeof i.moveX === 'number') input.moveX = i.moveX; if (typeof i.moveY === 'number') input.moveY = i.moveY;
       if (i.lookDX) input.lookDX += i.lookDX; if (i.lookDY) input.lookDY += i.lookDY;
@@ -2037,7 +2506,7 @@ export function createGame(canvas, opts = {}) {
     quit() { showTitleScene(); },
     resize(w, h) { onResize(w, h); },
     setQuality(q) { quality = q; pixelRatio = q === 'high' ? Math.min(devicePixelRatio || 1, 2) : q === 'low' ? 0.8 : Math.min(devicePixelRatio || 1, 1.5); qMul = q === 'low' ? 0.5 : 1; renderer.setPixelRatio(pixelRatio); onResize(); OUT_PROP.visible = q !== 'low'; },
-    setSettings(s = {}) { Object.assign(settings, s); },
+    setSettings(s = {}) { const d = s.difficulty; Object.assign(settings, s); if (d !== undefined && !DIFFICULTY[d]) settings.difficulty = 'normal'; },
     on(ev, fn) { (listeners[ev] = listeners[ev] || []).push(fn); return () => api.off(ev, fn); },
     off(ev, fn) { const l = listeners[ev]; if (l) { const i = l.indexOf(fn); if (i >= 0) l.splice(i, 1); } },
     getState() {
@@ -2045,8 +2514,10 @@ export function createGame(canvas, opts = {}) {
       return {
         screen: state.screen, chapter: state.chapter, hp: p ? Math.round(p.hp) : 0, maxHp: p ? p.maxHp : 100, aura: p ? Math.round(p.aura) : 0, auraMax: 100,
         ultReady: !!(p && p.aura >= 100), ultName: powers.includes('domain') ? 'Domain: Infinite Sanctum' : 'Aura Burst', powers: ['punch', ...powers],
-        cooldowns: { dash: p ? p.cd.dash / 2.2 : 0, power: p ? (powers.includes('grimoire') ? p.cd.power / 3.5 : powers.includes('dash') ? p.cd.dash / 2.2 : 0) : 0, dodge: p ? p.cd.dodge / 0.55 : 0 },
-        objective: state.objective ? Object.assign({}, state.objective) : null, boss: state.boss && bossActive || (state.boss && state.screen === 'bossIntro') ? Object.assign({ phases: (BOSSES[(enemies.find((e) => e.boss) || {}).type] || { phases: [] }).phases.length + 1 }, state.boss) : null,
+        cooldowns: { dash: p ? p.cd.dash / 2.2 : 0, power: p ? (equipped && GRIM(equipped) ? (gcd[equipped] || 0) / GRIM(equipped).spell.cd : powers.includes('dash') ? p.cd.dash / 2.2 : 0) : 0, dodge: p ? p.cd.dodge / 0.55 : 0, spell: equipped && GRIM(equipped) ? (gcd[equipped] || 0) / GRIM(equipped).spell.cd : 0 },
+        grimoires: grims.map((id) => { const g = GRIM(id); return { id, name: g.name, color: g.color, desc: g.desc, icon: g.icon }; }), equipped, difficulty: settings.difficulty,
+        danger: dangerNow(), allies: allies.length,
+        objective: state.objective ? Object.assign({}, state.objective) : null, boss: state.boss && bossActive || (state.boss && state.screen === 'bossIntro') ? (() => { const b = enemies.find((e) => e.boss); return Object.assign({ phases: (BOSSES[(b || {}).type] || { phases: [] }).phases.length + 1, guarding: !!(b && b.state === 'guard'), state: b ? b.state : null, x: b ? b.pos.x : 0, z: b ? b.pos.z : 0 }, state.boss); })() : null,
         combo: state.combo, lockTarget: !!lockTarget, time: Math.round(state.time * 10) / 10, paused: state.paused, fps: state.fps,
         checkpoint: state.cp, enemies: enemies.filter((e) => !e.dead).length,
         target: state.target ? { x: state.target.pos.x, y: state.target.pos.y, z: state.target.pos.z, enemy: state.target.enemy } : null, camYaw: cam.yaw, pos: p ? { x: p.pos.x, y: p.pos.y, z: p.pos.z } : null,
@@ -2061,6 +2532,9 @@ export function createGame(canvas, opts = {}) {
     },
     cheat: {
       god(on = true) { god = !!on; },
+      render(on = true) { renderOn = !!on; },
+      grimoires(ids = 'all') { grims = (ids === 'all' ? GRIMOIRES.map((g) => g.id) : ids).filter((id) => GRIM(id)); if (!grims.includes(equipped)) equipped = grims[0] || null; return grims.slice(); },
+      difficulty(d) { if (DIFFICULTY[d]) settings.difficulty = d; return settings.difficulty; },
       aura(full = true) { if (player) player.aura = full ? 100 : 0; },
       chapter(n) { startChapter(n, { powers: CHAPTERS.slice(0, n - 1).map((c) => c.power.id) }); },
       boss() { const n = state.chapter || 1; startChapter(n, { fromCheckpoint: 2, powers: CHAPTERS.slice(0, n).map((c) => c.power.id) }); },
