@@ -1376,6 +1376,26 @@
   }
 
   /* ------------------------------------------------------------------ render */
+  // Where the empty background's "+ Add …" chip goes: the spot (bottom, middle, top, then the sides)
+  // that covers the least text, then the fewest cut-outs and stickers, so it never hides a subline or the face box's own chip.
+  function bgChipSpot(design, layers, images, label, size) {
+    var c = measureCtx(); c.font = '700 ' + size + 'px ' + UI_FONT;
+    var pw = c.measureText('+ ' + String(label)).width + size * 1.4, ph = size * 1.9, boxes = [];
+    for (var i = 0; i < layers.length; i++) {
+      var L = layers[i]; if (!L || L.hidden) continue;
+      if (L.type === 'image' && L.imageId && L.shape !== 'none') continue; // a filled photo box can take a chip on top
+      var b = layerBox(design, L, images), a = num(b.rotation, 0) * DEG, cs = Math.abs(Math.cos(a)), sn = Math.abs(Math.sin(a));
+      var hw = (b.w * cs + b.h * sn) / 2, hh = (b.w * sn + b.h * cs) / 2;
+      boxes.push({ x0: b.x - hw, x1: b.x + hw, y0: b.y - hh, y1: b.y + hh, k: L.type === 'text' ? 1 : L.type === 'image' ? 0.6 : 0.4 });
+    }
+    var best = null, half = pw / 2 + 16;
+    [[W / 2, H - 46], [W / 2, H / 2], [W / 2, 46], [half, H - 46], [W - half, H - 46], [half, H / 2], [W - half, H / 2], [half, 46], [W - half, 46]].forEach(function (p) {
+      var x0 = p[0] - pw / 2 - 12, x1 = p[0] + pw / 2 + 12, y0 = p[1] - ph / 2 - 12, y1 = p[1] + ph / 2 + 12, cost = 0;
+      boxes.forEach(function (q) { var w = Math.min(x1, q.x1) - Math.max(x0, q.x0), h = Math.min(y1, q.y1) - Math.max(y0, q.y0); if (w > 0 && h > 0) cost += w * h * q.k; });
+      if (!best || cost < best.cost - 1) best = { x: p[0], y: p[1], cost: cost };
+    });
+    return best;
+  }
   function drawCached(ctx, e, L, s, cur) {
     if (!e) return;
     var x = num(L.x, W / 2) * s, y = num(L.y, H / 2) * s, r = num(L.rotation, 0), m = (e.m || 1) * (e.w0 && cur ? cur / e.w0 : 1);
@@ -1423,7 +1443,8 @@
     }
     var bg = obj(design.background);
     if (ph && bg.kind === 'image' && !natSize(bg.imageId ? images[bg.imageId] : null) && bg.placeholder) {
-      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.save(); ctx.scale(s, s); drawChip(ctx, bg.placeholder, W / 2, H - 46, 26); ctx.restore();
+      var spot = bgChipSpot(design, layers, images, bg.placeholder, 26);
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.save(); ctx.scale(s, s); drawChip(ctx, bg.placeholder, spot.x, spot.y, 26); ctx.restore();
     }
     var mark = function (id, dashed) {
       for (var k = 0; k < layers.length; k++) if (layers[k] && layers[k].id === id && !layers[k].hidden) {

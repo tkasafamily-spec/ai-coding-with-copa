@@ -109,6 +109,7 @@ svg.i { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor;
 .steps .dot { width: 22px; height: 22px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); }
 .steps .dot svg { width: 14px; height: 14px; stroke-width: 3; }
 .steps li.now .dot { background: transparent; border: 3px solid var(--accent-soft); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+#ideaStop { margin-top: 12px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .results-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 28px 0 12px; }
 .results-head h2 { flex: 1 1 260px; margin: 0; font-size: 22px; min-width: 0; overflow-wrap: anywhere; }
@@ -266,6 +267,9 @@ details.more[open] summary::after { content: "–"; }
 .save-pv { display: block; width: 100%; aspect-ratio: 16/9; object-fit: contain; border-radius: 12px; background: var(--surface-3); -webkit-touch-callout: default; }
 .save-meta { margin: 10px 0 0; color: var(--text-2); font-size: 15px; }
 .save-status { margin: 10px 0 0; font-weight: 600; }
+.save-warn { margin: 12px 0 0; padding: 12px 14px; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--text); display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.save-warn[hidden] { display: none; }
+.save-warn p { margin: 0; flex: 1 1 220px; font-weight: 600; }
 .namefield { width: 100%; min-height: 48px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--surface-2); font-size: 17px; }
 .yt { --yt-bg: #fff; --yt-tx: #0f0f0f; --yt-tx2: #606060; background: var(--yt-bg); color: var(--yt-tx); border-radius: 14px; padding: 16px; border: 1px solid var(--border); }
 .yt.dark { --yt-bg: #0f0f0f; --yt-tx: #f1f1f1; --yt-tx2: #aaa; }
@@ -374,6 +378,7 @@ details.more[open] summary::after { content: "–"; }
         <div class="detect" id="ideaDetect" aria-live="polite"></div>
       </div>
       <ol class="steps" id="ideaSteps" aria-live="polite" hidden></ol>
+      <button type="button" class="btn" id="ideaStop" data-testid="idea-stop" hidden>Stop and use built-in ideas</button>
       <div id="ideaOut" hidden>
         <div class="results-head"><h2 id="ideaOutTitle">Your ideas</h2><button type="button" class="btn" id="ideaMore" data-testid="idea-more"><svg class="i"><use href="#i-magic"/></svg>More ideas</button></div>
         <p class="note" id="ideaNote" hidden></p>
@@ -458,6 +463,7 @@ details.more[open] summary::after { content: "–"; }
     <img class="save-pv" id="savePreview" alt="Your finished thumbnail">
     <p class="save-meta" id="saveMeta">Getting it ready…</p>
     <p class="save-status" id="saveStatus" aria-live="polite"></p>
+    <div class="save-warn" id="saveWarn" hidden><p id="saveWarnText"></p><button type="button" class="btn primary" id="saveAddPhoto"><svg class="i"><use href="#i-photo"/></svg><span id="saveAddLbl">Add my screenshot</span></button></div>
     <div class="grp" style="margin-top:12px"><label class="lbl" for="saveName">Name</label><input class="namefield" id="saveName" type="text" autocomplete="off" enterkeyhint="done"></div>
     <p class="tip" id="saveTip">Touch and hold the picture to save it to Photos too. Upload it in YouTube Studio → your video → Thumbnail.</p>
     <div class="sheet-foot"><a class="btn" id="saveLink" href="#" download="thumbnail.png" hidden>Download</a><button type="button" class="btn primary big" id="saveGo" disabled><svg class="i"><use href="#i-share"/></svg><span id="saveGoLbl">Save to Photos</span></button></div>
@@ -678,7 +684,32 @@ details.more[open] summary::after { content: "–"; }
     imageMeta[id] = { w: canvas.width, h: canvas.height, alpha: !!alpha };
     protectImages[id] = true;
     Store.putImage(id, blob);
+    // Every canvas counts against iPad Safari's total canvas-memory cap (past it, new canvases come out blank):
+    // keep a bitmap of the photo instead and give the big canvas's memory back.
+    if (window.createImageBitmap) {
+      try {
+        createImageBitmap(canvas).then(function (bm) {
+          if (images[id] !== canvas) { try { bm.close(); } catch (e) {} return; }
+          images[id] = bm; canvas.width = 0; canvas.height = 0;
+          requestRender();
+        }, function () {});
+      } catch (e) {}
+    }
     return id;
+  }
+  // Leaving the editor: drop every decoded photo and the renderer's caches (they reload from IndexedDB when a
+  // design is opened again), so a long session of imports doesn't pile up canvas memory.
+  function releaseImages() {
+    Object.keys(images).forEach(function (id) {
+      var im = images[id];
+      try {
+        if (im && typeof im.close === 'function') im.close();
+        else if (im && im.getContext) { im.width = 0; im.height = 0; }
+        else if (im && /^blob:/.test(im.src || '')) URL.revokeObjectURL(im.src);
+      } catch (e) {}
+    });
+    images = {};
+    try { if (R && R.clearCache) R.clearCache(); } catch (e) {}
   }
   function sourceToCanvas(src, sw, sh) {
     var k = Math.min(1, 2560 / Math.max(sw, sh));
@@ -692,14 +723,19 @@ details.more[open] summary::after { content: "–"; }
   function importImageFile(file) {
     return viaImg(file).then(function (im) {
       var w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
-      if (!w || !h) throw new Error('empty');
-      var c = sourceToCanvas(im, w, h);
-      try { URL.revokeObjectURL(im.src); } catch (e) {}
-      var alpha = !/jpe?g/i.test(file.type || '') && hasAlpha(c);
-      return canvasToBlob(c, alpha ? 'image/png' : 'image/jpeg', 0.92).then(function (blob) {
-        if (!blob) throw new Error('encode');
-        return { id: registerImage(c, blob, alpha), w: c.width, h: c.height, alpha: alpha };
-      });
+      try { return importDrawable(im, w, h, !/jpe?g/i.test(file.type || '')); }
+      finally { try { URL.revokeObjectURL(im.src); } catch (e) {} }
+    });
+  }
+  // draw a decoded picture into a (size-capped) canvas, store it and register it
+  function importDrawable(im, w, h, maybeAlpha) {
+    if (!w || !h) return Promise.reject(new Error('empty'));
+    var c = sourceToCanvas(im, w, h), cw = c.width, ch = c.height;
+    var alpha = !!maybeAlpha && hasAlpha(c);
+    // a picture from another website "taints" the canvas: toBlob fails and canvasToBlob gives null
+    return canvasToBlob(c, alpha ? 'image/png' : 'image/jpeg', 0.92).then(function (blob) {
+      if (!blob) throw new Error('encode');
+      return { id: registerImage(c, blob, alpha), w: cw, h: ch, alpha: alpha };
     });
   }
   function referencedImages(d) {
@@ -715,6 +751,7 @@ details.more[open] summary::after { content: "–"; }
       return Store.getImage(id).then(function (blob) {
         if (!blob) return;
         return decodeStored(blob).then(function (im) {
+          if (!design || referencedImages(design).indexOf(id) < 0) { try { if (im.close) im.close(); } catch (e) {} return; } // editor closed meanwhile
           images[id] = im;
           imageMeta[id] = { w: im.naturalWidth || im.width, h: im.naturalHeight || im.height, alpha: /png|webp/i.test(blob.type || '') };
         });
@@ -977,7 +1014,14 @@ details.more[open] summary::after { content: "–"; }
     var prev = $('ideaSteps').querySelector('li.now');
     if (prev) { prev.classList.remove('now'); prev.querySelector('.dot').innerHTML = icon('i-check'); }
   }
-  var ideaSeed = 0;
+  var ideaSeed = 0, ideaStopCtl = null, ideaStopTimer = null;
+  // No timer ends the wait for vidIQ / Claude (the first call can be sitting behind an "Allow" box the owner is
+  // reading); this button lets them stop and take the built-in ideas instead.
+  $('ideaStop').addEventListener('click', function () {
+    if (!ideaStopCtl) return;
+    try { ideaStopCtl.abort(); } catch (e) {}
+    $('ideaStop').disabled = true; $('ideaStop').textContent = 'Stopping…';
+  });
   function makeIdeas(more) {
     var I = ideasApi();
     if (!I || ideaBusy) return;
@@ -986,6 +1030,10 @@ details.more[open] summary::after { content: "–"; }
     ideaBusy = true;
     var go = $('ideaGo'); go.disabled = true; go.querySelector('span').textContent = 'Making…'; $('ideaMore').disabled = true;
     var genOpts = { theme: undefined, lookAtPopular: false, onStep: function (m) { if (m) addStep(String(m)); } };
+    ideaStopCtl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    if (ideaStopCtl) genOpts.signal = ideaStopCtl.signal;
+    clearTimeout(ideaStopTimer);
+    if (ideaStopCtl && window.claude) ideaStopTimer = setTimeout(function () { if (ideaBusy) { $('ideaStop').disabled = false; $('ideaStop').textContent = 'Stop and use built-in ideas'; $('ideaStop').hidden = false; } }, 2500);
     if (more) { ideaSeed = (ideaSeed + 1 + Math.floor(Math.random() * 1000)) % 100000; genOpts.seed = ideaSeed; genOpts.fresh = true; }
     $('ideaSteps').innerHTML = ''; $('ideaSteps').hidden = false;
     addStep('Reading what your video is about…');
@@ -1005,6 +1053,7 @@ details.more[open] summary::after { content: "–"; }
       }
       finishSteps();
       ideaBusy = false; go.disabled = false; go.querySelector('span').textContent = 'Make thumbnails'; $('ideaMore').disabled = false;
+      clearTimeout(ideaStopTimer); $('ideaStop').hidden = true; ideaStopCtl = null;
       if (!res || !res.designs || !res.designs.length) { toast('Couldn’t make ideas for that. Try different words, or pick a style below.'); return; }
       lastIdeas = { prompt: prompt, res: res };
       showIdeas();
@@ -1065,7 +1114,7 @@ details.more[open] summary::after { content: "–"; }
     setMode(d.theme);
     var slots = emptySlots();
     panelMode = (slots.length || !hasAnyPhoto()) ? 'photo' : 'bg';
-    if (opts.fromIdea && slots.length) { selectedId = slots[0].id; panelMode = 'layer'; }
+    if (opts.fromIdea && slots.length && !bgSlotEmpty()) { selectedId = slots[0].id; panelMode = 'layer'; }
     if (!$('home').hidden) homeScroll = window.scrollY || 0;
     $('home').hidden = true;
     $('editor').hidden = false;
@@ -1095,6 +1144,7 @@ details.more[open] summary::after { content: "–"; }
     root.classList.remove('in-editor');
     root.style.setProperty('--vv-top', '0px');
     design = null; selectedId = null;
+    releaseImages();
     try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch (e) {}
     renderModeCards(); renderTemplates();
     window.scrollTo(0, homeScroll);
@@ -1612,7 +1662,7 @@ details.more[open] summary::after { content: "–"; }
     h += '<details class="more"><summary>More</summary>' +
       rangeCtl('Text width', 'maxWidth', 160, 1280, 10, l.maxWidth || 1100, {}) +
       rangeCtl('Line spacing', 'lineHeight', 0.7, 1.5, 0.01, l.lineHeight || 1, {}) +
-      rangeCtl('Letter spacing', 'letterSpacing', -0.05, 0.3, 0.01, l.letterSpacing || 0, {}) +
+      rangeCtl('Letter spacing', 'letterSpacing', -4, 40, 1, l.letterSpacing || 0, {}) +
       rangeCtl('Tilt', 'rotation', -45, 45, 0.5, l.rotation || 0, { fmt: 'deg' }) + '</details>';
     h += actRow(l);
     return h;
@@ -2005,11 +2055,18 @@ details.more[open] summary::after { content: "–"; }
     pickTarget = null;
     if (f) addPhotoFile(f, { kind: 'bg' });
   });
-  function defaultPhotoTarget() {
+  function isCutSlot(l) { var p = String(l.placeholder || ''); return l.shape === 'none' || (/face|skin|cut-?out|yourself|selfie/i.test(p) && !/screenshot/i.test(p)); }
+  // Where a photo goes when the owner didn't pick a box: the selected photo box; else an empty box that suits it
+  // (a see-through cut-out -> the face / cut-out box; a normal photo -> a photo box, then the empty background);
+  // else any empty box; else a new photo on top.
+  function defaultPhotoTarget(alpha) {
     var l = selLayer();
     if (l && l.type === 'image') return { kind: 'replace', id: l.id };
-    var s = emptySlots()[0];
-    if (s) return { kind: 'replace', id: s.id };
+    var slots = emptySlots();
+    var fit = slots.filter(function (s) { return isCutSlot(s) === !!alpha; })[0];
+    if (fit) return { kind: 'replace', id: fit.id };
+    if (!alpha && bgSlotEmpty()) return { kind: 'bg' };
+    if (slots[0]) return { kind: 'replace', id: slots[0].id };
     if (bgSlotEmpty()) return { kind: 'bg' };
     return { kind: 'new' };
   }
@@ -2021,7 +2078,7 @@ details.more[open] summary::after { content: "–"; }
     importImageFile(file).then(function (info) {
       if (design !== d) return;
       hideToast();
-      placeImage(info, tgt || defaultPhotoTarget());
+      placeImage(info, tgt || defaultPhotoTarget(info.alpha));
     }, function () { toast('Couldn’t open that photo. Try a different one.'); });
   }
   function placeImage(info, tgt) {
@@ -2068,8 +2125,7 @@ details.more[open] summary::after { content: "–"; }
       e.preventDefault();
       if (!design || $('editor').hidden) { toast('Open a thumbnail first, then paste.'); return; }
       if (inPaste) { inPaste.innerHTML = ''; try { inPaste.blur(); } catch (er) {} }
-      var tgt = defaultPhotoTarget();
-      addPhotoFile(file, tgt);
+      addPhotoFile(file, null); // the box is chosen once we know if it's a see-through cut-out
       return;
     }
     if (inPaste && design) {
@@ -2084,7 +2140,14 @@ details.more[open] summary::after { content: "–"; }
       setTimeout(function () {
         var img = inPaste.querySelector('img'); inPaste.innerHTML = '';
         if (!img || !img.src) { toast('Nothing to paste. Copy a photo first.'); return; }
-        fetch(img.src).then(function (r) { return r.blob(); }).then(function (b) { addPhotoFile(new File([b], 'pasted.png', { type: b.type || 'image/png' }), defaultPhotoTarget()); }, function () { toast('Couldn’t paste that. Try saving it to Photos and adding it with Photo.'); });
+        // draw the element itself: fetch() can't read it here (the page's network is locked down, and a picture
+        // copied from a website is cross-origin)
+        var d = design;
+        var ready = img.decode ? img.decode() : new Promise(function (res, rej) { if (img.complete && img.naturalWidth) res(); else { img.onload = res; img.onerror = rej; } });
+        ready.then(function () { return importDrawable(img, img.naturalWidth, img.naturalHeight, true); }).then(function (info) {
+          if (design !== d) return;
+          placeImage(info, defaultPhotoTarget(info.alpha));
+        }, function () { toast('Couldn’t paste that. Try saving it to Photos and adding it with Photo.'); });
       }, 60);
     }
   });
@@ -2148,14 +2211,14 @@ details.more[open] summary::after { content: "–"; }
     if (!fv.videoWidth || fv.readyState < 2) { toast('One moment — the video is still loading.'); return; }
     var c = sourceToCanvas(fv, fv.videoWidth, fv.videoHeight);
     var asBg = $('frameTarget').querySelector('[aria-pressed="true"]').getAttribute('data-v') === 'bg';
-    var tgt = asBg ? { kind: 'bg' } : (videoTarget && videoTarget.kind === 'replace' ? videoTarget : defaultPhotoTarget());
+    var tgt = asBg ? { kind: 'bg' } : (videoTarget && videoTarget.kind === 'replace' ? videoTarget : defaultPhotoTarget(false));
     if (tgt.kind === 'bg' && !asBg) tgt = { kind: 'new' };
     $('frameUse').disabled = true;
     canvasToBlob(c, 'image/jpeg', 0.92).then(function (blob) {
       if (!blob || !design) { toast('Couldn’t grab that frame.'); return; }
-      var id = registerImage(c, blob, false);
+      var cw = c.width, ch = c.height, id = registerImage(c, blob, false);
       closeSheet('frameSheet');
-      placeImage({ id: id, w: c.width, h: c.height, alpha: false }, tgt);
+      placeImage({ id: id, w: cw, h: ch, alpha: false }, tgt);
     });
   });
   function stopFrameVideo() {
@@ -2239,16 +2302,29 @@ details.more[open] summary::after { content: "–"; }
   function clearSaveUrl() { if (saveUrl) { try { URL.revokeObjectURL(saveUrl); } catch (e) {} saveUrl = null; } }
   function fileName(ext) { return slug(nameOf(design)) + '-thumbnail.' + ext; }
   function canShareFile(f) { try { return !!(navigator.canShare && navigator.share && navigator.canShare({ files: [f] })); } catch (e) { return false; } }
+  function isFramed() { try { return window.top !== window.self; } catch (e) { return true; } }
+  // an empty background / photo box is left out of the saved picture, so its circle and arrow would point at
+  // nothing (an empty face cut-out is fine to skip)
+  function missingMainPhoto() { return bgSlotEmpty() || emptySlots().some(function (l) { return !isCutSlot(l); }); }
+  $('saveAddPhoto').addEventListener('click', function () { closeSheet('saveSheet'); setPanel('photo'); updateNudge(); });
   $('saveBtn').addEventListener('click', function () {
     if (!design) return;
     flushSave();
     var d = viewDesign(design);
+    var missing = missingMainPhoto();
     clearSaveUrl(); saveResult = null;
     $('savePreview').removeAttribute('src');
     $('saveMeta').textContent = 'Getting it ready…';
     $('saveStatus').textContent = '';
     $('saveName').value = nameOf(design);
     $('saveGo').disabled = true; $('saveLink').hidden = true;
+    $('saveWarn').hidden = !missing;
+    $('saveGo').classList.toggle('primary', !missing); // "Add my screenshot" is the main button then
+    if (missing) {
+      var smpT = design.theme === 'smp';
+      $('saveWarnText').textContent = smpT ? 'Add your screenshot first. The words and the red circle need your game behind them.' : 'Add your food photo first. The words and arrow need your real food behind them.';
+      $('saveAddLbl').textContent = smpT ? 'Add my screenshot' : 'Add my photo';
+    }
     openSheet('saveSheet');
     var job;
     try { job = Promise.resolve(R.exportBlob(d, images, { format: 'auto' })); } catch (e) { job = Promise.reject(e); }
@@ -2263,27 +2339,28 @@ details.more[open] summary::after { content: "–"; }
       var name = fileName(ext);
       var file = null; try { file = new File([res.blob], name, { type: res.blob.type }); } catch (e) {}
       $('saveLink').href = saveUrl; $('saveLink').setAttribute('download', name);
+      // with a photo still missing nothing saves by itself: the owner adds it, or taps "… anyway"
       if (dl) {
         saveMode = 'claude'; claudeDl = dl;
-        $('saveGoLbl').textContent = 'Save image'; $('saveGo').querySelector('use').setAttribute('href', '#i-save');
+        $('saveGoLbl').textContent = missing ? 'Save anyway' : 'Save image'; $('saveGo').querySelector('use').setAttribute('href', '#i-save');
         $('saveGo').disabled = false;
-        doClaudeSave();
+        if (!missing) doClaudeSave();
       } else if (file && canShareFile(file)) {
         saveMode = 'share'; shareFile = file;
         var touch = (navigator.maxTouchPoints || 0) > 0;
-        $('saveGoLbl').textContent = touch ? 'Save to Photos' : 'Share'; $('saveGo').querySelector('use').setAttribute('href', '#i-share');
+        $('saveGoLbl').textContent = missing ? 'Save anyway' : touch ? 'Save to Photos' : 'Share'; $('saveGo').querySelector('use').setAttribute('href', '#i-share');
         $('saveGo').disabled = false; $('saveLink').hidden = false;
-        $('saveStatus').textContent = touch ? 'Tap “Save to Photos”, then choose “Save Image”.' : '';
-      } else if (window.claude && typeof window.claude.use === 'function') {
-        // inside claude.ai without the downloads capability: plain downloads are blocked there
+        $('saveStatus').textContent = touch && !missing ? 'Tap “Save to Photos”, then choose “Save Image”.' : '';
+      } else if (isFramed() && window.claude && typeof window.claude.use === 'function') {
+        // inside claude.ai without the downloads capability: plain downloads are blocked in that frame
         saveMode = null; $('saveGo').disabled = true;
         $('saveStatus').textContent = 'Touch and hold the picture, then tap Save to Photos (or right-click → Save Image).';
       } else {
+        // a normal page (or the artifact opened on its own, where every claude.use() answers null): plain download
         saveMode = 'download';
-        $('saveGoLbl').textContent = 'Download again'; $('saveGo').querySelector('use').setAttribute('href', '#i-save');
+        $('saveGoLbl').textContent = missing ? 'Download anyway' : 'Download again'; $('saveGo').querySelector('use').setAttribute('href', '#i-save');
         $('saveGo').disabled = false;
-        $('saveLink').click();
-        $('saveStatus').textContent = 'Saved to your Downloads as ' + name + '.';
+        if (!missing) { $('saveLink').click(); $('saveStatus').textContent = 'Saved to your Downloads as ' + name + '.'; }
       }
     }).catch(function () {
       $('saveMeta').textContent = '';
@@ -2310,7 +2387,7 @@ details.more[open] summary::after { content: "–"; }
     else if (saveMode === 'share' && shareFile) {
       var p; try { p = navigator.share({ files: [shareFile] }); } catch (e) { $('saveLink').click(); return; }
       if (p && p.then) p.then(function () { $('saveStatus').textContent = 'Saved ✓'; }, function (e) { if (e && e.name === 'AbortError') return; $('saveLink').click(); });
-    } else if (saveMode === 'download') $('saveLink').click();
+    } else if (saveMode === 'download') { $('saveLink').click(); $('saveStatus').textContent = 'Saved to your Downloads as ' + $('saveLink').getAttribute('download') + '.'; }
   });
   $('saveLink').addEventListener('click', function (e) {
     if (!saveUrl) { e.preventDefault(); return; }
@@ -2331,6 +2408,28 @@ details.more[open] summary::after { content: "–"; }
     select: function (id) { if (!design) return; select(id && layerById(id) ? id : null); },
     images: function () { return Object.keys(images); }
   };
+  // ensureFonts gives up after 3 s (an iPad on cellular, first visit): repaint the previews when the real
+  // fonts land, so the owner doesn't judge ideas drawn in Impact/Arial
+  function watchLateFonts() {
+    if (!document.fonts || !document.fonts.addEventListener) return;
+    var t = null;
+    document.fonts.addEventListener('loadingdone', function () {
+      clearTimeout(t);
+      t = setTimeout(function () {
+        if (!$('home').hidden) renderTemplates();
+        repaintIdeas();
+        requestRender();
+      }, 150);
+    });
+  }
+  function repaintIdeas() {
+    if (!lastIdeas) return;
+    var ds = lastIdeas.res.designs, jobs = [];
+    Array.prototype.forEach.call($('ideaGrid').querySelectorAll('.idea-card canvas'), function (pc, i) {
+      if (ds[i]) jobs.push(function () { paint(pc, ds[i]); });
+    });
+    scheduleJobs(jobs);
+  }
   function boot() {
     if (!R) {
       $('loadWarn').hidden = false; $('ideaSec').hidden = true;
@@ -2345,11 +2444,12 @@ details.more[open] summary::after { content: "–"; }
     var drawnEarly = false, fontsDone = false;
     // draw the gallery once fonts are in; if they are slow, draw now and again when they arrive
     setTimeout(function () { if (!fontsDone) { drawnEarly = true; renderTemplates(); } }, 1200);
-    fontsP.then(function () {
+    fontsP.then(function (ok) {
       fontsDone = true; fontsReady = true;
       if (!$('home').hidden || !drawnEarly) renderTemplates();
       if (drawnEarly) { renderModeCards(); if (lastIdeas) showIdeas(); }
       requestRender();
+      if (ok !== true) watchLateFonts();
     });
     refreshSaved().then(function () { setTimeout(cleanupImages, 3000); });
     syncViewport();

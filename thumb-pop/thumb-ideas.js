@@ -3,7 +3,9 @@
  *   detectTheme(prompt)            -> 'cooking' | 'smp'
  *   offline(prompt, {theme, seed}) -> concept[]   (instant, no network, research-based rules)
  *   toDesign(concept)              -> design      (1280x720 design model, see thumb-render.js)
- *   generate(prompt, {theme, lookAtPopular, onStep, timeoutMs, fresh, seed}) -> Promise<result> (never throws)
+ *   generate(prompt, {theme, lookAtPopular, onStep, signal, timeoutMs, fresh, seed}) -> Promise<result> (never throws)
+ *     signal: an AbortSignal for a "Stop" button (gives built-in ideas). No timer by default: the first vidIQ /
+ *     Claude call can be waiting on the viewer's "Allow" box. timeoutMs adds an overall deadline (tests).
  * Plain JS, no modules. Works with or without window.ThumbRender / window.claude.
  */
 (function () {
@@ -314,7 +316,7 @@
     'that this it is fast super really very so good yummy delicious amazing crazy insane challenge learn learning way ways style me we ' +
     'our you your from on can just one rating rate review worth it\'s its it about make thing things recipe! please want need do our ' +
     'giant huge mini tiny massive levels level pro amateur chef lazy beginner beginners simple dollar dollars bucks air fryer bake no-bake ' +
-    'food foods fast store bought store-bought restaurant takeout homemade vs. compare comparing review').split(' ');
+    'food foods fast store bought store-bought restaurant takeout homemade vs. compare comparing review expensive fancy').split(' ');
   var DISH_ADJ = /^(glazed|crispy|crunchy|cheesy|fluffy|chewy|gooey|creamy|spicy|fried|baked|grilled|chocolate|choc|stuffed|loaded|garlic|honey|lemon|vegan)$/;
   var DD = {}; DISH_DROP.forEach(function (w) { DD[w] = 1; });
 
@@ -423,9 +425,9 @@
       if (t.zeroTo || !t.giveaway) out.push(C('smp', { key: 'money-split', layout: 'split', headline: '', leftLabel: '$0', rightLabel: (ctx.money.to != null ? moneyShort(ctx.money.to) : bigAmt),
         stickers: ['arrow-straight', 'px-moneybag'], palette: P.money, font: 'lilita', scene: 'blocky-day',
         imageSlots: ['Your screenshot from the start', 'Your screenshot when rich'], why: 'Poor vs rich side by side shows the whole story in one look.' }));
-      out.push(C('smp', { key: 'money-react', layout: 'reaction', headline: pick(r, ["I'M RICH", 'I DID IT', 'SO RICH...']), number: ctx.money.amount != null ? moneyLong(ctx.money.amount) : '$1,000,000,000',
+      out.push(C('smp', { key: 'money-react', layout: 'reaction', headline: pick(r, ["I'M RICH", 'I DID IT', 'SO RICH...']), number: ctx.money.amount != null ? moneyShort(ctx.money.amount) : '$1B',
         stickers: ['px-money', 'px-coin'], palette: P.gold, font: 'luckiest', scene: 'blocky-day', imageSlots: ['Your screenshot of your balance', faceSlot],
-        why: 'The long "$1,000,000,000" with all the zeros looks huge even when the thumbnail is tiny.' }));
+        why: 'A giant green "$1B" next to your real face says "I got rich" before anyone reads the title.' }));
       out.splice(isMethod ? Math.max(0, out.length - 3) : out.length, 0, C('smp', { key: 'money-method', layout: 'band', headline: t.secret ? 'SECRET METHOD' : isMethod ? pick(r, ['OP MONEY METHOD', 'BEST MONEY METHOD', 'EASIEST MONEY']) : pick(r, ['EASY MONEY', 'THIS MADE ME RICH']), subline: amt ? amt + (ctx.money.perHour ? '/HOUR' : '') : '$100M/HOUR',
         stickers: ['px-alert', 'px-money'], palette: P.lava, font: 'pixelify', scene: 'cave', imageSlots: ['Your screenshot of the money method'],
         why: 'Money-method videos promise a result ("$500M per hour") - a clear number beats a long title.' }));
@@ -502,14 +504,14 @@
     out.push(C('smp', { key: 'gen-reveal', layout: 'reveal', headline: subj ? subj : pick(r, ['MY BASE', 'I DID IT', 'LOOK...']), subline: amt ? amt : '',
       stickers: ['px-arrow', 'px-circle', 'px-diamond'], palette: P.danger, font: 'lilita', scene: 'blocky-night', imageSlots: ['Your screenshot', faceSlot],
       why: 'Point a red arrow at the most interesting part of your screenshot - the scorer always asked for one.' }));
-    out.push(C('smp', { key: 'gen-money', layout: 'money', headline: subj || 'DONUT SMP', number: amt ? moneyLong(ctx.money.amount) : '$1,000,000,000', stickers: ['px-money', 'px-moneybag'],
-      palette: P.money, font: 'bungee', scene: 'blocky-day', imageSlots: ['Your screenshot'], why: 'Big green money is the classic Donut SMP look - people know it right away.' }));
     var dayish = t.day || t.first || t.zeroTo;
-    out.push(C('smp', { key: 'gen-split', layout: 'split', headline: '', leftLabel: dayish ? 'DAY 1' : 'BEFORE', rightLabel: dayish ? 'DAY 100' : 'AFTER', stickers: ['arrow-straight'], palette: P.ice, font: 'lilita',
+    if (t.money || ctx.money.amount != null) out.push(C('smp', { key: 'gen-money', layout: 'money', headline: subj || 'DONUT SMP', number: amt ? moneyLong(ctx.money.amount) : '$1,000,000,000', stickers: ['px-money', 'px-moneybag'],
+      palette: P.money, font: 'bungee', scene: 'blocky-day', imageSlots: ['Your screenshot'], why: 'Big green money is the classic Donut SMP look - people know it right away.' }));
+    if (dayish || t.base || t.farm || t.money) out.push(C('smp', { key: 'gen-split', layout: 'split', headline: '', leftLabel: dayish ? 'DAY 1' : 'BEFORE', rightLabel: dayish ? 'DAY 100' : 'AFTER', stickers: ['arrow-straight'], palette: P.ice, font: 'lilita',
       scene: 'blocky-day', imageSlots: ['Your screenshot from the start', 'Your screenshot from the end'], why: 'A before/after split shows progress in one look.' }));
     out.push(C('smp', { key: 'gen-band', layout: 'band', headline: subj || 'MY BASE', subline: /donut/.test(ctx.norm) || !/minecraft/.test(ctx.norm) ? 'DONUT SMP' : 'MINECRAFT',
       stickers: ['px-alert'], palette: P.lava, font: 'pixelify', scene: 'cave', imageSlots: ['Your best screenshot'], why: 'A clean title band over your own screenshot looks like a real creator made it.' }));
-    out.push(C('smp', { key: 'gen-react', layout: 'reaction', headline: subj ? subj : 'NO WAY...', stickers: ['px-alert', 'px-tnt'], palette: P.gold, font: 'luckiest', scene: 'nether',
+    out.push(C('smp', { key: 'gen-react', layout: 'reaction', headline: r() < 0.7 ? 'NO WAY...' : 'WAIT...', subline: subj, stickers: ['px-alert', 'px-tnt'], palette: P.gold, font: 'luckiest', scene: 'nether',
       imageSlots: ['Your screenshot', faceSlot], why: 'A real reaction face + 1-3 words is how most top Minecraft thumbnails work.' }));
     var lw = lastWord(subj);
     if (!subj || /^(BASE|FARM|TRAP|METHOD|SPAWNER|SWORD|ARMOR|BUILD|HOUSE|CASTLE|BUNKER|VAULT|SETUP|PLAYER|TEAM|CLAN|ELYTRA|MACE|ITEM)S?$/.test(lw)) out.push(C('smp', { key: 'gen-rank', layout: 'rank', headline: subj ? 'BEST ' + lw : 'BEST BASE', number: '#1', stickers: ['px-crown'], palette: P.gold, font: 'lilita',
@@ -544,10 +546,13 @@
     if (/cookie|brownie|cake|lava|cheese|mac/.test(ctx.dish)) adj = pick(r, ['SO GOOEY', 'SO SOFT', 'SO CHEESY'].filter(function (x) { return /cheese|mac/.test(ctx.dish) ? x !== 'SO SOFT' : x !== 'SO CHEESY'; }));
     if (/fries|chicken|nugget|wings|samosa|toast/.test(ctx.dish)) adj = 'SO CRISPY';
     if (/pasta|spaghetti|noodles|ramen|soup|mac/.test(ctx.dish) && !/cheese/.test(ctx.dish)) adj = pick(r, ['SO CREAMY', 'SO EASY']);
+    if (/spicy|chil(?:i|li|e)\b|buldak|fire noodle|jalape|hot sauce|hot wings|hot chips?\b/.test(ctx.dish)) adj = pick(r, ['SO SPICY', 'TOO SPICY?']);
+    var pan = /pancake|waffle|crepe|french toast/.test(ctx.dish);
+    if (pan) adj = pick(r, ['SO FLUFFY', 'SO SOFT']);
 
     if (t.minutes) {
       var mins = ctx.minutes || 10;
-      out.push(C('cooking', { key: 'time', layout: 'time', headline: dishShort, number: mins + ' MIN', subline: t.easy ? 'SO EASY' : '', stickers: ['badge-time', 'arrow-curved'],
+      out.push(C('cooking', { key: 'time', layout: 'time', headline: dishShort, number: mins + ' MIN', subline: t.easy ? 'SO EASY' : '', stickers: ['clock', 'arrow-curved'],
         palette: P.yellow, font: 'anton', scene: 'color-pop', imageSlots: [photo], why: '"10 Min Aloo Puff Samosa" got 791x its usual views - a big time badge is the hook.' }));
       out.push(C('cooking', { key: 'time-split', layout: 'split', headline: '', leftLabel: mins + ' MIN', rightLabel: pick(r, ['2 HOUR', '1 HOUR']), stickers: ['clock'],
         palette: P.warm, font: 'bowlby', scene: 'marble', imageSlots: ['Your quick ' + (ctx.dish || 'dish'), 'Your slow ' + (ctx.dish || 'dish')],
@@ -556,16 +561,18 @@
     if (t.ingredients) {
       var n = ctx.ingredients || 3;
       out.push(C('cooking', { key: 'count', layout: 'count', headline: 'INGREDIENTS', number: String(n), subline: dishShort, stickers: ['burst'],
-        palette: P.yellow, font: 'bowlby', scene: sweet ? 'wood-board' : 'color-pop', imageSlots: [photo, 'Your photo of the ' + n + ' ingredients'],
+        palette: P.yellow, font: 'bowlby', scene: sweet ? 'wood-board' : 'color-pop', imageSlots: [photo, 'Your ' + n + ' ingredients'],
         why: '"3 Cups of Flour and It\'s Ready" - one giant number makes it look easy right away.' }));
       out.push(C('cooking', { key: 'only-band', layout: 'band', headline: 'ONLY ' + n + ' INGREDIENTS', subline: ctx.dish ? ctx.dish : 'so easy', stickers: ['check'],
         palette: P.tomato, font: 'archivo', scene: 'marble', imageSlots: [photo], why: 'A clean band with "ONLY ' + n + '" is short, honest and readable.' }));
     }
     if (t.vs || t.cheap) {
-      var L = t.cheap ? '$' + (ctx.price || 1) : (/store/.test(ctx.norm) ? 'STORE' : /fast food/.test(ctx.norm) ? 'FAST FOOD' : 'CHEAP'),
-        R = t.cheap ? '$' + Math.max(20, (ctx.price || 1) * 20) : 'HOMEMADE';
+      // only prices the owner typed - never made-up ones
+      var prices = (ctx.norm.match(/\$\s?\d+/g) || []).map(function (x) { return x.replace(/\s/g, ''); });
+      var L = t.cheap ? (prices[0] || 'CHEAP') : (/store/.test(ctx.norm) ? 'STORE' : /fast food/.test(ctx.norm) ? 'FAST FOOD' : 'CHEAP'),
+        R = t.cheap ? (prices[1] || (/fancy/.test(ctx.norm) ? 'FANCY' : 'EXPENSIVE')) : 'HOMEMADE';
       out.push(C('cooking', { key: 'vs', layout: 'vs', headline: 'VS', leftLabel: L, rightLabel: R, stickers: ['check', 'cross'], palette: P.warm, font: 'bowlby', scene: 'color-pop',
-        imageSlots: ['Your photo of the first ' + (ctx.dish || 'one'), 'Your photo of the second ' + (ctx.dish || 'one')], why: 'Food "vs" videos use a clean split with a tick and a cross - you see the answer.' }));
+        imageSlots: ['Your ' + (/^\$/.test(L) ? L : L.toLowerCase()) + ' one', 'Your ' + (/^\$/.test(R) ? R : R.toLowerCase()) + ' one'], why: 'Food "vs" videos use a clean split with a tick and a cross - you see the answer.' }));
     }
     if (t.taste || t.first || t.kids) {
       out.push(C('cooking', { key: 'react', layout: 'reaction', headline: t.first ? 'FIRST TRY' : pick(r, ['WORTH IT?', 'SO GOOD', 'WOW...']), subline: dishShort, emoji: [pick(r, ['😋', '🤤', '😳'])],
@@ -573,7 +580,7 @@
         why: 'Taste tests show a real face (about a third of the picture) next to the food - natural, not a fake scream.' }));
     }
     if (t.healthy) {
-      out.push(C('cooking', { key: 'healthy', layout: 'hero', headline: 'HEALTHY ' + (lastWord(dish) || 'MEAL'), subline: t.meal === 'breakfast' ? 'in 5 minutes' : 'and tasty!', stickers: ['check', 'sparkles'],
+      out.push(C('cooking', { key: 'healthy', layout: 'hero', headline: 'HEALTHY ' + (lastWord(dish) || 'MEAL'), subline: ctx.minutes ? 'in ' + ctx.minutes + ' minutes' : 'and tasty!', stickers: ['check', 'sparkles'],
         palette: P.fresh, font: 'archivo', scene: 'marble', imageSlots: [photo], why: 'Healthy food looks best bright and fresh with a simple green tick.' }));
     }
     if (t.levels || t.best) {
@@ -591,8 +598,8 @@
       palette: pal, font: pick(r, ['bowlby', 'luckiest']), scene: scene, imageSlots: [photo], why: 'Top food thumbnails let the real dish fill most of the picture, with 1-3 big words and an arrow on the best bit.' }));
     out.push(C('cooking', { key: 'adj', layout: 'reveal', headline: adj, subline: dishShort !== adj ? dishShort : '', stickers: ['circle-ring', 'arrow-curved'],
       palette: P.yellow, font: 'luckiest', scene: 'kitchen-bokeh', imageSlots: [photo], why: 'Circle the gooey / crispy part - one word like "' + adj + '" says why it\'s good.' }));
-    out.push(C('cooking', { key: 'split', layout: 'split', headline: '', leftLabel: sweet ? 'DOUGH' : 'RAW', rightLabel: sweet ? 'BAKED' : 'DONE', stickers: ['arrow-straight'],
-      palette: P.warm, font: 'bowlby', scene: 'marble', imageSlots: ['Your photo before cooking', 'Your photo of the finished ' + (ctx.dish || 'dish')],
+    out.push(C('cooking', { key: 'split', layout: 'split', headline: '', leftLabel: pan ? 'BATTER' : sweet ? 'DOUGH' : 'RAW', rightLabel: pan ? 'DONE' : sweet ? 'BAKED' : 'DONE', stickers: ['arrow-straight'],
+      palette: P.warm, font: 'bowlby', scene: 'marble', imageSlots: ['Your photo before cooking', 'Your finished ' + (ctx.dish || 'dish')],
       why: 'Before → after shows the magic of the recipe in one look.' }));
     out.push(C('cooking', { key: 'band', layout: 'band', headline: dish.length <= 22 ? dish : dishShort, subline: t.easy || !t.minutes ? pick(r, ['my easy way', 'you need to try this', 'so easy!']) : 'quick + easy',
       stickers: ['heart'], palette: P.tomato, font: 'archivo', scene: 'wood-board', imageSlots: [photo], why: 'A clean title band with a handwritten note looks like a real creator, not a template.' }));
@@ -619,12 +626,14 @@
       if (picked.some(function (p) { return p.headline && p.headline === c.headline; })) continue;
       used[c.layout] = 1; keys[c._key] = 1; picked.push(c);
     }
+    // then a new layout even if its words repeat, then anything left
+    for (i = 0; i < order.length && picked.length < n; i++) { c = order[i]; if (!keys[c._key] && !used[c.layout]) { used[c.layout] = 1; keys[c._key] = 1; picked.push(c); } }
     for (i = 0; i < order.length && picked.length < n; i++) { if (!keys[order[i]._key]) { keys[order[i]._key] = 1; picked.push(order[i]); } }
     // vary fonts/palettes so two cards don't look the same
     var seenFont = {}, seenScene = {};
     picked.forEach(function (c) {
       var fonts = FONTS_BY_THEME[c.theme];
-      if (seenFont[c.font]) { for (var k = 0; k < fonts.length; k++) { var f = fonts[(k + 1 + Math.floor(r() * fonts.length)) % fonts.length]; if (!seenFont[f] && f !== 'caveat' && f !== 'press2p') { c.font = f; break; } } }
+      if (seenFont[c.font]) { for (var k = 0; k < fonts.length; k++) { var f = fonts[(k + 1 + Math.floor(r() * fonts.length)) % fonts.length]; if (!seenFont[f] && f !== 'caveat' && f !== 'press2p' && f !== 'silkscreen') { c.font = f; break; } } }
       seenFont[c.font] = 1;
       var scenes = SCENES[c.theme];
       if (seenScene[c.scene]) { for (var s = 0; s < scenes.length; s++) { if (!seenScene[scenes[s]]) { c.scene = scenes[s]; break; } } }
@@ -669,7 +678,7 @@
     o.layout = LAYOUTS.indexOf(c.layout) >= 0 ? c.layout : (c.leftLabel && c.rightLabel ? 'split' : c.number ? 'money' : 'hero');
     o.headline = cap(cleanText(c.headline, 4, 26));
     o.subline = cleanText(c.subline, 6, 34);
-    if (o.layout !== 'band' || theme === 'smp') o.subline = cap(o.subline);
+    if ((o.layout !== 'band' && o.layout !== 'hero') || theme === 'smp') o.subline = cap(o.subline); // cooking band/hero sublines are handwritten
     o.number = cap(cleanText(c.number, 3, 16));
     if (o.number && !/[0-9#]/.test(o.number)) o.number = '';
     o.leftLabel = cap(cleanText(c.leftLabel, 3, 14));
@@ -701,8 +710,9 @@
     if (contrast(o.palette.money, o.palette.stroke) < 2.2) o.palette.money = defPal.money;
     o.font = FONTS_BY_THEME[theme].indexOf(c.font) >= 0 ? c.font : (theme === 'smp' ? 'lilita' : 'bowlby');
     if (o.font === 'caveat') o.font = 'luckiest'; // handwritten is for sublines only
+    if (o.font === 'silkscreen' || o.font === 'press2p') o.font = 'pixelify'; // too wide for headlines; Silkscreen's W reads as a heart
     o.scene = SCENES[theme].indexOf(c.scene) >= 0 ? c.scene : SCENES[theme][0];
-    o.imageSlots = (Array.isArray(c.imageSlots) ? c.imageSlots : []).map(function (s) { return cleanText(s, 7, 40); }).filter(Boolean).slice(0, 3);
+    o.imageSlots = (Array.isArray(c.imageSlots) ? c.imageSlots : []).map(function (s) { return cleanText(s, 10, 60); }).filter(Boolean).slice(0, 3);
     if (!o.imageSlots.length) o.imageSlots = [theme === 'smp' ? 'Your screenshot' : 'Your photo of the food'];
     if ((o.layout === 'split' || o.layout === 'vs') && o.imageSlots.length < 2) o.imageSlots.push(theme === 'smp' ? 'Your second screenshot' : 'Your second photo');
     o.why = clip(str(c.why).replace(/[\r\n\t]+/g, ' ').replace(/[<>{}\[\]\\`*_|]/g, '').replace(/\s+/g, ' ').trim(), 170) || 'Short words, one big picture and an arrow - like top creators do.';
@@ -712,14 +722,18 @@
   // ---------------------------------------------------------------------------------------------
   // Design builder
   var WF = { press2p: 1.0, silkscreen: 0.9, pixelify: 0.6, bungee: 0.74, lilita: 0.52, luckiest: 0.6, anton: 0.44, bowlby: 0.7, archivo: 0.66, caveat: 0.42 };
+  // pixel fonts: thin outline + a little letter spacing, or W/M notches fill in and "..." merges into a bar
+  var PIXF = { pixelify: 1, silkscreen: 1, press2p: 1 }, PIX_LS = 0.07;
+  function charW(font) { return ((WF[font] || 0.6) + (PIXF[font] ? PIX_LS : 0)) * 1.08; } // a little safety margin for fallback fonts
+  // biggest size (step 4) that fits; NEGATIVE minSize when even minSize doesn't fit (caller decides)
   function fitSize(text, font, maxWidth, maxSize, maxLines, minSize) {
-    var f = (WF[font] || 0.6) * 1.08, lines; // a little safety margin for fallback fonts
+    var f = charW(font), lines;
     minSize = minSize || 40;
     for (var size = maxSize; size >= minSize; size -= 4) {
       lines = wrapEst(text, size * f, maxWidth);
       if (lines.n <= maxLines && lines.longest <= maxWidth) return size;
     }
-    return minSize;
+    return -minSize;
   }
   function wrapEst(text, cw, maxWidth) {
     var out = { n: 0, longest: 0 };
@@ -736,9 +750,14 @@
   }
   function darker(hex, k) { var p = hexToRgb(hex); return '#' + p.map(function (v) { v = Math.max(0, Math.min(255, Math.round(v * k))); return (v < 16 ? '0' : '') + v.toString(16); }).join('').toUpperCase(); }
 
+  // o.optional: return null (leave the line out) when it can't be at least o.minSize px
   function textLayer(c, o) {
     var smp = c.theme === 'smp', pal = c.palette, font = o.font || c.font;
-    var size = o.size || fitSize(o.text, font, o.maxWidth || 600, o.maxSize || 130, o.maxLines || 2, o.minSize);
+    var size = o.size;
+    if (!size) {
+      size = fitSize(o.uppercase === false ? o.text : cap(o.text), font, o.maxWidth || 600, o.maxSize || 130, o.maxLines || 2, o.minSize);
+      if (size < 0) { if (o.optional) return null; size = -size; }
+    }
     var fillColor = o.color || pal.text;
     var L = {
       id: newId(), type: 'text', text: o.text, font: font, size: size, lineHeight: o.lineHeight || (smp ? 1.0 : 0.95), letterSpacing: o.letterSpacing || 0,
@@ -750,12 +769,31 @@
       box: o.box || { color: pal.accent, padding: 22, radius: 18 }
     };
     if (L.effect === 'box') { L.stroke.width = o.strokeWidth != null ? o.strokeWidth : 0; L.shadow = { blur: 14, color: 'rgba(0,0,0,0.35)', dx: 0, dy: 6 }; }
-    // keep the whole text block inside the frame (estimated line count)
-    var est = wrapEst(L.uppercase ? cap(L.text) : L.text, size * (WF[font] || 0.6) * 1.08, L.maxWidth);
-    var half = est.n * size * L.lineHeight / 2 + (L.effect === 'box' ? 22 : 10);
-    L.y = Math.round(clamp(L.y, half + 12, H - half - 12));
-    return L;
+    if (PIXF[font]) {
+      L.stroke.width = Math.min(L.stroke.width, Math.round(clamp(size * 0.05, 4, 8)));
+      L.letterSpacing = o.letterSpacing || Math.round(size * PIX_LS);
+      if (L.effect === 'pixel') L.effectSize = Math.round(size * 0.06);
+    }
+    return keepInFrame(L);
   }
+  // estimated half height of a text layer's drawn block (outline / box included)
+  function textExtent(L) {
+    var est = wrapEst(L.uppercase ? cap(L.text) : L.text, L.size * charW(L.font), L.maxWidth);
+    return est.n * L.size * L.lineHeight / 2 + (L.effect === 'box' ? ((L.box && L.box.padding) || 22) : Math.max(10, L.stroke.width));
+  }
+  // rough axis-aligned box of a layer (estimated, before any fonts load), a little padded
+  function roughBox(l) {
+    var w, h;
+    if (l.type === 'text') {
+      var est = wrapEst(l.uppercase ? cap(l.text) : l.text, l.size * charW(l.font), l.maxWidth), half = textExtent(l);
+      w = Math.min(l.maxWidth, est.longest) + 2 * (half - est.n * l.size * l.lineHeight / 2); h = 2 * half;
+    } else if (l.type === 'image') { w = l.w; h = l.shape === 'none' ? l.w * 1.25 : l.shape === 'circle' ? l.w : l.w * 9 / 16; }
+    else if (l.type === 'emoji') { w = h = l.size; }
+    else { w = h = l.w; }
+    return { x0: l.x - w / 2 - 8, x1: l.x + w / 2 + 8, y0: l.y - h / 2 - 8, y1: l.y + h / 2 + 8 };
+  }
+  // keep the whole text block inside the frame (estimated line count)
+  function keepInFrame(L) { var half = textExtent(L); L.y = Math.round(clamp(L.y, half + 12, H - half - 12)); return L; }
   function imageLayer(c, o) {
     var smp = c.theme === 'smp';
     var cut = o.shape === 'none';
@@ -802,26 +840,37 @@
     // an arrow that points from the text toward the picture
     var arrowOpts = function (x, y, w, deg) { return { x: X(x), y: y, w: w, rotation: right ? -deg : deg, flipX: right }; };
 
+    // A smaller line goes under the headline's real (wrapped) block, never into it.
+    var below = function (hl, sub) {
+      if (!hl || !sub) return sub;
+      var want = hl.y + textExtent(hl) + textExtent(sub) + 14;
+      if (sub.y < want) { sub.y = Math.round(want); keepInFrame(sub); }
+      return sub;
+    };
+    // Real Donut SMP / cooking thumbnails let the owner's own screenshot or dish fill the whole frame,
+    // so in every layout but split/vs the main picture is the background slot (the scene only shows until
+    // a photo is added). Face cut-outs and the split/vs cards stay as photo boxes on top.
+    var bleed = c.layout !== 'split' && c.layout !== 'vs';
+    var hl;
+
     switch (c.layout) {
       case 'reveal': {
-        L.push(imageLayer(c, { x: X(790), y: 390, w: 880, label: mainLabel, rotation: 0 }));
         var ring = takeSticker(isRing) || (smp ? 'px-circle' : 'circle-ring');
-        L.push(stickerLayer(c, ring, { x: X(860), y: 420, w: 300, rotation: -8 }));
+        L.push(stickerLayer(c, ring, { x: X(980), y: 250, w: 220, rotation: -8 }));
         if (hasFace) L.push(imageLayer(c, { x: X(215), y: 565, w: 350, shape: 'none', label: faceLabel }));
-        L.push(textLayer(c, { text: c.headline, x: X(320), y: hasFace ? 145 : 230, maxWidth: 540, maxSize: 130, rotation: right ? 3 : -3 }));
+        L.push(hl = textLayer(c, { text: c.headline, x: X(320), y: hasFace ? 145 : 230, maxWidth: 540, maxSize: hasFace && c.subline ? 110 : 130, rotation: right ? 3 : -3 }));
         var arrow = takeSticker(isArrow) || (smp ? 'px-arrow' : 'arrow-curved');
-        L.push(stickerLayer(c, arrow, arrowOpts(575, hasFace ? 385 : 430, 200, 12)));
-        if (c.subline) L.push(textLayer(c, { text: c.subline, x: X(320), y: hasFace ? 300 : 420, maxWidth: 520, maxSize: 64, maxLines: 1, color: smp ? pal.money : pal.accent, rotation: right ? 2 : -2 }));
+        L.push(stickerLayer(c, arrow, arrowOpts(705, 250, 180, 0)));
+        if (c.subline) L.push(below(hl, textLayer(c, { text: c.subline, x: X(320), y: hasFace ? 300 : 420, maxWidth: 520, maxSize: 72, maxLines: hasFace ? 1 : 2, minSize: 60, optional: true, color: smp ? pal.money : pal.accent, rotation: right ? 2 : -2 })));
         if (c.number) L.push(textLayer(c, { text: c.number, x: X(1000), y: 640, maxWidth: 480, maxSize: 96, maxLines: 1, fill: numberFill(c, c.number), effect: smp ? 'extrude' : 'none', effectColor: '#000000', rotation: -2 }));
         break;
       }
       case 'hero': {
-        L.push(imageLayer(c, { x: X(820), y: 380, w: 900, label: mainLabel, rotation: right ? -2 : 2 }));
-        L.push(textLayer(c, { text: c.headline, x: X(310), y: 290, maxWidth: 500, maxSize: 150, maxLines: 3, rotation: right ? 3 : -3 }));
-        if (c.subline) L.push(textLayer(c, { text: c.subline, x: X(320), y: 520, maxWidth: 520, maxSize: smp ? 64 : 76, maxLines: 1, font: smp ? c.font : 'caveat', uppercase: smp,
-          color: smp ? pal.accent : '#FFFFFF', strokeWidth: smp ? undefined : 8, rotation: right ? 2 : -4 }));
+        L.push(hl = textLayer(c, { text: c.headline, x: X(310), y: 290, maxWidth: 500, maxSize: 150, maxLines: 3, rotation: right ? 3 : -3 }));
+        if (c.subline) L.push(below(hl, textLayer(c, { text: c.subline, x: X(320), y: 520, maxWidth: 520, maxSize: smp ? 72 : 80, maxLines: 2, minSize: 60, optional: true, font: smp ? c.font : 'caveat', uppercase: smp,
+          color: smp ? pal.accent : '#FFFFFF', strokeWidth: smp ? undefined : 8, rotation: right ? 2 : -4 })));
         var a2 = takeSticker(isArrow) || (smp ? 'px-arrow' : 'arrow-curved');
-        L.push(stickerLayer(c, a2, arrowOpts(560, 600, 200, -20)));
+        L.push(stickerLayer(c, a2, arrowOpts(600, 610, 190, -20)));
         if (c.number) L.push(textLayer(c, { text: c.number, x: X(1060), y: 120, maxWidth: 380, maxSize: 100, maxLines: 1, fill: numberFill(c, c.number), effect: smp ? 'extrude' : 'box', box: { color: pal.accent, padding: 18, radius: 16 }, rotation: 4 }));
         break;
       }
@@ -846,23 +895,25 @@
         break;
       }
       case 'reaction': {
-        L.push(imageLayer(c, { x: X(500), y: 360, w: 900, label: mainLabel, rotation: right ? 2 : -2 }));
         L.push(imageLayer(c, { x: X(1010), y: 480, w: 460, shape: 'none', label: faceLabel || (smp ? 'Your skin or face (cut-out)' : 'Your face (cut-out)') }));
-        L.push(textLayer(c, { text: c.headline, x: X(400), y: 120, maxWidth: 680, maxSize: 130, maxLines: 2, rotation: right ? 2 : -2 }));
-        if (c.subline) L.push(textLayer(c, { text: c.subline, x: X(380), y: 640, maxWidth: 600, maxSize: 76, maxLines: 1, effect: 'box', box: { color: smp ? '#000000' : pal.accent, padding: 18, radius: smp ? 4 : 16 }, color: smp ? pal.accent : '#FFFFFF', rotation: right ? -1 : 1 }));
-        if (c.number) L.push(textLayer(c, { text: c.number, x: X(420), y: c.subline ? 520 : 610, maxWidth: 680, maxSize: 110, maxLines: 1, fill: numberFill(c, c.number), effect: smp ? 'extrude' : 'none', effectColor: '#000000', rotation: -2 }));
+        L.push(hl = textLayer(c, { text: c.headline, x: X(400), y: 120, maxWidth: 680, maxSize: 130, maxLines: 2, rotation: right ? 2 : -2 }));
+        if (c.subline) L.push(textLayer(c, { text: c.subline, x: X(380), y: 640, maxWidth: 600, maxSize: 76, maxLines: 1, minSize: 56, optional: true, effect: 'box', box: { color: smp ? '#000000' : pal.accent, padding: 18, radius: smp ? 4 : 16 }, color: smp ? pal.accent : '#FFFFFF', rotation: right ? -1 : 1 }));
+        if (c.number) {
+          // the face takes the right side: a long "$1,000,000,000" would shrink below the headline, so use "$1B"
+          var rn = /^\$[\d,]{8,}$/.test(c.number) ? moneyShort(parseFloat(c.number.slice(1).replace(/,/g, ''))) : c.number;
+          L.push(below(hl, textLayer(c, { text: rn, x: X(420), y: c.subline ? 500 : 590, maxWidth: 680, maxSize: 150, maxLines: 1, fill: numberFill(c, rn), effect: smp ? 'extrude' : 'none', effectColor: '#000000', rotation: -2 })));
+        }
         break;
       }
       case 'money': {
-        L.push(imageLayer(c, { x: X(860), y: 400, w: 780, label: mainLabel, rotation: right ? -3 : 3 }));
-        L.push(textLayer(c, { text: c.headline || 'DONUT SMP', x: X(380), y: 150, maxWidth: 640, maxSize: 96, maxLines: 2, rotation: right ? 2 : -2 }));
-        var num = c.number || '$1B';
-        L.push(textLayer(c, { text: num, x: X(400), y: 360, maxWidth: 720, maxSize: 190, maxLines: num.length > 9 ? 2 : 1, minSize: 70, fill: numberFill(c, num), effect: smp ? 'extrude' : 'none', effectColor: smp ? '#062B0C' : darker(pal.stroke, 1), strokeWidth: 16, rotation: right ? 3 : -3 }));
-        if (c.subline) L.push(textLayer(c, { text: c.subline, x: X(380), y: 560, maxWidth: 600, maxSize: 64, maxLines: 1, color: pal.accent }));
+        L.push(hl = textLayer(c, { text: c.headline || 'DONUT SMP', x: X(380), y: 150, maxWidth: 640, maxSize: 96, maxLines: 2, rotation: right ? 2 : -2 }));
+        var num = c.number || '$1B', longNum = num.length > 9;
+        // a long number gets the full width under the headline, so it stays the biggest thing on the thumbnail
+        L.push(textLayer(c, { text: num, x: longNum ? 640 : X(400), y: longNum ? 600 : 360, maxWidth: longNum ? 1200 : 720, maxSize: 190, maxLines: 1, minSize: longNum ? 96 : 70, fill: numberFill(c, num), effect: smp ? 'extrude' : 'none', effectColor: smp ? '#062B0C' : darker(pal.stroke, 1), strokeWidth: 16, rotation: longNum ? -2 : right ? 3 : -3 }));
+        if (c.subline) L.push(below(hl, textLayer(c, { text: c.subline, x: X(380), y: longNum ? 400 : 560, maxWidth: 600, maxSize: 72, maxLines: 1, minSize: 60, optional: true, color: pal.accent })));
         break;
       }
       case 'rank': {
-        L.push(imageLayer(c, { x: X(840), y: 370, w: 820, label: mainLabel, rotation: right ? -2 : 2 }));
         var crown = takeSticker(function (s) { return /crown|flame|burst/.test(s); }) || (smp ? 'px-crown' : 'burst');
         L.push(stickerLayer(c, crown, { x: X(230), y: 120, w: crown === 'burst' ? 340 : 190, rotation: -10 }));
         L.push(textLayer(c, { text: c.number || '#1', x: X(240), y: crown === 'burst' ? 150 : 330, maxWidth: 420, maxSize: crown === 'burst' ? 120 : 260, maxLines: 1, fill: { kind: 'gradient', color: '#FFE14A', color2: '#FF9A1F' }, effect: smp ? 'extrude' : 'none', effectColor: '#3A1C00', strokeWidth: 18, rotation: -6 }));
@@ -870,43 +921,49 @@
         break;
       }
       case 'count': {
-        L.push(imageLayer(c, { x: X(850), y: 380, w: 780, label: mainLabel, rotation: right ? -2 : 2 }));
-        if (slots.length > 1 && !hasFace) L.push(imageLayer(c, { x: X(1080), y: 590, w: 300, label: slots[1], shape: 'circle', rotation: 0 }));
+        if (slots.length > 1 && !hasFace) L.push(imageLayer(c, { x: X(1110), y: 560, w: 260, label: slots[1], shape: 'circle', rotation: 0 }));
         var badge = takeSticker(function (s) { return /burst|diamond|spawner|chest|emerald/.test(s); }) || (smp ? null : 'burst');
         if (badge === 'burst') L.push(stickerLayer(c, 'burst', { x: X(260), y: 300, w: 420, rotation: -8, color: pal.accent }));
         else if (badge) L.push(stickerLayer(c, badge, { x: X(420), y: 120, w: 150, rotation: 10 }));
         L.push(textLayer(c, { text: c.number || '3', x: X(260), y: 300, maxWidth: 420, maxSize: c.number.length > 3 ? 170 : 280, maxLines: 1, color: badge === 'burst' ? '#FFFFFF' : pal.accent, fill: badge === 'burst' ? null : { kind: 'gradient', color: pal.accent, color2: darker(pal.accent, 0.75) }, strokeWidth: 18, effect: smp ? 'extrude' : 'none', effectColor: '#000000', rotation: -6 }));
-        L.push(textLayer(c, { text: c.headline, x: X(290), y: 560, maxWidth: 540, maxSize: 96, maxLines: 1, rotation: right ? 2 : -2 }));
-        if (c.subline) L.push(textLayer(c, { text: c.subline, x: X(290), y: 650, maxWidth: 520, maxSize: 60, maxLines: 1, color: pal.accent }));
+        L.push(hl = textLayer(c, { text: c.headline, x: X(290), y: 560, maxWidth: 540, maxSize: 96, maxLines: 1, rotation: right ? 2 : -2 }));
+        if (c.subline) L.push(below(hl, textLayer(c, { text: c.subline, x: X(290), y: 650, maxWidth: 520, maxSize: 72, maxLines: 1, minSize: 60, optional: true, color: pal.accent })));
         break;
       }
       case 'time': {
-        L.push(imageLayer(c, { x: X(830), y: 390, w: 860, label: mainLabel, rotation: right ? -2 : 2 }));
-        var clock = takeSticker(function (s) { return /clock|badge-time|pickaxe/.test(s); }) || (smp ? null : 'clock');
-        if (clock) L.push(stickerLayer(c, clock, { x: X(110), y: 170, w: 150, rotation: -12 }));
-        L.push(textLayer(c, { text: c.number || '10 MIN', x: X(340), y: 190, maxWidth: 480, maxSize: 150, maxLines: 1, fill: { kind: 'gradient', color: pal.accent, color2: darker(pal.accent, 0.75) }, effect: smp ? 'extrude' : 'none', effectColor: '#000000', strokeWidth: 16, rotation: -4 }));
-        L.push(textLayer(c, { text: c.headline, x: X(330), y: 440, maxWidth: 560, maxSize: 120, maxLines: 2, rotation: right ? 2 : -2 }));
-        if (c.subline) L.push(textLayer(c, { text: c.subline, x: X(320), y: 640, maxWidth: 520, maxSize: 64, maxLines: 1, effect: 'box', box: { color: smp ? '#000000' : pal.accent, padding: 16, radius: smp ? 4 : 14 }, color: '#FFFFFF' }));
+        var clock = takeSticker(function (s) { return /clock|pickaxe/.test(s); }) || (smp ? null : 'clock');
+        if (clock) L.push(stickerLayer(c, clock, { x: X(85), y: 190, w: 130, rotation: -12 }));
+        L.push(textLayer(c, { text: c.number || '10 MIN', x: X(385), y: 190, maxWidth: 430, maxSize: 150, maxLines: 1, fill: { kind: 'gradient', color: pal.accent, color2: darker(pal.accent, 0.75) }, effect: smp ? 'extrude' : 'none', effectColor: '#000000', strokeWidth: 16, rotation: -4 }));
+        L.push(hl = textLayer(c, { text: c.headline, x: X(330), y: 440, maxWidth: 560, maxSize: 120, maxLines: 2, rotation: right ? 2 : -2 }));
+        if (c.subline) L.push(below(hl, textLayer(c, { text: c.subline, x: X(320), y: 640, maxWidth: 520, maxSize: 72, maxLines: 1, minSize: 60, optional: true, effect: 'box', box: { color: smp ? '#000000' : pal.accent, padding: 16, radius: smp ? 4 : 14 }, color: '#FFFFFF' })));
         break;
       }
       case 'band':
       default: {
-        L.push(imageLayer(c, { x: X(700), y: 300, w: 1000, label: mainLabel, rotation: right ? -1 : 1 }));
         L.push(textLayer(c, { text: c.headline, x: X(560), y: 590, maxWidth: 1000, maxSize: 110, maxLines: 1, effect: 'box', box: { color: smp ? '#000000' : pal.accent, padding: 24, radius: smp ? 6 : 20 }, color: smp ? pal.accent : '#FFFFFF', rotation: right ? 1.5 : -1.5 }));
-        if (c.subline) L.push(textLayer(c, { text: c.subline, x: X(300), y: 470, maxWidth: 560, maxSize: smp ? 70 : 90, maxLines: 1, font: smp ? c.font : 'caveat', uppercase: smp, color: smp ? pal.money : '#FFFFFF', strokeWidth: smp ? undefined : 9, rotation: right ? 5 : -6 }));
+        if (c.subline) L.push(textLayer(c, { text: c.subline, x: X(300), y: 470, maxWidth: 560, maxSize: smp ? 72 : 90, maxLines: 1, minSize: 60, optional: true, font: smp ? c.font : 'caveat', uppercase: smp, color: smp ? pal.money : '#FFFFFF', strokeWidth: smp ? undefined : 9, rotation: right ? 5 : -6 }));
         if (c.number) L.push(textLayer(c, { text: c.number, x: X(1080), y: 110, maxWidth: 360, maxSize: 96, maxLines: 1, fill: numberFill(c, c.number), effect: smp ? 'extrude' : 'none', effectColor: '#000000', rotation: 5 }));
         break;
       }
     }
+    L = L.filter(Boolean);
 
-    // remaining stickers: put them in free corners, small, slightly rotated
-    var spots = (c.layout === 'split' || c.layout === 'vs') ? [{ x: 640, y: 640 }, { x: 640, y: 150 }] : [{ x: X(1180), y: 110 }, { x: X(110), y: 640 }, { x: X(1190), y: 640 }];
+    // remaining stickers: put them in free corners (never on top of words or a face box), small, slightly rotated
+    var spots = (c.layout === 'split' || c.layout === 'vs') ? [{ x: 640, y: 640 }, { x: 640, y: 150 }] :
+      [{ x: X(1180), y: 110 }, { x: X(110), y: 640 }, { x: X(1190), y: 640 }, { x: X(110), y: 110 }, { x: X(1190), y: 380 }, { x: X(100), y: 380 }];
+    var taken = L.map(roughBox);
     var used = 0;
     st.forEach(function (s) {
-      if (used >= spots.length) return;
       if (isArrow(s) || isRing(s)) return; // arrows/rings only where they point at something
-      var sp = spots[used++];
-      L.push(stickerLayer(c, s, { x: sp.x, y: sp.y, w: smp ? 140 : 150, rotation: (used % 2 ? 1 : -1) * 10 }));
+      var sw = smp ? 140 : 150;
+      for (var k = 0; k < spots.length; k++) {
+        var sp = spots[k]; if (!sp) continue;
+        var me = { x0: sp.x - sw / 2, x1: sp.x + sw / 2, y0: sp.y - sw / 2, y1: sp.y + sw / 2 };
+        if (taken.some(function (b) { return b && b.x0 < me.x1 && me.x0 < b.x1 && b.y0 < me.y1 && me.y0 < b.y1; })) continue;
+        spots[k] = null; used++; taken.push(me);
+        L.push(stickerLayer(c, s, { x: sp.x, y: sp.y, w: sw, rotation: (used % 2 ? 1 : -1) * 10 }));
+        return;
+      }
     });
     c.emoji.forEach(function (e, i) { L.push(emojiLayer(e, { x: X(i ? 140 : 700), y: i ? 600 : 470, size: 120, rotation: i ? -10 : 8 })); });
 
@@ -916,8 +973,9 @@
     var texts = L.filter(function (l) { return l.type === 'text'; });
     var layers = imgs.concat(rest, texts);
 
-    var bg = { kind: 'scene', imageId: null, scene: c.scene, color: smp ? '#1E7A2E' : '#F4A63A', color2: smp ? '#0B3D17' : '#E2552B', angle: 135,
+    var bg = { kind: bleed ? 'image' : 'scene', imageId: null, scene: c.scene, color: smp ? '#1E7A2E' : '#F4A63A', color2: smp ? '#0B3D17' : '#E2552B', angle: 135,
       zoom: 1, fx: 0.5, fy: 0.5, brightness: 0, contrast: 0, saturation: 0, blur: 0, vignette: smp ? 0.3 : 0.2, tint: null, tintAmount: 0 };
+    if (bleed) bg.placeholder = mainLabel + ' (Background)';
     var name = cap(c.headline || c.number || c.leftLabel || 'My thumbnail');
     name = titleCase(name).replace(/\bvs\b/i, 'vs');
     return { v: 1, id: newId(), name: name, theme: c.theme, template: 'idea-' + c.layout, background: bg, layers: layers };
@@ -961,9 +1019,12 @@
   }
   function mcpNote(code) {
     switch (code) {
+      case 'stopped': return '';
       case 'needs_reauth': return 'To see popular videos, reconnect vidIQ in claude.ai Settings → Connectors.';
-      case 'server_not_connected': case 'server_not_found': case 'selection_required': return 'To see popular videos, add the vidIQ connector in claude.ai Settings → Connectors.';
-      case 'not_in_manifest': case 'approval_required': case 'consent_required': case 'not_granted': case 'blocked_by_policy': return 'Looking at popular videos wasn\'t allowed this time.';
+      case 'server_not_connected': case 'server_not_found': return 'To see popular videos, add the vidIQ connector in claude.ai Settings → Connectors.';
+      case 'selection_required': return 'You have more than one vidIQ connected: pick which one to use in the box claude.ai shows, then try again.';
+      case 'not_in_manifest': case 'approval_required': case 'consent_required': case 'blocked_by_policy': return 'Looking at popular videos wasn\'t allowed this time.';
+      case 'not_granted': case 'capability_disabled': case 'capability_removed': return 'Popular videos aren\'t available here.';
       case 'cancelled': case 'timeout': return 'The popular-video search took too long.';
       default: return 'Couldn\'t look up popular videos right now.';
     }
@@ -972,6 +1033,7 @@
     switch (code) {
       case 'not_granted': case 'sampling_disabled': case 'not_declared': case 'capability_disabled': case 'capability_removed': return 'Claude isn\'t switched on here, so these are built-in ideas.';
       case 'rate_limited': return 'Claude is busy right now, so these are built-in ideas. Try again in a bit.';
+      case 'stopped': return 'You stopped it, so these are built-in ideas.';
       case 'cancelled': case 'timeout': return 'Claude took too long, so these are built-in ideas.';
       case 'session_expired': return 'Sign in to claude.ai again to get ideas from Claude. These are built-in ideas.';
       case 'refused': case 'invalid_json': case 'empty_completion': case 'bad_ideas': return 'Claude\'s answer didn\'t fit, so these are built-in ideas.';
@@ -981,7 +1043,7 @@
 
   function buildPrompt(prompt, theme, popular, seedConcepts) {
     var ids = {
-      fonts: FONTS_BY_THEME[theme].filter(function (f) { return f !== 'caveat'; }),
+      fonts: FONTS_BY_THEME[theme].filter(function (f) { return f !== 'caveat' && f !== 'silkscreen' && f !== 'press2p'; }),
       stickers: STICKERS[theme], scenes: SCENES[theme], layouts: LAYOUTS
     };
     var pop = popular.slice(0, 8).map(function (p, i) { return (i + 1) + '. "' + p.title.replace(/"/g, "'") + '" — ' + (p.channel || '?') + ' — ' + fmtViews(p.views) + ' views'; }).join('\n');
@@ -1023,18 +1085,29 @@
     });
   }
 
+  // Has a vidIQ / Claude call come back once this page load? Until then the call may be waiting on the
+  // viewer's "Allow" box, so no page timer runs on it (it would count the time spent reading that box).
+  var mcpAnswered = false, sampleAnswered = false;
+
   function generate(prompt, opts) {
     opts = opts || {};
     var started = now();
-    var budget = clamp(opts.timeoutMs || 25000, 3000, 120000);
-    var deadline = started + budget;
+    // No overall deadline unless the caller asks for one (tests); the UI passes opts.signal for its Stop button.
+    var deadline = opts.timeoutMs ? started + clamp(opts.timeoutMs, 3000, 120000) : Infinity;
     var left = function () { return deadline - now(); };
     var onStep = function (msg) { try { if (typeof opts.onStep === 'function') opts.onStep(msg); } catch (e) { } };
+    var stopSig = opts.signal && typeof opts.signal.addEventListener === 'function' ? opts.signal : null;
+    var stopped = function () { return !!(stopSig && stopSig.aborted); };
+    var stopP = new Promise(function (res) { if (!stopSig) return; if (stopSig.aborted) res(); else stopSig.addEventListener('abort', function () { res(); }); });
+    // stop waiting for p when the viewer taps Stop (p itself keeps going)
+    var untilStop = function (p) { return stopSig ? Promise.race([p, stopP.then(function () { throw { code: 'stopped' }; })]) : p; };
+    var capped = function (p, ms, label) { return isFinite(ms) ? withTimeout(p, ms, label) : p; };
     var theme = opts.theme === 'cooking' || opts.theme === 'smp' ? opts.theme : detectTheme(prompt);
     var lookAtPopular = opts.lookAtPopular !== false;
     var ctx = parse(prompt, theme);
     var topicWord = theme === 'smp' ? (ctx.t.trap ? 'trapping' : ctx.t.base || ctx.t.raid ? 'base' : ctx.t.money ? 'money' : ctx.t.pvp ? 'PvP' : ctx.t.spawner ? 'spawner' : ctx.t.farm ? 'farm' : 'Donut SMP') : (ctx.dish ? ctx.dish : 'cooking');
     var popular = [], notes = [], aiConcepts = [];
+    var ALLOW = ' If a box pops up, tap Allow.';
 
     function finish() {
       var concepts = aiConcepts.slice(0, 4);
@@ -1069,28 +1142,29 @@
 
     var run = Promise.resolve().then(function () {
       if (!lookAtPopular) return null;
-      onStep('Looking at popular ' + topicWord + ' videos…');
-      var mcpBudget = Math.min(12000, Math.max(2000, left() - 12000));
-      var mcpStart = now();
-      return withTimeout(claude.use('mcp'), mcpBudget, 'mcp').then(function (mcp) {
+      onStep('Looking at popular ' + topicWord + ' videos…' + (mcpAnswered ? '' : ALLOW));
+      // use() itself never asks the viewer anything and settles within ~10 s, so a short cap is fine here
+      return untilStop(withTimeout(claude.use('mcp'), Math.min(12000, Math.max(2000, left() - 12000)), 'mcp')).then(function (mcp) {
         if (!mcp || typeof mcp.callTool !== 'function') { notes.push('Popular videos aren\'t available here.'); return null; }
         var q = searchQuery(prompt, theme);
+        // The first call of the page load may wait on the "Allow vidIQ?" box: no timer on it. Once vidIQ has
+        // answered, later calls get ~12 s. A slow call is never aborted: it finishes in the background and lands
+        // in the 24 h cache, so the owner's vidIQ credits aren't spent twice.
         var callOnce = function (tool, input) {
-          var remain = mcpBudget - (now() - mcpStart);
-          if (remain < 1500) return Promise.reject({ code: 'timeout' });
-          var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-          var o = { cache: { staleTime: 86400000, gcTime: 86400000 } };
-          if (ctl) o.signal = ctl.signal;
-          return withTimeout(mcp.callTool('vidIQ', tool, input, o), remain, tool).catch(function (e) { try { if (ctl) ctl.abort(); } catch (x) { } throw e; });
+          var first = !mcpAnswered, p;
+          try { p = Promise.resolve(mcp.callTool('vidIQ', tool, input, { cache: { staleTime: 86400000, gcTime: 86400000 } })); } catch (e) { p = Promise.reject(e); }
+          p.then(function () { mcpAnswered = true; }, function (e) { if (e && e.code !== 'upstream_error' && e.code !== 'cancelled') mcpAnswered = true; });
+          var cap = first ? left() : Math.min(12000, left());
+          if (cap < 1500) return Promise.reject({ code: 'timeout' });
+          return untilStop(capped(p, cap, tool));
         };
         var input1 = { query: q, type: ['video'], order: 'viewCount', limit: 10 };
         return callOnce('vidiq_youtube_search', input1).then(function (res) {
           var list = parseSearchPayload(res && res.payload !== undefined ? res.payload : res);
           return list;
         }).catch(function (e) {
-          var code = e && e.code;
-          if (code === 'needs_reauth' || code === 'server_not_connected' || code === 'not_in_manifest' || code === 'approval_required' || code === 'blocked_by_policy' || code === 'timeout' || code === 'cancelled' || code === 'not_granted') throw e;
-          // tool-level failure: try the other declared tool once
+          // only a tool-level failure is worth trying the other vidIQ tool for; every other code has its own fix
+          if (!e || e.code !== 'tool_error') throw e;
           return callOnce('vidiq_outliers', { keyword: q, contentType: 'long', limit: 10 }).then(function (res) {
             return parseSearchPayload(res && res.payload !== undefined ? res.payload : res);
           });
@@ -1102,11 +1176,12 @@
           if (popular.length) onStep('Found ' + Math.min(5, popular.length) + ' popular videos to learn from…');
           else notes.push('No popular videos came back for that, so I used my research.');
         });
-      }).catch(function (e) { notes.push(mcpNote(e && e.code)); onStep('Skipping popular videos…'); });
+      }).catch(function (e) { notes.push(mcpNote(stopped() ? 'stopped' : e && e.code)); if (!stopped()) onStep('Skipping popular videos…'); });
     }).then(function () {
+      if (stopped()) { notes.push(sampleNote('stopped')); return; }
       if (left() < 4000) { notes.push(sampleNote('timeout')); return; }
-      onStep('Asking Claude for ideas…');
-      return withTimeout(claude.use('sample'), Math.min(8000, left() - 3000), 'sample').then(function (sample) {
+      onStep('Asking Claude for ideas…' + (sampleAnswered ? '' : ALLOW));
+      return untilStop(withTimeout(claude.use('sample'), Math.min(12000, Math.max(2000, left() - 3000)), 'sample')).then(function (sample) {
         if (!sample || typeof sample.json !== 'function') { notes.push(sampleNote('not_granted')); return; }
         var seedConcepts = offline(prompt, { theme: theme, seed: opts.seed });
         var input = buildPrompt(prompt, theme, popular, seedConcepts);
@@ -1115,21 +1190,24 @@
         var so = { modelTier: opts.modelTier || 'quick', onText: function () { streaming = true; lastText = now(); if (!told) { told = true; onStep('Claude is writing ideas…'); } } };
         if (ctl) so.signal = ctl.signal;
         if (opts.fresh) so.cache = false;
-        return new Promise(function (resolve, reject) {
-          var settled = false;
-          var p = sample.json(input, so);
+        // the only thing that aborts this call is the viewer's Stop button (or an explicit opts.timeoutMs)
+        var abort = function () { try { if (ctl) ctl.abort(); } catch (x) { } };
+        if (stopSig) stopSig.addEventListener('abort', abort);
+        return untilStop(new Promise(function (resolve, reject) {
+          var settled = false, p;
+          try { p = Promise.resolve(sample.json(input, so)); } catch (e) { p = Promise.reject(e); }
+          p.then(function () { sampleAnswered = true; }, function (e) { if (e && e.code !== 'cancelled') sampleAnswered = true; });
           var tick = function () {
             if (settled) return;
             var t = now();
-            var hard = deadline + 8000; // short grace only while text is actively streaming
-            if (t >= deadline && (!streaming || t - lastText > 2500 || t >= hard)) {
-              settled = true; try { if (ctl) ctl.abort(); } catch (x) { } reject({ code: 'timeout' }); return;
+            if (t >= deadline && (!streaming || t - lastText > 2500 || t >= deadline + 8000)) { // short grace only while text is streaming
+              settled = true; abort(); reject({ code: 'timeout' }); return;
             }
             setTimeout(tick, 250);
           };
-          setTimeout(tick, 250);
-          Promise.resolve(p).then(function (v) { if (!settled) { settled = true; resolve(v); } }, function (e) { if (!settled) { settled = true; reject(e); } });
-        }).then(function (data) {
+          if (isFinite(deadline)) setTimeout(tick, 250);
+          p.then(function (v) { if (!settled) { settled = true; resolve(v); } }, function (e) { if (!settled) { settled = true; reject(e); } });
+        })).then(function (data) {
           onStep('Checking the ideas…');
           var list = Array.isArray(data) ? data : (data && (Array.isArray(data.ideas) ? data.ideas : Array.isArray(data.concepts) ? data.concepts : null));
           if (!list) { notes.push(sampleNote('bad_ideas')); return; }
@@ -1146,8 +1224,9 @@
           });
           aiConcepts = aiConcepts.slice(0, 4);
           if (!aiConcepts.length) notes.push(sampleNote('bad_ideas'));
-        }, function (e) { notes.push(sampleNote(e && e.code)); });
-      }, function (e) { notes.push(sampleNote(e && e.code === 'timeout' ? 'not_granted' : e && e.code)); });
+        }, function (e) { notes.push(sampleNote(stopped() ? 'stopped' : e && e.code)); })
+          .then(function () { if (stopSig) stopSig.removeEventListener('abort', abort); });
+      }, function (e) { notes.push(sampleNote(stopped() ? 'stopped' : e && e.code === 'timeout' ? 'not_granted' : e && e.code)); });
     }).then(function () { onStep('Making your thumbnails…'); return finish(); });
 
     return run.catch(function () { return safeOffline(prompt, theme); });
