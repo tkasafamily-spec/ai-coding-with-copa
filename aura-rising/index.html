@@ -86,7 +86,7 @@ button{font:inherit;color:inherit;-webkit-user-select:none;user-select:none;-web
 .ico{width:1.1em;height:1.1em;flex:none;display:inline-block}
 
 /* ---------- title ---------- */
-#title{display:flex;align-items:center;pointer-events:none;
+#title{display:flex;align-items:center;justify-content:flex-start;pointer-events:none;
   background:linear-gradient(90deg,rgba(11,8,32,.92) 0%,rgba(11,8,32,.6) 34%,rgba(11,8,32,0) 60%)}
 #title .t-inner{pointer-events:auto;padding:calc(var(--sat) + 24px) 24px calc(var(--sab) + 24px) calc(var(--gut) + 28px);
   width:min(560px,52vw);display:flex;flex-direction:column;gap:14px}
@@ -182,7 +182,7 @@ input[type=range]::-moz-range-thumb{width:24px;height:24px;border:0;border-radiu
 /* ---------- HUD ---------- */
 #hud{opacity:1;transition:opacity .25s}
 #hud.off{opacity:0}
-.hud-tl{position:absolute;left:var(--gut);top:calc(var(--sat) + 14px);display:flex;flex-direction:column;gap:8px;width:min(340px,40vw);transform-origin:top left;transform:scale(var(--ui-scale))}
+.hud-tl{--ui-scale:1;position:absolute;left:var(--gut);top:calc(var(--sat) + 14px);display:flex;flex-direction:column;gap:8px;width:min(340px,40vw);transform-origin:top left;transform:scale(var(--ui-scale))}
 .who{display:flex;align-items:flex-end;gap:10px}
 .who .face{width:46px;height:46px;flex:none;background:linear-gradient(160deg,#fff,#cfc6ff);clip-path:polygon(20% 0,100% 0,80% 100%,0 100%);display:flex;align-items:center;justify-content:center;
   font-family:Bangers,sans-serif;font-size:26px;color:var(--ink);box-shadow:inset 0 -6px 0 var(--red)}
@@ -212,7 +212,7 @@ input[type=range]::-moz-range-thumb{width:24px;height:24px;border:0;border-radiu
 .objective.pop{animation:objpop .6s ease-out}
 @keyframes objpop{0%{transform:skewX(-14deg) translateX(-30px);opacity:0;background:var(--gold)}40%{opacity:1}100%{transform:skewX(-14deg)}}
 
-.boss{position:absolute;left:50%;top:calc(var(--sat) + 14px);width:min(560px,46vw);transform:translateX(-50%);text-align:center}
+.boss{position:absolute;left:calc(var(--gut) + min(340px,40vw) * var(--ui-scale) + 34px);right:calc(var(--gutr) + 134px);top:calc(var(--sat) + 14px);max-width:620px;margin:0 auto;text-align:center}
 .boss .bn{font-family:Bangers,sans-serif;font-size:24px;letter-spacing:3px;line-height:1;text-shadow:2px 2px 0 #000,0 0 10px rgba(255,51,85,.8);margin-bottom:5px;display:flex;justify-content:center;align-items:center;gap:10px}
 .boss .pips{display:flex;gap:5px}
 .boss .pips i{width:12px;height:12px;transform:rotate(45deg);background:rgba(255,255,255,.2);box-shadow:0 0 0 2px #fff}
@@ -290,8 +290,8 @@ body.kbd .abtn .kb{display:block}
 @keyframes ultpulse{0%,100%{box-shadow:inset 0 0 0 3px #fff,0 0 10px #ffcc33}50%{box-shadow:inset 0 0 0 3px #fff,0 0 34px 8px #ffcc33}}
 .abtn[data-k=lock].on{background:radial-gradient(circle at 40% 30%,#ff9fb0,#ff3355 60%);box-shadow:inset 0 0 0 3px #fff,0 0 18px #ff3355}
 body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
-@media (max-height:500px){ .btns{--btn-scale:.78} body:not(.touchy) .btns{--btn-scale:.6} .hud-tl{--ui-scale:.85} .combo b{font-size:60px} .joy-base{width:130px;height:130px;margin:-65px 0 0 -65px} .boss{top:calc(var(--sat) + 8px)} }
-@media (max-width:700px){ .boss{width:52vw} .boss .bn{font-size:18px} }
+@media (max-height:500px){ .btns{--btn-scale:.78} body:not(.touchy) .btns{--btn-scale:.6} .hud-tl{--ui-scale:.85} .combo b{font-size:56px} .combo{right:calc(var(--gutr) + 272px);top:26%} .combo em{font-size:22px} .joy-base{width:130px;height:130px;margin:-65px 0 0 -65px} .boss{top:calc(var(--sat) + 8px)} }
+@media (max-width:700px){ .boss .bn{font-size:18px} }
 
 /* ---------- dialogue ---------- */
 #dlgLayer{pointer-events:none}
@@ -405,6 +405,7 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
 @keyframes rot{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
 #rotate p{font-family:"M PLUS Rounded 1c";font-weight:800;font-size:20px;margin:0}
 
+@media (max-height:500px){ .card .ttl{font-size:52px} .card .band{padding:10px 0 12px} .card .lab{font-size:13px} .card .sub{font-size:13px;margin-top:4px} }
 @media (prefers-reduced-motion: reduce){ .logo .glint{animation:none} }
 </style>
 </head>
