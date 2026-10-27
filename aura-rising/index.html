@@ -285,7 +285,7 @@ body.kbd .abtn .kb{display:block}
 .abtn[data-k=ult]{--s:80px;--x:206px;--y:272px;--glow:#ffcc33}
 .abtn[data-k=lock]{--s:64px;--x:52px;--y:304px}
 .abtn[data-k=power].none{opacity:.35}
-.abtn[data-k=power].grim{box-shadow:inset 0 0 0 3px var(--glow),0 0 14px var(--glow)}
+.abtn[data-k=power].eqg{box-shadow:inset 0 0 0 3px var(--glow),0 0 14px var(--glow)}
 .abtn[data-k=swap]{--s:50px;--x:30px;--y:180px;--glow:var(--gc,#7b5cff);background:radial-gradient(circle at 40% 30%,#fff8,var(--gc,#7b5cff) 55%,#1a0f3a);box-shadow:inset 0 0 0 3px #fff,0 0 12px var(--gc,#7b5cff)}
 .abtn[data-k=swap] .gly{font-family:Bangers,sans-serif;font-size:22px;line-height:1;color:#fff;text-shadow:1px 1px 0 #000}
 .abtn[data-k=swap] .gk{position:absolute;right:-4px;bottom:-4px;font:11px/1 "Russo One",sans-serif;background:#0b0820;color:#ffe08a;border-radius:4px;padding:2px 4px}
@@ -1265,7 +1265,7 @@ on('grimoireGet', g => {
   grimKey = ''; lastGrimGet = { id: gi.id, t: performance.now() };
 });
 let lastGrimGet = null;
-on('equip', e => { if (!e || !e.id) return; save.equipped = e.id; rememberGrimoire(e.id); persist(); grimKey = ''; const gi = grimInfo(e); if (!(lastGrimGet && lastGrimGet.id === e.id && performance.now() - lastGrimGet.t < 3000)) toast(gi.name.toUpperCase()); });
+on('equip', e => { if (!e) return; if (!e.id) { if (e.id === null && mode === 'game') { save.equipped = null; persist(); grimKey = ''; toast('AURA DASH'); } return; } save.equipped = e.id; rememberGrimoire(e.id); persist(); grimKey = ''; const gi = grimInfo(e); if (!(lastGrimGet && lastGrimGet.id === e.id && performance.now() - lastGrimGet.t < 3000)) toast(gi.name.toUpperCase()); });
 on('hit', h => { h = h || {}; Audio.sfx(h.heavy ? 'heavy' : 'hit'); const c = h.combo | 0; if (c && c % 10 === 0) Audio.sfx('combo'); });
 on('hurt', h => { Audio.sfx('hurt'); const v = $('#fx .vig'); v.classList.add('on'); setTimeout(() => v.classList.remove('on'), 140); if (navigator.vibrate) try { navigator.vibrate(30); } catch (e) {} });
 on('enemyDown', () => Audio.sfx('enemyDown'));
@@ -1340,7 +1340,7 @@ function syncGrimUI(st, force) {
   const g = list.find(x => x.id === eq) || null;
   show(btn, mode === 'game' && list.length > 0);
   btn.style.setProperty('--gc', g ? g.color : '#6a6a8a');
-  $('#swapGly').textContent = g ? glyphOf(g) : '-';
+  $('#swapGly').textContent = g ? glyphOf(g) : (st.powers || []).includes('dash') ? '\u00bb' : '-'; // » = Aura Dash (nothing equipped)
   btn.setAttribute('aria-label', g ? 'Swap grimoire (equipped: ' + g.name + ')' : 'Swap grimoire');
   btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop');
 }
@@ -1397,12 +1397,13 @@ function updateHUD(st, dt) {
   const nonUlt = powers.filter(p => powerKind(p) !== 'domain' && powerKind(p) !== 'punch');
   // an equipped grimoire decides the Power spell (contract: getState().equipped); otherwise the latest learned power
   const eqG = st.equipped ? grimInfo((Array.isArray(st.grimoires) ? st.grimoires : []).find(g => g && g.id === st.equipped) || { id: st.equipped }) : null;
-  const curPower = eqG ? 'grimoire:' + eqG.id : (nonUlt[nonUlt.length - 1] || '');
+  // the game reports equipped: null when no grimoire is set; then Power is Aura Dash (if learned)
+  const curPower = eqG ? 'grimoire:' + eqG.id : (st.equipped === null && Array.isArray(st.grimoires)) ? (powers.includes('dash') ? 'dash' : '') : (nonUlt[nonUlt.length - 1] || '');
   if (curPower !== hud.power) {
     hud.power = curPower; BTN.power.classList.toggle('none', !curPower);
     const k = powerKind(curPower); $('#powerIco').innerHTML = POWER_ICONS[curPower ? k : 'punch'];
     $('#powerLbl').textContent = eqG ? eqG.name.split(' ')[0].toUpperCase().slice(0, 9) : !curPower ? 'POWER' : k === 'dash' ? 'DASH' : k === 'book' ? 'GRIMOIRE' : 'POWER';
-    if (eqG) BTN.power.style.setProperty('--glow', eqG.color); else BTN.power.style.removeProperty('--glow'); BTN.power.classList.toggle('grim', !!eqG);
+    if (eqG) BTN.power.style.setProperty('--glow', eqG.color); else BTN.power.style.removeProperty('--glow'); BTN.power.classList.toggle('eqg', !!eqG);
   }
   const cd = st.cooldowns || {};
   const pk = powerKind(curPower);

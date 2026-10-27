@@ -1471,7 +1471,7 @@ export function createGame(canvas, opts = {}) {
         const first = p.grounded || p.coyote > 0; if (first || p.jumps > 0) { p.vel.y = first ? 9.5 : 8.5; p.grounded = false; p.coyote = 0; p.jumps--; if (!first) { play(rig, 'flip', 0.45); burst(p.pos.x, p.pos.y + 0.2, p.pos.z, 10, 0xb48cff, 3, 0.4, 0.25, 0); } sfx('jump'); if (p.state === 'atk') p.state = 'idle'; }
       }
       if (pressed.attack) p.atkBuf = 0.35;
-      if (pressed.swapGrimoire && grims.length) { const i = grims.indexOf(equipped); equipGrimoire(grims[(i + 1) % grims.length], true); }
+      if (pressed.swapGrimoire && grims.length) { const cyc = powers.includes('dash') ? [...grims, null] : grims; const i = cyc.indexOf(equipped); equipGrimoire(cyc[(i + 1) % cyc.length], true); }
     }
     p.atkBuf = Math.max(0, (p.atkBuf || 0) - dt);
     if (p.atkBuf > 0 && playing && (p.state === 'idle' || (p.state === 'atk' && p.st > COMBO[p.combo].hit + 0.06))) {
@@ -2264,6 +2264,7 @@ export function createGame(canvas, opts = {}) {
     if (player) { play(player.rig, 'power', 2); player.rig.aura.visible = true; setTimeout(() => { if (player && player.state !== 'dash' && player.state !== 'ult') player.rig.aura.visible = false; }, 2200); burst(player.pos.x, player.pos.y + 1, player.pos.z, 60, 0xb48cff, 8, 0.9, 0.4, 0); shockRing(player.pos, 5, 0xb48cff, 0.6); }
     if (id === 'domain' && player) player.aura = 100;
     if (id === 'grimoire') { addGrimoire('crimson'); equipGrimoire('crimson'); }
+    if (id === 'dash' && equipped) equipGrimoire(null);
   }
   const SCRIPTS = {
     1: {
