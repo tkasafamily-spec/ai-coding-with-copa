@@ -162,22 +162,29 @@ export function createGame(canvas, opts = {}) {
     if (f.type === 'mask') { drawMask(x, f, emo); return; }
     const ey = 114, hs = (f.eyeH || 20) / 20;
     x.lineJoin = 'round'; x.lineCap = 'round';
-    if (emo === 'smile' || emo === 'shocked') { x.fillStyle = 'rgba(255,110,140,0.32)'; x.beginPath(); x.ellipse(cx - 52, ey + 30, 15, 6, 0, 0, TAU); x.ellipse(cx + 52, ey + 30, 15, 6, 0, 0, TAU); x.fill(); x.strokeStyle = 'rgba(220,70,100,0.5)'; x.lineWidth = 1.5; for (const s of [-1, 1]) for (let i = 0; i < 3; i++) { x.beginPath(); x.moveTo(cx + s * (44 + i * 6), ey + 27); x.lineTo(cx + s * (41 + i * 6), ey + 33); x.stroke(); } }
+    if (!f.male && (emo === 'smile' || emo === 'shocked')) { x.fillStyle = 'rgba(255,110,140,0.32)'; x.beginPath(); x.ellipse(cx - 52, ey + 30, 15, 6, 0, 0, TAU); x.ellipse(cx + 52, ey + 30, 15, 6, 0, 0, TAU); x.fill(); x.strokeStyle = 'rgba(220,70,100,0.5)'; x.lineWidth = 1.5; for (const s of [-1, 1]) for (let i = 0; i < 3; i++) { x.beginPath(); x.moveTo(cx + s * (44 + i * 6), ey + 27); x.lineTo(cx + s * (41 + i * 6), ey + 33); x.stroke(); } }
     for (const s of [-1, 1]) {
       const ex = cx + s * 49;
       // strong angular brows
-      const bi = { angry: 14, determined: 8, shocked: -9, smile: -5, hurt: 5 }[emo] || 0, bo = { angry: -5, determined: -2, shocked: -12, smile: -7, hurt: -9 }[emo] || 0, by = ey - 37;
+      const M = !!f.male, bi = { angry: 14, determined: 8, shocked: -9, smile: -5, hurt: 5 }[emo] || (M ? 3 : 0), bo = { angry: -5, determined: -2, shocked: -12, smile: -7, hurt: -9 }[emo] || 0, by = ey - (M ? 31 : 37);
       x.fillStyle = f.brow || ink; x.beginPath();
-      x.moveTo(ex - s * 23, by + bi + 5); x.lineTo(ex - s * 21, by + bi - 4);
-      x.quadraticCurveTo(ex + s * 4, by + (bi + bo) / 2 - 10, ex + s * 31, by + bo - 3);
-      x.quadraticCurveTo(ex + s * 6, by + (bi + bo) / 2 - 1, ex - s * 23, by + bi + 5); x.fill();
-      x.strokeStyle = ink; x.fillStyle = ink; x.save(); x.translate(ex, ey); x.scale(1.24, 1.24); x.translate(-ex, -ey);
+      if (M) { // thick, straight, low brows
+        x.moveTo(ex - s * 25, by + bi + 9); x.lineTo(ex - s * 24, by + bi - 5);
+        x.quadraticCurveTo(ex + s * 4, by + (bi + bo) / 2 - 10, ex + s * 33, by + bo - 2);
+        x.quadraticCurveTo(ex + s * 6, by + (bi + bo) / 2 + 5, ex - s * 25, by + bi + 9); x.fill();
+      } else {
+        x.moveTo(ex - s * 23, by + bi + 5); x.lineTo(ex - s * 21, by + bi - 4);
+        x.quadraticCurveTo(ex + s * 4, by + (bi + bo) / 2 - 10, ex + s * 31, by + bo - 3);
+        x.quadraticCurveTo(ex + s * 6, by + (bi + bo) / 2 - 1, ex - s * 23, by + bi + 5); x.fill();
+      }
+      const es = M ? 1.12 : 1.24;
+      x.strokeStyle = ink; x.fillStyle = ink; x.save(); x.translate(ex, ey); x.scale(es, es); x.translate(-ex, -ey);
       if (emo === 'blink') { x.lineWidth = 6; x.beginPath(); x.moveTo(ex - s * 22, ey + 3); x.quadraticCurveTo(ex, ey + 10, ex + s * 27, ey - 1); x.stroke(); }
       else if (emo === 'smile') { x.lineWidth = 7; x.beginPath(); x.moveTo(ex - s * 21, ey + 7); x.quadraticCurveTo(ex, ey - 14, ex + s * 24, ey + 4); x.stroke(); }
       else if (emo === 'hurt') { x.lineWidth = 6; x.beginPath(); x.moveTo(ex - s * 18, ey - 11); x.lineTo(ex + s * 14, ey); x.lineTo(ex - s * 18, ey + 11); x.stroke(); }
       else {
         const top = (emo === 'shocked' ? 22 : emo === 'angry' ? 11 : emo === 'determined' ? 14 : 17) * hs, bot = (emo === 'shocked' ? 16 : 12) * hs;
-        const drop = emo === 'angry' ? 7 : emo === 'determined' ? 4 : 0, ir = emo === 'shocked' ? 0.6 : 1;
+        const drop = emo === 'angry' ? 7 : emo === 'determined' ? 4 : M ? 2 : 0, ir = (emo === 'shocked' ? 0.6 : 1) * (M ? 0.86 : 1);
         const lid = () => { x.moveTo(ex - s * 22, ey + 2 + drop); x.quadraticCurveTo(ex - s * 6, ey - top - 2 + drop * 0.6, ex + s * 17, ey - top * 0.92); x.lineTo(ex + s * 26, ey - 3); };
         x.save(); x.beginPath(); lid(); x.quadraticCurveTo(ex + s * 9, ey + bot + 2, ex - s * 22, ey + 2 + drop); x.closePath();
         x.fillStyle = '#ffffff'; x.fill(); x.clip();
@@ -189,19 +196,26 @@ export function createGame(canvas, opts = {}) {
         x.fillStyle = '#fff'; x.beginPath(); x.ellipse(ex - 5, ey - 6, 4.5, 5.5, -0.4, 0, TAU); x.fill(); x.beginPath(); x.arc(ex + 5, ey + 8, 2.2, 0, TAU); x.fill();
         x.restore();
         // sharp upper lash line with a flick, thin lower lid
-        x.strokeStyle = ink; x.lineWidth = 7; x.beginPath(); lid(); x.lineTo(ex + s * 32, ey - 9); x.stroke();
-        x.lineWidth = 2.5; x.beginPath(); x.moveTo(ex + s * 24, ey); x.quadraticCurveTo(ex + s * 8, ey + bot + 3, ex - s * 10, ey + bot - 3); x.stroke();
+        if (M) { // firm upper lid, no lash flick; short lower lid
+          x.strokeStyle = ink; x.lineWidth = 6; x.beginPath(); lid(); x.lineTo(ex + s * 28, ey - 1); x.stroke();
+          x.lineWidth = 2; x.beginPath(); x.moveTo(ex + s * 20, ey + bot - 2); x.quadraticCurveTo(ex + s * 6, ey + bot + 2, ex - s * 6, ey + bot - 1); x.stroke();
+        } else {
+          x.strokeStyle = ink; x.lineWidth = 7; x.beginPath(); lid(); x.lineTo(ex + s * 32, ey - 9); x.stroke();
+          x.lineWidth = 2.5; x.beginPath(); x.moveTo(ex + s * 24, ey); x.quadraticCurveTo(ex + s * 8, ey + bot + 3, ex - s * 10, ey + bot - 3); x.stroke();
+        }
       }
       x.restore();
     }
     // nose
-    x.strokeStyle = 'rgba(150,70,70,0.75)'; x.lineWidth = 2.5; x.beginPath(); x.moveTo(cx + 2, 148); x.lineTo(cx - 4, 162); x.lineTo(cx + 3, 164); x.stroke();
-    x.lineWidth = 3; x.strokeStyle = ink; x.fillStyle = '#6a1424'; const my = 190;
+    if (f.male) { x.strokeStyle = 'rgba(110,60,45,0.8)'; x.lineWidth = 3; x.beginPath(); x.moveTo(cx + 3, 136); x.lineTo(cx - 5, 160); x.lineTo(cx + 5, 163); x.stroke(); }
+    else { x.strokeStyle = 'rgba(150,70,70,0.75)'; x.lineWidth = 2.5; x.beginPath(); x.moveTo(cx + 2, 148); x.lineTo(cx - 4, 162); x.lineTo(cx + 3, 164); x.stroke(); }
+    x.lineWidth = 3; x.strokeStyle = ink; x.fillStyle = f.male ? '#3a1416' : '#6a1424'; const my = 190;
     if (emo === 'smile') { x.beginPath(); x.moveTo(cx - 17, my - 3); x.quadraticCurveTo(cx, my + 1, cx + 17, my - 3); x.quadraticCurveTo(cx + 2, my + 22, cx - 17, my - 3); x.closePath(); x.fill(); x.stroke(); x.fillStyle = '#fff'; x.fillRect(cx - 11, my - 2, 22, 4); }
     else if (emo === 'shocked') { x.beginPath(); x.ellipse(cx, my + 4, 7, 10, 0, 0, TAU); x.fill(); x.stroke(); }
     else if (emo === 'angry') { x.beginPath(); x.moveTo(cx - 17, my - 4); x.lineTo(cx + 17, my - 4); x.lineTo(cx + 11, my + 11); x.lineTo(cx - 11, my + 11); x.closePath(); x.fill(); x.stroke(); x.fillStyle = '#fff'; x.fillRect(cx - 15, my - 3, 30, 5); x.beginPath(); x.moveTo(cx - 13, my - 4); x.lineTo(cx - 9, my + 3); x.lineTo(cx - 6, my - 4); x.moveTo(cx + 13, my - 4); x.lineTo(cx + 9, my + 3); x.lineTo(cx + 6, my - 4); x.fill(); }
     else if (emo === 'hurt') { x.fillStyle = '#fff'; x.beginPath(); x.rect(cx - 14, my - 3, 28, 9); x.fill(); x.stroke(); x.beginPath(); x.moveTo(cx - 14, my + 1.5); x.lineTo(cx + 14, my + 1.5); for (let i = -1; i <= 1; i++) { x.moveTo(cx + i * 7, my - 3); x.lineTo(cx + i * 7, my + 6); } x.stroke(); }
-    else if (emo === 'determined') { x.beginPath(); x.moveTo(cx - 13, my + 1); x.quadraticCurveTo(cx + 2, my + 4, cx + 14, my - 5); x.stroke(); }
+    else if (emo === 'determined') { x.beginPath(); x.moveTo(cx - 15, my + 1); x.quadraticCurveTo(cx + 2, my + 3, cx + 16, my - 5); x.stroke(); }
+    else if (f.male) { x.beginPath(); x.moveTo(cx - 14, my); x.lineTo(cx + 14, my - 1); x.stroke(); }
     else { x.beginPath(); x.moveTo(cx - 10, my); x.quadraticCurveTo(cx, my + 3, cx + 10, my - 1); x.stroke(); }
   }
   function drawMask(x, f, emo) {
@@ -307,6 +321,7 @@ export function createGame(canvas, opts = {}) {
         let dir, curl, root, bend = 0.35;
         if (kind === 1) { root = [HC[0] + r[0] * 0.11, 0.222 - Math.abs(r[0]) * 0.03, HC[2] + r[2] * 0.1]; dir = [r[0] * 0.5, -1, 0.42]; curl = [r[0], 0, 1]; bend = 0.3; }
         else if (kind === 2) { root = [HC[0] + r[0] * 0.11, 0.15, HC[2] + r[2] * 0.11]; dir = [r[0] * 0.25, -1, 0.12]; curl = [r[0], 0, 0.3]; bend = 0.25; }
+        else if (kind === 4) { root = [HC[0] + r[0] * 0.088, HC[1] + r[1] * 0.088, HC[2] + r[2] * 0.088]; dir = [r[0] * 0.75, 0.42 + r[1] * 0.45, -0.9 + r[2] * 0.25]; curl = [0, 1, 0.2]; bend = 0.3; }
         else { root = [HC[0] + r[0] * 0.085, HC[1] + r[1] * 0.085, HC[2] + r[2] * 0.085]; const s = kind === 3 ? 0.35 : 0.9 * sw; dir = [r[0], r[1] + 0.55 * s, r[2] - 0.85 * s]; curl = [0, 1, 0.2]; }
         list.push([spikeGeo(len, w, kind === 1 ? 0.5 : 0.62, bend), orient(root, dir, curl)]);
       }
@@ -326,7 +341,7 @@ export function createGame(canvas, opts = {}) {
     const hipY = 0.94;
     j('hips', model, 0, hipY, 0); j('spine', J.hips, 0, 0.1, 0); j('chest', J.spine, 0, 0.14, 0);
     j('neck', J.chest, 0, 0.3, 0); j('head', J.neck, 0, 0.07, 0);
-    const shx = 0.19 * bw;
+    const shw = cfg.shoulders || 1, shx = 0.19 * bw * shw, HD = cfg.headShape || HEAD, fl = cfg.flatChest ? 0.9 : 1;
     j('shL', J.chest, shx, 0.24, 0); j('elL', J.shL, 0, -0.27, 0); j('haL', J.elL, 0, -0.25, 0);
     j('shR', J.chest, -shx, 0.24, 0); j('elR', J.shR, 0, -0.27, 0); j('haR', J.elR, 0, -0.25, 0);
     j('hipL', J.hips, 0.095 * bw, -0.04, 0); j('knL', J.hipL, 0, -0.43, 0); j('ftL', J.knL, 0, -0.43, 0);
@@ -346,7 +361,7 @@ export function createGame(canvas, opts = {}) {
     // abdomen
     put('spine', top, loft([[-0.09, 0.13 * bw, 0.088], [0.0, 0.128 * bw, 0.09, 0.005], [0.08, 0.137 * bw, 0.096, 0.009], [0.17, 0.15 * bw, 0.1, 0.012]], 16));
     // V-shaped chest: broad shoulders, narrow waist
-    put('chest', top, loft([[-0.06, 0.135 * bw, 0.092, 0.008, 2.2], [0.05, 0.156 * bw, 0.104, 0.014, 2.3], [0.14, 0.184 * bw, 0.114, 0.016, 2.5], [0.21, 0.202 * bw, 0.112, 0.01, 2.8], [0.26, 0.19 * bw, 0.1, 0, 2.8], [0.295, 0.14 * bw, 0.085, -0.005, 2.4], [0.315, 0.07, 0.055, 0], [0.325, 0.02, 0.02]], 18));
+    put('chest', top, loft([[-0.06, 0.135 * bw, 0.092, 0.008, 2.2], [0.05, 0.156 * bw * (1 + (shw - 1) * 0.4), 0.104 * fl, 0.014 * fl, 2.3], [0.14, 0.184 * bw * shw, 0.114 * fl, 0.016 * fl, 2.5], [0.21, 0.202 * bw * shw, 0.112 * fl, 0.01, 2.8], [0.26, 0.19 * bw * shw, 0.1, 0, 2.8], [0.295, 0.14 * bw * shw, 0.085, -0.005, 2.4], [0.315, 0.07, 0.055, 0], [0.325, 0.02, 0.02]], 18));
     // open collar: inner shirt V + lapels
     const vneck = cfg.vneck ?? !!cfg.collar;
     if (vneck) {
@@ -362,10 +377,10 @@ export function createGame(canvas, opts = {}) {
     if (cfg.collar && !vneck) put('chest', toon(cfg.collar), loft([[0.27, 0.085, 0.075], [0.345, 0.07, 0.062]], 14));
     // neck + head
     put('neck', skin, loft([[-0.07, 0.048, 0.046, -0.004], [0.03, 0.041, 0.04, -0.008], [0.11, 0.04, 0.038, -0.014]], 12));
-    put('head', skin, loft(HEAD, 24));
+    put('head', skin, loft(HD, 24));
     for (const sd of [-1, 1]) put('head', skin, loft([[-0.028, 0.006, 0.01], [-0.016, 0.011, 0.019], [0.012, 0.012, 0.021, -0.003], [0.034, 0.006, 0.012, -0.01], [0.042, 0.002, 0.002, -0.013]], 8), xf([sd * 0.106, 0.078, -0.004], [0, 0, -sd * 0.12]));
-    const fgeo = cachedGeo('facedecal', () => {
-      const step = TAU / 24, g = loft(HEAD.map((r) => [r[0], r[1] + 0.0018, r[2] + 0.0018, r[3]]), 10, { a0: -5 * step, al: 10 * step });
+    const fgeo = cachedGeo('facedecal' + (cfg.headShape ? cfg.face.id : ''), () => {
+      const step = TAU / 24, g = loft(HD.map((r) => [r[0], r[1] + 0.0018, r[2] + 0.0018, r[3]]), 10, { a0: -5 * step, al: 10 * step });
       const p = g.attributes.position, uv = g.attributes.uv;
       for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i) + 0.12) / 0.24, (p.getY(i) + 0.04) / 0.24);
       return g;
@@ -404,7 +419,7 @@ export function createGame(canvas, opts = {}) {
   }
   // Short cape / half-robe on the chest joint. Bent on the CPU each frame by a spring (see animate()).
   function addCape(rig, mat, o = {}) {
-    const bw = rig.cfg.bulk || 1, a0 = 0.38 * Math.PI, al = 1.24 * Math.PI, seg = 18, len = o.len || 0.27;
+    const bw = (rig.cfg.bulk || 1) * (rig.cfg.shoulders || 1), a0 = 0.38 * Math.PI, al = 1.24 * Math.PI, seg = 18, len = o.len || 0.27;
     const hem = (th, k) => { const t = Math.abs(th - Math.PI) / (al / 2); return -len + (len + 0.14) * t ** 1.7 + (k % 2 ? 0.045 : 0) * (1 - t * 0.6); };
     const yAt = (f) => (th, k) => lerp(0.25, hem(th, k), f);
     const R = [[hem, 0.25 * bw, 0.152, -0.03], [yAt(0.6), 0.256 * bw, 0.142, -0.025], [yAt(0.25), 0.266 * bw, 0.132, -0.016], [0.25, 0.268 * bw, 0.126, -0.01], [0.3, 0.205 * bw, 0.112, -0.008], [0.335, 0.112, 0.088, -0.005]];
@@ -447,21 +462,26 @@ export function createGame(canvas, opts = {}) {
   }
 
   // ---------- character definitions ----------
-  const REN_FACE = { id: 'ren', eye: '#8f7dff', eyeDark: '#2a1f6a', eyeLight: '#e4dcff', skin: '#ffe3d0', brow: '#1c1e34' };
+  const REN_FACE = { id: 'ren', male: true, eyeH: 14.5, eye: '#7a6cf0', eyeDark: '#221a5a', eyeLight: '#cfc6ff', skin: '#f3d2b6', brow: '#15172a' };
+  // Ren's head: same skull, but a broader, squarer jaw and a flatter chin
+  const REN_HEAD = [[-0.04, 0.01, 0.008, 0.06], [-0.035, 0.034, 0.022, 0.058], [-0.02, 0.062, 0.044, 0.046], [0.008, 0.086, 0.074, 0.026], [0.045, 0.102, 0.097, 0.012], [0.085, 0.112, 0.11, 0.003], [0.13, 0.115, 0.118, -0.006], [0.17, 0.11, 0.115, -0.01], [0.205, 0.088, 0.095, -0.014], [0.228, 0.052, 0.06, -0.016], [0.24, 0.004, 0.004, -0.016]];
   function makeRen() {
     return buildRig({
-      face: REN_FACE, trim: true, collar: 0xf4f4ff, lapel: 0x34408c, cuff: 0xf2c14e, sole: 0xe8333f, belt: 0x3a2a24, hemLen: 0.19,
-      colors: { skin: 0xffe3d0, top: 0x232a58, bottom: 0x1a1d36, shoe: 0x2a2236, accent: 0xf2c14e },
+      face: REN_FACE, headShape: REN_HEAD, shoulders: 1.12, flatChest: true, trim: true, collar: 0xf4f4ff, lapel: 0x34408c, cuff: 0xf2c14e, sole: 0xe8333f, belt: 0x3a2a24, hemLen: 0.19,
+      colors: { skin: 0xf3d2b6, top: 0x232a58, bottom: 0x1a1d36, shoe: 0x2a2236, accent: 0xf2c14e },
       hair(rig, J) {
-        const blk = toon(0x262840), str = toon(0x6f7fe0);
-        hairCap(J, blk);
+        // short, spiky, swept-back shounen hair: no side locks, no fringe curtain
+        const blk = toon(0x22243a), str = toon(0x6f7fe0);
+        hairCap(J, blk, 0.172, 0.05);
         const sp = [];
-        for (const [el, azs, len, w, sw] of [[64, [-24, 24], 0.2, 0.056, 1.5], [48, [-62, 0, 62], 0.24, 0.06, 1.35], [36, [-112, -158, 112, 158], 0.27, 0.062, 1.05], [12, [-82, -126, 180, 126, 82], 0.25, 0.06, 1.0], [-12, [-102, -146, 146, 102], 0.2, 0.052, 0.8], [-36, [-156, 180, 156], 0.15, 0.046, 0.55]])
-          azs.forEach((az, i) => sp.push([az, el, len * (1 + 0.12 * Math.sin(az * 0.7 + el)), w, 0, sw]));
-        [[-44, 0.085], [-21, 0.095], [2, 0.08], [24, 0.09], [46, 0.08]].forEach(([az, len]) => sp.push([az, 0, len, 0.042, 1]));
-        sp.push([-80, 0, 0.13, 0.03, 2], [80, 0, 0.13, 0.03, 2]);
+        for (const [el, azs, len, w] of [[66, [-20, 20], 0.15, 0.06], [50, [-52, 0, 52], 0.17, 0.064], [34, [-98, -140, 98, 140], 0.18, 0.064], [14, [-78, -118, -158, 158, 118, 78], 0.16, 0.06], [-8, [-128, -164, 164, 128], 0.14, 0.056]])
+          azs.forEach((az) => sp.push([az, el, len * (1 + 0.1 * Math.sin(az * 0.7 + el)), w, 4]));
+        // nape: short tufts pointing down/back; front: a short quiff that rises and sweeps back
+        for (const az of [-150, 180, 150]) sp.push([az, -32, 0.1, 0.05, 0, 0.55]);
+        for (const [az, len] of [[-34, 0.12], [-10, 0.13], [14, 0.12], [36, 0.11]]) sp.push([az, 74, len, 0.05, 4]);
+        sp.push([-84, 0, 0.05, 0.03, 2], [84, 0, 0.05, 0.03, 2]);
         hairSpikes(J, blk, sp, 'ren');
-        hairSpikes(J, str, [[76, 38, 0.24, 0.044, 0, 1.05], [-92, 22, 0.25, 0.044, 0, 1.0], [140, 22, 0.25, 0.046, 0, 1], [-33, 0, 0.08, 0.03, 1]], 'ren2');
+        hairSpikes(J, str, [[64, 40, 0.16, 0.044, 4], [-80, 26, 0.16, 0.044, 4], [150, 20, 0.15, 0.046, 4]], 'ren2');
       },
       extra(rig, J) {
         const red = toon(0xc8283a, { side: THREE.DoubleSide }), gold = toon(0xf2c14e, { em: 0x403000, ei: 1 });
@@ -769,12 +789,11 @@ export function createGame(canvas, opts = {}) {
     renderer.setClearColor(th.fog);
   }
   function addPlat(L, x0, x1, z0, z1, y, opt = {}) {
-    const th = L.theme, w = x1 - x0, d = z1 - z0, depth = opt.depth || (L.id === 2 ? 30 : 1.4);
+    const th = L.theme, w = x1 - x0, d = z1 - z0, depth = opt.depth || 1.4;
     const g = new THREE.Group(); levelGroup.add(g);
     const tex = L.tex.clone(); tex.needsUpdate = true; tex.repeat.set(w / 8, d / 8);
     const top = new THREE.Mesh(G.box, toon(0xffffff, { map: tex })); top.scale.set(w, 0.3, d); top.position.set((x0 + x1) / 2, y - 0.15, (z0 + z1) / 2); g.add(top);
     const side = new THREE.Mesh(G.box, toon(th.side)); side.scale.set(w - 0.1, depth, d - 0.1); side.position.set((x0 + x1) / 2, y - 0.3 - depth / 2, (z0 + z1) / 2); g.add(side);
-    if (L.id === 4) { const c = new THREE.Mesh(G.cone, toon(0x5a4a7a)); c.scale.set(Math.min(w, d) * 0.55, 6, Math.min(w, d) * 0.55); c.rotation.x = Math.PI; c.position.set((x0 + x1) / 2, y - 4.5, (z0 + z1) / 2); g.add(c); addOutline(c, OUT_PROP); }
     const edge = new THREE.Mesh(G.box, toon(th.edge, L.id === 2 || L.id === 4 ? { em: th.edge, ei: 0.6 } : {})); edge.scale.set(w + 0.2, 0.12, d + 0.2); edge.position.set((x0 + x1) / 2, y - 0.27, (z0 + z1) / 2); g.add(edge);
     addOutline(top, OUT_PROP);
     L.plats.push({ type: 'rect', x0, x1, z0, z1, y });
@@ -782,7 +801,7 @@ export function createGame(canvas, opts = {}) {
   function addCircle(L, cx, cz, r, y) {
     const tex = L.tex.clone(); tex.needsUpdate = true; tex.repeat.set(r / 4, r / 4);
     const top = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.3, 48), toon(0xffffff, { map: tex })); top.position.set(cx, y - 0.15, cz); levelGroup.add(top); addOutline(top, OUT_PROP);
-    const side = new THREE.Mesh(new THREE.CylinderGeometry(r - 0.1, r * (L.id === 4 ? 0.3 : 0.98), L.id === 2 ? 30 : 6, 32), toon(L.theme.side)); side.position.set(cx, y - 0.3 - (L.id === 2 ? 15 : 3), cz); levelGroup.add(side);
+    const side = new THREE.Mesh(new THREE.CylinderGeometry(r - 0.1, r - 0.1, 1.4, 48), toon(L.theme.side)); side.position.set(cx, y - 1.0, cz); levelGroup.add(side);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(r * 0.72, 0.08, 6, 64), new THREE.MeshBasicMaterial({ color: L.theme.accent })); ring.rotation.x = -Math.PI / 2; ring.position.set(cx, y + 0.02, cz); levelGroup.add(ring);
     const ring2 = ring.clone(); ring2.scale.setScalar(0.4); ring2.position.y += 0.001; levelGroup.add(ring2);
     L.plats.push({ type: 'circle', cx, cz, r, y });
@@ -821,7 +840,9 @@ export function createGame(canvas, opts = {}) {
     } else if (id === 2) {
       const h = rand(10, 40); const b = part(g, G.box, toon(0x1c1838), [0, -h / 2 - 6, 0], [rand(6, 10), h, rand(6, 10)], null, null);
     } else {
-      const c = part(g, G.oct, toon(0x9ff8ff, { em: 0x4ad8ff, ei: 0.8 }), [0, 2.5, 0], [0.5, 1.2, 0.5], null, OUT_PROP); g.userData.bob = c;
+      // storm-peak crystal cluster growing out of a rock (planted on the ground)
+      part(g, G.sphere, toon(0x5a5a80), [0, 0.1, 0], [1.1, 0.55, 1.0], null, OUT_PROP);
+      for (let k = 0; k < 4; k++) { const a = k / 4 * TAU + x, l = k ? rand(1.2, 2.0) : 3.0; part(g, G.oct, toon(0x9ff8ff, { em: 0x4ad8ff, ei: 0.8 }), [k ? Math.sin(a) * 0.45 : 0, l * 0.42, k ? Math.cos(a) * 0.45 : 0], [0.35, l, 0.35], [k ? Math.cos(a) * 0.35 : 0, a, k ? -Math.sin(a) * 0.35 : 0], OUT_PROP); }
     }
     return g;
   }
@@ -846,9 +867,9 @@ export function createGame(canvas, opts = {}) {
       for (let i = -2; i <= 2; i++) part(g, G.cyl, toon(0xd8343f), [i * w / 5, h / 2, d / 2 + 0.2], [0.25, h, 0.25], null, null);
       for (let i = -1; i <= 1; i++) part(g, G.box, toon(0x5ab0ff, { em: 0x204060, ei: 0.4 }), [i * w / 4, h * 0.65, d / 2 + 0.05], [1.2, 1.4, 0.1], null, null);
     } else if (id === 2) {
-      const b = part(g, G.box, toon(0x221c44), [0, h / 2 - 30, 0], [w, h, d], null, null);
+      const b = part(g, G.box, toon(0x221c44), [0, h / 2 - 0.5, 0], [w, h, d], null, null);
       const tex = winTex(); tex.repeat.set(w / 3, h / 3);
-      const f = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({ map: tex, fog: true })); f.scale.set(w, h, 1); f.position.set(0, h / 2 - 30, d / 2 + 0.05); g.add(f);
+      const f = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({ map: tex, fog: true })); f.scale.set(w, h, 1); f.position.set(0, h / 2 - 0.5, d / 2 + 0.05); g.add(f);
       const f2 = f.clone(); f2.rotation.y = Math.PI; f2.position.z = -d / 2 - 0.05; g.add(f2);
     } else if (id === 3) {
       part(g, G.box, toon(0x8a3a2a), [0, h / 2, 0], [w, h, d], null, OUT_PROP);
@@ -982,6 +1003,67 @@ export function createGame(canvas, opts = {}) {
     const band = new THREE.Mesh(new THREE.CylinderGeometry(r0 - 25, r0 - 25, 90, 48, 1, true), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, side: THREE.BackSide, fog: false }));
     band.position.set(cx, 20, cz); band.renderOrder = -1; levelGroup.add(band);
   }
+  // ---------- solid ground to the horizon ----------
+  // Terrain hugs every platform (sits just under its top, so plazas read as paved terraces on the ground) and rolls into hills away from the route.
+  const TERRAIN = {
+    0: { cols: [0x4a3a6e, 0x5a4680, 0x3a2c58], rock: 0x6a5a8a, amp: 7, slope: 0.035 },
+    1: { cols: [0x7cc45e, 0x68b050, 0x8ad06a], rock: 0x9a9a8a, amp: 9, slope: 0.04 },
+    2: { cols: [0x2a2842, 0x24223a, 0x30304a], rock: 0x3a3858, amp: 0, slope: 0 },
+    3: { cols: [0x5f8a3a, 0x4f7a32, 0x7a7a3a], rock: 0x7a6a5a, amp: 13, slope: 0.05 },
+    4: { cols: [0x6a6e98, 0x5a5e88, 0x7a7eaa], rock: 0x8a8cb8, amp: 16, slope: 0.07 },
+  };
+  function terrainNoise(x, z) { return Math.sin(x * 0.021 + 1.3) * Math.cos(z * 0.017 + 0.4) * 0.55 + Math.sin(x * 0.047 + z * 0.031 + 2.1) * 0.3 + Math.sin(z * 0.063 - x * 0.012) * 0.15; }
+  function terrainH(L, x, z) {
+    const T = TERRAIN[L.id] || TERRAIN[1]; let wsum = 0, ysum = 0, dmin = 1e9;
+    for (const p of L.plats.concat(L.pads || [])) {
+      const d = p.type === 'circle' ? Math.max(0, Math.hypot(x - p.cx, z - p.cz) - p.r) : Math.hypot(Math.max(p.x0 - x, 0, x - p.x1), Math.max(p.z0 - z, 0, z - p.z1));
+      const w = 1 / (d + 0.5) ** 3; wsum += w; ysum += w * p.y; if (d < dmin) dmin = d;
+    }
+    const yb = wsum ? ysum / wsum : 0, k = sm((dmin - 2.5) / 45);
+    return yb - 0.22 + k * (T.amp * (0.6 + 0.5 * terrainNoise(x, z)) + Math.min(dmin, 260) * T.slope);
+  }
+  function addTerrain(L) {
+    const T = TERRAIN[L.id] || TERRAIN[1], N = 150, R = 520, cz = 80, pos = [], col = [], idx = [], c = new THREE.Color(), cols = T.cols.map((h) => new THREE.Color(h)), rock = new THREE.Color(T.rock);
+    const warp = (u) => Math.sign(u) * Math.abs(u) ** 1.7 * R;
+    for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
+      const x = warp(i / N * 2 - 1), z = cz + warp(j / N * 2 - 1), y = terrainH(L, x, z), n = terrainNoise(x * 3.1 + 7, z * 2.7 - 3);
+      pos.push(x, y, z);
+      c.copy(cols[0]).lerp(n > 0 ? cols[1] : cols[2], Math.abs(n) * 0.9);
+      if (T.amp) c.lerp(rock, clamp((y - 9) / 14, 0, 0.8));
+      col.push(c.r, c.g, c.b);
+    }
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const a = j * (N + 1) + i, b = a + 1, d = a + N + 1, e = d + 1; idx.push(a, d, b, b, d, e); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: GRAD })); m.userData.terrain = true; levelGroup.add(m);
+    return m;
+  }
+  // boulders and rock clusters sitting on (and sunk into) the terrain, away from the route
+  function terrainRocks(L, n, col, minD = 22) {
+    const B = lvBatch(), mat = toon(col), rk = cachedGeo('rock', () => new THREE.DodecahedronGeometry(1, 0));
+    for (let i = 0; i < n; i++) {
+      const sd = i % 2 ? 1 : -1, x = sd * rand(minD, 120), z = rand(-60, 240), y = terrainH(L, x, z), sc = rand(1.2, 4.5);
+      B.add(mat, rk, xf([x, y + sc * 0.25, z], [rand(0, 3), rand(0, 3), rand(0, 3)], [sc, sc * rand(0.6, 1), sc * rand(0.8, 1.2)]));
+      if (i % 3 === 0) B.add(mat, rk, xf([x + sc, y + sc * 0.1, z + rand(-1, 1) * sc], [rand(0, 3), rand(0, 3), 0], sc * 0.5));
+    }
+    B.flush();
+  }
+  // a low stone balustrade around the arena (round posts keep people on the ring) with an opening towards the route
+  function arenaRim(L, cx, cz, r, y, col) {
+    const B = lvBatch(), stone = toon(col), N = 56;
+    for (let i = 0; i < N; i++) {
+      const a = i / N * TAU, x = cx + Math.sin(a) * (r + 0.6), z = cz + Math.cos(a) * (r + 0.6);
+      if (Math.abs(x) < 14.6 && z < cz) continue;
+      B.add(stone, CYL12, xf([x, y + 0.45, z], null, [0.32, 0.9, 0.32]));
+      const a2 = (i + 0.5) / N * TAU, x2 = cx + Math.sin(a2) * (r + 0.6), z2 = cz + Math.cos(a2) * (r + 0.6);
+      if (!(Math.abs(x2) < 14.6 && z2 < cz)) B.add(stone, G.box, xf([x2, y + 0.82, z2], [0, a2, 0], [2.4, 0.16, 0.4]));
+      addSolid(L, x, z, 1.25, y - 0.5, 4);
+    }
+    B.flush();
+  }
+  // a crystal cluster growing out of the ground (no hovering)
+  function crystalCluster(B, x, y, z, s, mat) {
+    for (let k = 0; k < 5; k++) { const a = k / 5 * TAU + s, l = k ? rand(0.8, 1.6) : 2.4; B.add(mat, G.oct, xf([x + (k ? Math.sin(a) * 0.5 : 0) * s, y + l * 0.45 * s, z + (k ? Math.cos(a) * 0.5 : 0) * s], [k ? Math.cos(a) * 0.4 : 0, a, k ? -Math.sin(a) * 0.4 : 0], [0.32 * s, l * s, 0.32 * s])); }
+  }
   // round obstacles you slide around instead of getting stuck on
   function addSolid(L, x, z, r, y = 0, h = 3) { (L.solids = L.solids || []).push({ x, z, r, y, h }); }
   function courtyardProps(L, B, y, z0, z1, xw) {
@@ -1049,10 +1131,12 @@ export function createGame(canvas, opts = {}) {
     L.checkpoints = [new THREE.Vector3(0, 0, 2), new THREE.Vector3(0, 1, 80), new THREE.Vector3(0, 1, 128)];
     // checkpoint marker
     const cpm = part(levelGroup, G.oct, toon(th.accent, { em: th.accent, ei: 1 }), [2.2, 2.2, 127], [0.3, 0.6, 0.3], null, OUT_PROP); L.spin.push(cpm);
-    // water / void below
-    if (id === 1 || id === 3) { const w = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({ color: id === 1 ? 0x5ac8ff : 0xff9a6a, transparent: true, opacity: 0.85 })); w.rotation.x = -Math.PI / 2; w.scale.set(400, 400, 1); w.position.y = -1.5; levelGroup.add(w); }
-    if (id === 4) { for (let i = 0; i < 40; i++) part(levelGroup, G.sphere, toon(0xb8b8e0), [rand(-150, 150), rand(-40, -20), rand(-50, 300)], [rand(8, 20), rand(3, 6), rand(8, 20)], null, null); }
-    if (id === 2) { const st = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({ color: 0x120a28 })); st.rotation.x = -Math.PI / 2; st.scale.set(600, 600, 1); st.position.y = -32; levelGroup.add(st); }
+    // solid ground all the way to the horizon (no water, void or sky islands under the route)
+    L.pads = id === 1 ? [{ x0: -31, x1: 31, z0: 189, z1: 214, y: 0 }, { x0: -45, x1: -29, z0: 38, z1: 82, y: 0 }, { x0: 29, x1: 45, z0: 38, z1: 82, y: 0 }, { x0: -19, x1: 19, z0: -32, z1: -16, y: 0 }]
+      : id === 3 ? [{ x0: -10, x1: 10, z0: 172, z1: 186, y: 0 }] : id === 2 ? [] : [];
+    addTerrain(L);
+    arenaRim(L, 0, 152, 20, 1, id === 2 ? 0x4a4870 : id === 4 ? 0x8a8cb8 : id === 3 ? 0x9a8a72 : 0xe6dccb);
+    if (id === 1) terrainRocks(L, 14, 0xb8b0a0, 26); else if (id === 3) terrainRocks(L, 22, 0x8a7a6a, 24); else if (id === 4) terrainRocks(L, 34, 0x6a6c94, 22);
     // props by theme
     if (id === 1) {
       for (const z of [4, 18, 32, 86, 100, 114]) { propTree(-17, z, z > 70 ? 1 : 0, 1); propTree(17, z + 6, z > 70 ? 1 : 0, 1); }
@@ -1076,7 +1160,7 @@ export function createGame(canvas, opts = {}) {
       neonSign(-11.8, 3, 20, Math.PI / 2, 'AURA', '#ff3fb4'); neonSign(11.8, 3.5, 30, -Math.PI / 2, 'NIGHT', '#2ef2ff'); neonSign(-13.8, 4, 96, Math.PI / 2, 'RAMEN', '#ffd23f'); neonSign(13.8, 4, 108, -Math.PI / 2, 'NEON', '#ff3fb4'); neonSign(0, 7, 175, Math.PI, 'SKYLINE', '#2ef2ff');
       for (const [x, z, y] of [[-8, 8, 0], [8, 34, 0], [-10, 100, 1], [9, 90, 1]]) { const g = new THREE.Group(); g.position.set(x, y, z); levelGroup.add(g); part(g, G.cyl, toon(0x6a6a8a), [0, 2.2, 0], [1, 1.6, 1], null, OUT_PROP); for (const a of [0.6, -0.6]) part(g, G.cyl, toon(0x3a3a50), [a, 0.7, a], [0.06, 1.4, 0.06], null, null); }
     } else if (id === 3) {
-      for (let i = 0; i < 30; i++) { const side = i % 2 ? 1 : -1; propTree(side * rand(17, 30), rand(-10, 190), 0, 3); }
+      for (let i = 0; i < 46; i++) { const side = i % 2 ? 1 : -1, x = side * rand(17, i < 30 ? 30 : 70), z = rand(-10, 200); propTree(x, z, terrainH(L, x, z), 3); }
       for (const z of [12, 30, 82, 100, 116]) { propLantern(-10.5, z, z > 70 ? 1 : 0, 0xffa040); propLantern(10.5, z, z > 70 ? 1 : 0, 0xffa040); }
       for (const z of [20, 60, 95, 126]) propGateArch(0, z, z > 64 ? 1 : 0, 0xe8333f);
       propBuilding(0, 178, 16, 6, 8, 3);
@@ -1085,9 +1169,12 @@ export function createGame(canvas, opts = {}) {
       for (const [z0, z1, y] of [[-3.8, 39.6, 0], [74, 119.6, 1]]) floorStrip(B, pm, -2.6, 2.6, z0, z1, y);
       B.flush(); mountainRing(0, 90, 340, 420, 30, 0x8a5a7a, null, 0xf0a070);
     } else if (id === 4) {
-      const gate = new THREE.Mesh(new THREE.TorusGeometry(22, 1.6, 12, 64), toon(0x8a80c8, { em: 0x7cf8ff, ei: 0.35 })); gate.position.set(0, 12, 182); levelGroup.add(gate); addOutline(gate, OUT_PROP); L.spin.push(gate); gate.userData.slow = true;
+      // the Sky Gate: a colossal ring standing on the summit (its base is sunk into the rock), with stone buttresses
+      const gy = terrainH(L, 0, 186) + 15;
+      const gate = new THREE.Mesh(new THREE.TorusGeometry(22, 1.6, 12, 64), toon(0x8a80c8, { em: 0x7cf8ff, ei: 0.35 })); gate.position.set(0, gy, 186); levelGroup.add(gate); addOutline(gate, OUT_PROP);
       const portal = new THREE.Mesh(new THREE.CircleGeometry(20.5, 48), new THREE.MeshBasicMaterial({ color: 0x2a1060, transparent: true, opacity: 0.7, side: THREE.DoubleSide })); portal.position.copy(gate.position); levelGroup.add(portal);
-      for (let i = 0; i < 24; i++) { const t = propTree(rand(-40, 40) + (i % 2 ? 22 : -22), rand(-10, 200), rand(1, 10), 4); }
+      for (const sx of [-1, 1]) part(levelGroup, G.box, toon(0x5a5a80), [sx * 15, gy - 15, 186], [7, 9, 6], [0, 0, sx * 0.2], OUT_PROP);
+      for (let i = 0; i < 30; i++) { const x = rand(-60, 60) + (i % 2 ? 26 : -26), z = rand(-10, 200); propTree(x, z, terrainH(L, x, z), 4); }
     }
     // petals / ambient
     ambientP = id === 2 ? 0.5 : 1;
@@ -1879,9 +1966,13 @@ export function createGame(canvas, opts = {}) {
   function showTitleScene() {
     endUlt(); clearLevel(); scene_ = null; state.rush = false;
     const th = THEMES[0]; level = { id: 0, theme: th, plats: [], blockers: [], gates: [], tex: groundTex(th.ground, 0), spin: [], arena: { x: 0, z: 0, r: 30, y: 0 } };
-    applyTheme(th); addCircle(level, 0, 0, 6, 0);
-    for (let i = 0; i < 14; i++) { const a = i / 14 * TAU; const r = rand(10, 22); const m = part(levelGroup, G.oct, toon(0x6a4a9a), [Math.cos(a) * r, rand(-2, 6), Math.sin(a) * r], [rand(0.6, 1.8), rand(1, 2.5), rand(0.6, 1.8)], null, OUT_PROP); level.spin.push(m); }
-    for (let i = 0; i < 6; i++) propTree(Math.cos(i) * 30, Math.sin(i) * 30 - 10, -3, 1);
+    applyTheme(th); addCircle(level, 0, 0, 6, 0); addTerrain(level);
+    { // crystal clusters and blossom trees standing on the ground around the stage
+      const B = lvBatch(), cm = toon(0x7a5ab0, { em: 0x3a1a6a, ei: 0.6 });
+      for (let i = 0; i < 12; i++) { const a = i / 12 * TAU + rand(-0.15, 0.15), r = rand(11, 24), x = Math.cos(a) * r, z = Math.sin(a) * r; crystalCluster(B, x, terrainH(level, x, z), z, rand(0.9, 1.8), cm); }
+      B.flush();
+      for (let i = 0; i < 6; i++) { const x = Math.cos(i) * 30, z = Math.sin(i) * 30 - 10; propTree(x, z, terrainH(level, x, z), 1); }
+    }
     if (player) { removeFighter(player); scene.remove(player.book); }
     player = makePlayer(); player.pos.set(0, 0, 0); player.yaw = 0.3; syncFighter(player, 0); play(player.rig, 'power', 99); player.rig.aura.visible = true; player.rig.fight = false; setEmotion(player.rig, 'determined');
     setScreen('title'); emit('music', { track: 'title' });

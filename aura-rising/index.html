@@ -244,7 +244,7 @@ input[type=range]::-moz-range-thumb{width:24px;height:24px;border:0;border-radiu
 .combo.bump b{animation:bump .18s ease-out}
 @keyframes bump{0%{transform:skewX(-10deg) scale(1.35)}100%{transform:skewX(-10deg) scale(1)}}
 
-.toast{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-family:Bangers,sans-serif;font-size:44px;letter-spacing:4px;text-shadow:3px 3px 0 #000,0 0 16px var(--violet);opacity:0;white-space:nowrap}
+.toast{position:absolute;left:50%;top:29%;transform:translate(-50%,-50%);font-family:Bangers,sans-serif;font-size:34px;letter-spacing:4px;text-shadow:3px 3px 0 #000,0 0 16px var(--violet);opacity:0;white-space:nowrap}
 .toast.go{animation:toast 1.6s ease-out}
 @keyframes toast{0%{opacity:0;transform:translate(-50%,-50%) scale(1.6)}15%{opacity:1;transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-70%)}}
 
@@ -285,6 +285,13 @@ body.kbd .abtn .kb{display:block}
 .abtn[data-k=ult]{--s:80px;--x:206px;--y:272px;--glow:#ffcc33}
 .abtn[data-k=lock]{--s:64px;--x:52px;--y:304px}
 .abtn[data-k=power].none{opacity:.35}
+.abtn[data-k=power].grim{box-shadow:inset 0 0 0 3px var(--glow),0 0 14px var(--glow)}
+.abtn[data-k=swap]{--s:50px;--x:30px;--y:180px;--glow:var(--gc,#7b5cff);background:radial-gradient(circle at 40% 30%,#fff8,var(--gc,#7b5cff) 55%,#1a0f3a);box-shadow:inset 0 0 0 3px #fff,0 0 12px var(--gc,#7b5cff)}
+.abtn[data-k=swap] .gly{font-family:Bangers,sans-serif;font-size:22px;line-height:1;color:#fff;text-shadow:1px 1px 0 #000}
+.abtn[data-k=swap] .gk{position:absolute;right:-4px;bottom:-4px;font:11px/1 "Russo One",sans-serif;background:#0b0820;color:#ffe08a;border-radius:4px;padding:2px 4px}
+body.touchy .abtn[data-k=swap] .gk{display:none}
+.abtn[data-k=swap].pop{animation:swappop .35s ease-out}
+@keyframes swappop{0%{transform:scale(1.35)}100%{transform:scale(1)}}
 .abtn[data-k=ult]{opacity:.5}
 .abtn[data-k=ult].ready{opacity:1;background:radial-gradient(circle at 40% 30%,#fff3b0,#ffcc33 45%,#ff7a00);animation:ultpulse 1s ease-in-out infinite}
 @keyframes ultpulse{0%,100%{box-shadow:inset 0 0 0 3px #fff,0 0 10px #ffcc33}50%{box-shadow:inset 0 0 0 3px #fff,0 0 34px 8px #ffcc33}}
@@ -328,38 +335,54 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
 #dlgLayer.scene .cine{height:7vh}
 @media (max-height:500px){ .dlg{bottom:calc(var(--sab) + 10px)} .dlg .box{min-height:96px;padding:24px 28px 16px 30px} .dlg .txt{font-size:17px} .dlg .name span{font-size:24px} #dlgLayer.scene .cine{height:4vh} .skip{top:calc(var(--sat) + 70px)} }
 
-/* ---------- name cards ---------- */
+/* ---------- grimoire inventory ---------- */
+.grims{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:6px 0 16px}
+.grim{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px 12px 12px 12px;border:0;text-align:left;pointer-events:auto;color:#fff;
+  background:#1a1238;background:linear-gradient(160deg,color-mix(in srgb,var(--gc,#7b5cff) 55%,#0b0820),#0b0820 80%);box-shadow:inset 0 0 0 2px rgba(255,255,255,.18);border-radius:10px;min-height:118px;cursor:pointer}
+.grim .gi{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 40% 30%,#fff9,var(--gc,#7b5cff) 60%,#000a);box-shadow:0 0 14px var(--gc,#7b5cff)}
+.grim .gi svg{width:26px;height:26px}
+.grim .gn{font-family:Bangers,sans-serif;font-size:21px;letter-spacing:1px;line-height:1}
+.grim .gd{font-size:12px;line-height:1.3;opacity:.85}
+.grim .ge{position:absolute;top:10px;right:10px;font:11px/1 "Russo One",sans-serif;letter-spacing:1px;padding:4px 6px;border-radius:4px;background:#ffe08a;color:#1a1030;display:none}
+.grim.on{box-shadow:inset 0 0 0 3px #ffe08a,0 0 18px var(--gc,#7b5cff)}
+.grim.on .ge{display:block}
+.grim:focus-visible{outline:3px solid #fff}
+.inv-empty{opacity:.8;font-size:15px;margin:10px 0 18px}
+/* ---------- name cards: compact banners in the top third (never over the centre of the action) ---------- */
 #cardLayer{overflow:hidden}
-.card{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0}
+.card{position:absolute;left:0;right:0;top:calc(var(--sat) + 122px);display:flex;justify-content:center;opacity:0;pointer-events:none}
 .card.on{opacity:1}
-.card .lines{position:absolute;inset:-20%;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.14) 0deg 1.2deg,transparent 1.2deg 7deg);
-  -webkit-mask:radial-gradient(circle,transparent 18%,#000 55%);mask:radial-gradient(circle,transparent 18%,#000 55%);opacity:0}
-.card.on .lines{animation:linesin 2.8s ease-out forwards}
-@keyframes linesin{0%{opacity:0;transform:scale(1.4) rotate(0)}10%{opacity:1}80%{opacity:1}100%{opacity:0;transform:scale(1) rotate(8deg)}}
-.card .band{position:relative;width:120%;padding:22px 0 24px;transform:rotate(-6deg) translateX(-120%);text-align:center;
-  background:linear-gradient(90deg,var(--b1),var(--b2) 50%,var(--b1));box-shadow:0 -6px 0 var(--edge),0 6px 0 var(--edge),0 0 60px var(--b2)}
-.card.on .band{animation:bandin var(--dur,2.8s) cubic-bezier(.2,.9,.25,1) forwards}
-@keyframes bandin{0%{transform:rotate(-6deg) translateX(-120%)}12%{transform:rotate(-6deg) translateX(0)}86%{transform:rotate(-6deg) translateX(2%)}100%{transform:rotate(-6deg) translateX(130%)}}
-.card .lab{font-family:"Russo One",sans-serif;font-size:clamp(14px,2vw,22px);letter-spacing:.5em;color:var(--lab);margin-bottom:4px}
-.card .ttl{font-family:Bangers,Impact,sans-serif;font-size:clamp(54px,9vw,128px);line-height:.95;letter-spacing:4px;color:#fff;
-  text-shadow:5px 5px 0 #000,-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,0 0 30px var(--b2)}
-.card.on .ttl{animation:ttlpunch .45s cubic-bezier(.2,1.6,.4,1) .15s both}
-@keyframes ttlpunch{0%{transform:scale(2.4) skewX(-10deg);opacity:0;letter-spacing:40px}100%{transform:scale(1) skewX(-10deg);opacity:1}}
-.card .sub{font-family:"M PLUS Rounded 1c",sans-serif;font-weight:800;font-size:clamp(14px,1.9vw,21px);margin-top:8px;color:var(--subc,#fff);text-shadow:2px 2px 0 rgba(0,0,0,.6);padding:0 12%}
+.card .lines,.card .imp{display:none}
+.card .band{position:relative;max-width:min(720px,84vw);padding:7px 34px 8px;text-align:center;transform:skewX(-12deg) translateX(-140vw);
+  background:linear-gradient(90deg,var(--b1),var(--b2) 50%,var(--b1));box-shadow:0 -3px 0 var(--edge),0 3px 0 var(--edge),0 0 24px var(--b2)}
+.card .band>*{transform:skewX(12deg)}
+.card.on .band{animation:bandin var(--dur,1.6s) cubic-bezier(.2,.9,.25,1) forwards}
+@keyframes bandin{0%{transform:skewX(-12deg) translateX(-140vw)}14%{transform:skewX(-12deg) translateX(0)}84%{transform:skewX(-12deg) translateX(1.5%);opacity:1}100%{transform:skewX(-12deg) translateX(140vw);opacity:0}}
+.card .lab{font-family:"Russo One",sans-serif;font-size:clamp(10px,1.3vw,14px);letter-spacing:.4em;color:var(--lab);margin-bottom:1px}
+.card .ttl{font-family:Bangers,Impact,sans-serif;font-size:clamp(26px,4.2vw,48px);line-height:1;letter-spacing:2px;color:#fff;
+  text-shadow:3px 3px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,0 0 16px var(--b2)}
+.card.on .ttl{animation:ttlpunch .35s cubic-bezier(.2,1.6,.4,1) .1s both}
+@keyframes ttlpunch{0%{transform:skewX(12deg) scale(1.5);opacity:0}100%{transform:skewX(12deg) scale(1);opacity:1}}
+.card .sub{font-family:"M PLUS Rounded 1c",sans-serif;font-weight:800;font-size:clamp(11px,1.4vw,15px);margin-top:2px;color:var(--subc,#fff);text-shadow:1px 1px 0 rgba(0,0,0,.6);max-width:62ch;margin-left:auto;margin-right:auto}
 .card.k-power{--b1:#1d0f6b;--b2:#5a3cff;--edge:#2fd0ff;--lab:#9fe9ff}
 .card.k-boss{--b1:#2a0010;--b2:#c3002f;--edge:#000;--lab:#ffb3c0}
-.card.k-ult{--b1:#000;--b2:#2b2b2b;--edge:#ffcc33;--lab:#ffcc33}
-.card.k-ult .ttl{color:#ffe68a}
 .card.k-chapter{--b1:#f4f0ff;--b2:#ffffff;--edge:#ff3355;--lab:#ff3355;--subc:#2a1d66}
-.card.k-chapter .ttl{color:#0b0820;text-shadow:4px 4px 0 #ff3355,0 0 0 transparent}
+.card.k-chapter .ttl{color:#0b0820;text-shadow:3px 3px 0 #ff3355,0 0 0 transparent}
 .card.k-chapter .sub{text-shadow:none}
 .card.k-phase{--b1:#2a0010;--b2:#ff5500;--edge:#ffcc33;--lab:#fff}
 .card.k-clear{--b1:#4a2a00;--b2:#ffb300;--edge:#fff;--lab:#fff}
-.card .imp{position:absolute;inset:0;background:#fff;mix-blend-mode:difference;opacity:0}
-.card.k-ult.on .imp{animation:impact .32s steps(2,end)}
-@keyframes impact{0%{opacity:1}100%{opacity:0}}
-.card.k-ult.on{background:radial-gradient(circle,rgba(255,204,51,.0),rgba(0,0,0,.55));animation:ultbg 2.4s ease-out forwards}
-@keyframes ultbg{0%{backdrop-filter:invert(1) hue-rotate(180deg)}10%{backdrop-filter:none}}
+.card.k-grim{--b1:#140a2a;--b2:var(--gc,#7b5cff);--edge:#ffe08a;--lab:#ffe08a}
+.card.k-grim .ttl{display:flex;align-items:center;justify-content:center;gap:12px}
+.card.k-grim .gbook{width:1.1em;height:1.1em;flex:none;filter:drop-shadow(2px 2px 0 #000)}
+/* during the ultimate / domain: a thin band hugging the very top edge only */
+.card.k-ult{top:0}
+.card.k-ult .band{max-width:none;width:100%;padding:calc(var(--sat) + 3px) 0 4px;transform:translateY(-110%);display:flex;align-items:baseline;justify-content:center;gap:14px;
+  --b1:rgba(0,0,0,.82);--b2:rgba(40,30,0,.86);--edge:#ffcc33;--lab:#ffcc33;box-shadow:0 2px 0 var(--edge)}
+.card.k-ult .band>*{transform:none}
+.card.k-ult.on .band{animation:ultband var(--dur,1.6s) ease-out forwards}
+@keyframes ultband{0%{transform:translateY(-110%)}12%{transform:none}86%{transform:none;opacity:1}100%{transform:translateY(-110%);opacity:0}}
+.card.k-ult .ttl{font-size:clamp(18px,2.4vw,26px);color:#ffe68a;text-shadow:2px 2px 0 #000;animation:none!important}
+.card.k-ult .lab{margin:0;font-size:clamp(9px,1.1vw,12px)}
 
 /* ---------- clear / dead / credits ---------- */
 .clear-panel{width:min(640px,100%);text-align:left}
@@ -405,7 +428,7 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
 @keyframes rot{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
 #rotate p{font-family:"M PLUS Rounded 1c";font-weight:800;font-size:20px;margin:0}
 
-@media (max-height:500px){ .card .ttl{font-size:52px} .card .band{padding:10px 0 12px} .card .lab{font-size:13px} .card .sub{font-size:13px;margin-top:4px} }
+@media (max-height:500px){ .card{top:calc(var(--sat) + 92px)} .card .ttl{font-size:26px} .card .band{padding:4px 22px 5px} .card .lab{font-size:10px} .card .sub{font-size:11px;margin-top:1px} .card.k-ult .ttl{font-size:18px} }
 @media (prefers-reduced-motion: reduce){ .logo .glint{animation:none} }
 </style>
 </head>
@@ -446,6 +469,7 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
     <button class="abtn" data-k="jump" data-testid="btn-jump" aria-label="Jump"><svg class="i" viewBox="0 0 24 24" fill="#fff"><path d="M12 3l8 9h-5v4H9v-4H4zM8 18h8v3H8z"/></svg><span class="lbl">JUMP</span><span class="kb">SPC</span><svg class="ring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="25"/></svg></button>
     <button class="abtn" data-k="dodge" data-testid="btn-dodge" aria-label="Dodge"><svg class="i" viewBox="0 0 24 24" fill="#fff"><path d="M14 4l7 8-7 8v-5H9V9h5zM3 9h3v6H3zM7 9h1v6H7z"/></svg><span class="lbl">DODGE</span><span class="kb">SHF</span><svg class="ring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="25"/></svg></button>
     <button class="abtn none" data-k="power" data-testid="btn-power" aria-label="Power"><svg class="i" id="powerIco" viewBox="0 0 24 24" fill="#fff"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg><span class="lbl" id="powerLbl">POWER</span><span class="kb">K</span><svg class="ring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="25"/></svg></button>
+    <button class="abtn" data-k="swap" data-testid="btn-swap" aria-label="Swap grimoire" hidden><span class="gly" id="swapGly">C</span><span class="gk">G</span></button>
     <button class="abtn" data-k="ult" data-testid="btn-ult" aria-label="Ultimate"><svg class="i" viewBox="0 0 24 24" fill="#fff"><path d="M12 1l2.6 7.4H22l-6 4.6 2.3 7.5L12 16l-6.3 4.5L8 13 2 8.4h7.4z"/></svg><span class="lbl">ULT</span><span class="kb">E</span><svg class="ring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="25"/></svg></button>
     <button class="abtn" data-k="lock" data-testid="btn-lock" aria-label="Lock on"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" fill="#fff"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg><span class="lbl">LOCK</span><span class="kb">TAB</span></button>
   </div>
@@ -499,6 +523,7 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
     <div class="set-row"><label for="sSfx">SOUND FX</label><input id="sSfx" type="range" min="0" max="100" step="1" data-testid="sfx-volume"><output id="oSfx"></output></div>
     <div class="set-row"><label for="sSens">CAMERA</label><input id="sSens" type="range" min="20" max="250" step="5" data-testid="camera-sensitivity"><output id="oSens"></output></div>
     <div class="set-row"><label>GRAPHICS</label><div class="seg" id="sQuality" data-testid="quality"><button data-q="auto"><span>AUTO</span></button><button data-q="high"><span>HIGH</span></button><button data-q="low"><span>LOW</span></button></div><span></span></div>
+    <div class="set-row"><label>DIFFICULTY</label><div class="seg" id="sDiff" data-testid="difficulty"><button data-d="normal" data-testid="difficulty-normal"><span>NORMAL</span></button><button data-d="hard" data-testid="difficulty-hard"><span>HARD</span></button></div><span></span></div>
     <div class="set-row"><label>INVERT Y</label><div class="seg" id="sInvert"><button data-v="0"><span>OFF</span></button><button data-v="1"><span>ON</span></button></div><span></span></div>
     <div class="set-foot"><span id="fpsInfo"></span><button class="linkbtn" id="resetProg" data-testid="reset-progress">Reset progress</button></div>
     <div style="margin-top:12px"><button class="mbtn small" data-back><span>Done</span></button></div>
@@ -513,7 +538,7 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
     <div class="ctl-grid">
       <kbd>Left thumb</kbd><span>Drag anywhere on the left to move</span>
       <kbd>Right drag</kbd><span>Swipe the right side to turn the camera</span>
-      <kbd>Buttons</kbd><span>Attack, Jump, Dodge, Power, Ultimate, Lock-on</span>
+      <kbd>Buttons</kbd><span>Attack, Jump, Dodge, Power, Ultimate, Lock-on, and the small book button to swap grimoires</span>
       <kbd>Tap</kbd><span>Next line in a story scene</span>
     </div>
     <div class="ctl-h">KEYBOARD &amp; MOUSE</div>
@@ -526,11 +551,12 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
       <kbd>Shift</kbd><span>Dodge</span>
       <kbd>E</kbd><span>Ultimate (when aura is full)</span>
       <kbd>Tab</kbd><span>Lock on</span>
+      <kbd>G</kbd><span>Swap grimoire</span>
       <kbd>Enter</kbd><span>Next line</span>
       <kbd>Esc</kbd><span>Pause</span>
     </div>
     <div class="ctl-h">GAMEPAD</div>
-    <div class="ctl-grid"><kbd>Sticks</kbd><span>Move / look &middot; A jump &middot; X attack &middot; B dodge &middot; Y power &middot; RB ultimate &middot; LB lock &middot; Start pause</span></div>
+    <div class="ctl-grid"><kbd>Sticks</kbd><span>Move / look &middot; A jump &middot; X attack &middot; B dodge &middot; Y power &middot; RB ultimate &middot; LB lock &middot; D-pad right swap grimoire &middot; Start pause</span></div>
     <button class="mbtn small" data-back><span>Back</span></button>
   </div>
 </div>
@@ -542,10 +568,21 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
     <div class="stack">
       <button class="mbtn primary" data-testid="resume" id="btnResume"><span>Resume</span></button>
       <button class="mbtn" data-testid="restart" id="btnRestart"><span>Restart checkpoint</span></button>
+      <button class="mbtn" data-testid="inventory" id="btnInventory"><span>Grimoires</span></button>
       <button class="mbtn" data-testid="controls" id="btnControls"><span>Controls</span></button>
       <button class="mbtn" id="btnPauseSettings"><span>Settings</span></button>
       <button class="mbtn" data-testid="quit" id="btnQuit"><span>Quit to title</span></button>
     </div>
+  </div>
+</div>
+
+<!-- grimoire inventory -->
+<div id="invPanel" class="layer panel-layer" hidden>
+  <div class="panel" style="width:min(640px,100%)">
+    <h2><small>INVENTORY</small>GRIMOIRES</h2>
+    <p class="hint" id="invHint">Tap a grimoire to equip it. The equipped one is your POWER spell.</p>
+    <div class="grims" id="invGrid" data-testid="inventory-grid"></div>
+    <button class="mbtn small" data-back><span>Back</span></button>
   </div>
 </div>
 
@@ -649,14 +686,16 @@ const FALLBACK_CHAPTERS = [
 const CHAPTERS = (Array.isArray(GAME_CHAPTERS) && GAME_CHAPTERS.length) ? GAME_CHAPTERS : FALLBACK_CHAPTERS;
 const LAST = CHAPTERS[CHAPTERS.length - 1].id;
 const chapterById = n => CHAPTERS.find(c => c.id === n) || CHAPTERS[0];
-const CH_COLORS = { 1: ['#3fa2ff', '#1c3f9e'], 2: ['#ff3fb4', '#3a1580'], 3: ['#ff8a3d', '#7a1d3a'], 4: ['#7b5cff', '#0d2a66'] };
+const CH_COLORS = { 1: ['#3fa2ff', '#1c3f9e'], 2: ['#ff3fb4', '#3a1580'], 3: ['#ff8a3d', '#7a1d3a'], 4: ['#7b5cff', '#0d2a66'], 5: ['#ffb347', '#7a3a10'], 6: ['#7fe8ff', '#1a4a7a'], 7: ['#c77dff', '#2a0f5a'], 8: ['#ff3355', '#1a0010'] };
 
 /* ============================================================
    save + settings
    ============================================================ */
 const SAVE_KEY = 'aura-rising.save.v1', SET_KEY = 'aura-rising.settings.v1';
-const save = store.get(SAVE_KEY, { reached: 1, current: 1, cp: 0, powers: [], best: {}, cleared: [], completed: false, started: false });
-const settings = store.get(SET_KEY, { music: 70, sfx: 90, sens: 100, quality: 'auto', muted: false, invertY: false, rotateOk: false });
+const save = store.get(SAVE_KEY, { reached: 1, current: 1, cp: 0, powers: [], best: {}, cleared: [], completed: false, started: false, grimoires: [], equipped: null });
+if (!Array.isArray(save.grimoires)) save.grimoires = [];
+const settings = store.get(SET_KEY, { music: 70, sfx: 90, sens: 100, quality: 'auto', muted: false, invertY: false, rotateOk: false, difficulty: 'normal' });
+if (settings.difficulty !== 'hard') settings.difficulty = 'normal';
 const persist = () => store.set(SAVE_KEY, save);
 const persistSettings = () => store.set(SET_KEY, settings);
 
@@ -665,6 +704,25 @@ function powersFor(n, fromCheckpoint) {
   if (fromCheckpoint) { const own = chapterById(n).power; if (own && save.powers.includes(own.id)) ids.push(own.id); }
   return [...new Set(ids)];
 }
+
+/* ---------- grimoires (the game's getState().grimoires is the source of truth; this table is only a fallback) ---------- */
+const GRIM_INFO = {
+  crimson: { name: 'Crimson Pages', color: '#ff4a3d', desc: 'Ren\'s own fire grimoire: homing blades of flame.', icon: 'C' },
+  gale: { name: 'Gale Grimoire', color: '#3fe0c0', desc: 'Wind slashes that pierce through every enemy in a line.', icon: 'G' },
+  shadow: { name: 'Shadow Grimoire', color: '#c2183a', desc: 'Shadow clones fight beside you for a few seconds.', icon: 'S' },
+  thorn: { name: 'Thorn Grimoire', color: '#5fa040', desc: 'Thorn roots burst up and trap enemies in place.', icon: 'T' },
+  void: { name: 'Void Grimoire', color: '#f5c542', desc: 'Void orbs that pull enemies in, then implode.', icon: 'V' }
+};
+const cssColor = (c, d = '#7b5cff') => typeof c === 'number' && isFinite(c) ? '#' + (c >>> 0).toString(16).padStart(6, '0').slice(-6) : (typeof c === 'string' && c ? c : d);
+function grimInfo(g) {
+  if (!g) return null; if (typeof g === 'string') g = { id: g };
+  const f = GRIM_INFO[g.id] || {}, name = g.name || f.name || (String(g.id || 'Mystery').replace(/^./, m => m.toUpperCase()) + ' Grimoire');
+  return { id: g.id, name, color: cssColor(g.color, f.color), desc: g.desc || f.desc || '', icon: g.icon || f.icon || name.charAt(0) };
+}
+function ownedGrimoires(st) { const list = st && Array.isArray(st.grimoires) ? st.grimoires : save.grimoires; return list.map(grimInfo).filter(g => g && g.id); }
+function rememberGrimoire(id) { if (id && !save.grimoires.includes(id)) { save.grimoires.push(id); return true; } return false; }
+const BOOK_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M3 4c3-1 6-1 8 1v15c-2-2-5-2-8-1zM21 4c-3-1-6-1-8 1v15c2-2 5-2 8-1z"/></svg>';
+const glyphOf = g => { const ic = String(g.icon || ''); return ic && ic.length <= 3 ? ic : g.name.charAt(0); };
 
 /* ============================================================
    AUDIO ENGINE — everything synthesized with Web Audio
@@ -922,7 +980,7 @@ try { game = createGame(canvas, { quality: settings.quality }); }
 catch (e) { console.error(e); window.__auraFail && window.__auraFail('The 3D engine could not start on this device. (' + e.message + ')'); throw e; }
 const G = (name, ...a) => { try { const f = game && game[name]; return typeof f === 'function' ? f.apply(game, a) : undefined; } catch (e) { console.error('game.' + name, e); } };
 const getState = () => { try { return game.getState() || {}; } catch (e) { return {}; } };
-G('setSettings', { cameraSensitivity: settings.sens / 100, invertY: !!settings.invertY });
+G('setSettings', { cameraSensitivity: settings.sens / 100, invertY: !!settings.invertY, difficulty: settings.difficulty });
 
 /* ============================================================
    UI state
@@ -934,7 +992,7 @@ let curChapter = 1;
 let lastClear = null;
 const panelStack = [];
 
-function hideAllPanels() { ['#title', '#chapPanel', '#setPanel', '#ctlPanel', '#pausePanel', '#deadPanel', '#clearPanel', '#credits'].forEach(s => show(s, false)); panelStack.length = 0; }
+function hideAllPanels() { ['#title', '#chapPanel', '#setPanel', '#ctlPanel', '#invPanel', '#pausePanel', '#deadPanel', '#clearPanel', '#credits'].forEach(s => show(s, false)); panelStack.length = 0; }
 function openSub(id) { const top = panelStack[panelStack.length - 1]; if (top) show(top, false); panelStack.push(id); show(id, true); focusFirst(id); }
 function closeSub() { const id = panelStack.pop(); if (id) show(id, false); const top = panelStack[panelStack.length - 1]; if (top) { show(top, true); focusFirst(top); } Audio.sfx('back'); }
 function focusFirst(id) { if (!body.classList.contains('kbd') && !padActive) return; const el = $(id) && $(id).querySelector('button:not([disabled]):not([hidden])'); if (el) setTimeout(() => el.focus({ preventScroll: true }), 30); }
@@ -991,6 +1049,7 @@ function syncSettingsUI() {
   $('#sSens').value = settings.sens; $('#oSens').textContent = (settings.sens / 100).toFixed(1) + 'x';
   $$('#sQuality button').forEach(b => b.classList.toggle('on', b.dataset.q === settings.quality));
   $$('#sInvert button').forEach(b => b.classList.toggle('on', +b.dataset.v === (settings.invertY ? 1 : 0)));
+  $$('#sDiff button').forEach(b => b.classList.toggle('on', b.dataset.d === settings.difficulty));
   drawMute();
 }
 $('#sMusic').addEventListener('input', e => { settings.music = +e.target.value; if (settings.music > 0) settings.muted = false; syncSettingsUI(); Audio.applyVolumes(); persistSettings(); });
@@ -998,10 +1057,11 @@ $('#sSfx').addEventListener('input', e => { settings.sfx = +e.target.value; if (
 $('#sSens').addEventListener('input', e => { settings.sens = +e.target.value; syncSettingsUI(); persistSettings(); G('setSettings', { cameraSensitivity: settings.sens / 100, invertY: !!settings.invertY }); });
 $$('#sQuality button').forEach(b => b.addEventListener('click', () => { settings.quality = b.dataset.q; syncSettingsUI(); persistSettings(); G('setQuality', settings.quality); Audio.sfx('ui'); }));
 $$('#sInvert button').forEach(b => b.addEventListener('click', () => { settings.invertY = b.dataset.v === '1'; syncSettingsUI(); persistSettings(); G('setSettings', { cameraSensitivity: settings.sens / 100, invertY: settings.invertY }); Audio.sfx('ui'); }));
+$$('#sDiff button').forEach(b => b.addEventListener('click', () => { settings.difficulty = b.dataset.d === 'hard' ? 'hard' : 'normal'; syncSettingsUI(); persistSettings(); G('setSettings', { difficulty: settings.difficulty }); Audio.sfx('ui'); }));
 let resetArm = 0;
 $('#resetProg').addEventListener('click', e => {
   if (Date.now() - resetArm > 3000) { resetArm = Date.now(); e.target.textContent = 'Tap again to erase everything'; setTimeout(() => e.target.textContent = 'Reset progress', 3000); return; }
-  Object.assign(save, { reached: 1, current: 1, cp: 0, powers: [], best: {}, cleared: [], completed: false, started: false }); persist();
+  Object.assign(save, { reached: 1, current: 1, cp: 0, powers: [], best: {}, cleared: [], completed: false, started: false, grimoires: [], equipped: null }); persist();
   e.target.textContent = 'Progress erased'; resetArm = 0; refreshTitle(); Audio.sfx('back');
 });
 const MUTE_ON = '<path d="M3 9h4l5-5v16l-5-5H3z"/><path d="M15 9l6 6M21 9l-6 6" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>';
@@ -1023,12 +1083,14 @@ function startChapter(n, { fromCheckpoint = false } = {}) {
   setPlayUI(true);
   hudReset();
   Audio.sfx('start'); Audio.setDuck(1);
-  if (!fromCheckpoint) { const c = chapterById(n); showCard({ kind: 'chapter', label: 'CHAPTER ' + c.id, title: c.name, sub: c.place || '', dur: 2600 }); }
+  if (!fromCheckpoint) { const c = chapterById(n); showCard({ kind: 'chapter', label: 'CHAPTER ' + c.id, title: c.name, sub: c.place || '', dur: 1900 }); }
   else toast('CHECKPOINT');
-  G('startChapter', n, { fromCheckpoint, powers: powersFor(n, fromCheckpoint) });
+  G('setSettings', { difficulty: settings.difficulty });
+  G('startChapter', n, { fromCheckpoint, powers: powersFor(n, fromCheckpoint), grimoires: save.grimoires.slice(), equipped: save.equipped || null });
+  grimKey = '';
   G('resume'); // the game pauses itself when the page is hidden (even on the title screen); always start running
 }
-function startBossRush() { Audio.init(); hideAllPanels(); mode = 'game'; paused = false; modal = null; curChapter = LAST; setPlayUI(true); hudReset(); showCard({ kind: 'boss', label: 'UNLOCKED', title: 'BOSS RUSH', sub: 'Every boss. No breaks.' }); G('startBossRush', { powers: CHAPTERS.map(c => c.power && c.power.id).filter(Boolean) }); }
+function startBossRush() { Audio.init(); hideAllPanels(); mode = 'game'; paused = false; modal = null; curChapter = LAST; setPlayUI(true); hudReset(); showCard({ kind: 'boss', label: 'UNLOCKED', title: 'BOSS RUSH', sub: 'Every boss. No breaks.' }); G('setSettings', { difficulty: settings.difficulty }); G('startBossRush', { powers: CHAPTERS.map(c => c.power && c.power.id).filter(Boolean), grimoires: save.grimoires.slice(), equipped: save.equipped || null }); grimKey = ''; }
 function quitToTitle() { G('quit'); exitPointerLock(); showTitle(); }
 
 function pauseGame(fromHidden) {
@@ -1047,6 +1109,26 @@ $('#btnPause').addEventListener('click', () => pauseGame());
 $('#btnResume').addEventListener('click', resumeGame);
 $('#btnRestart').addEventListener('click', () => { paused = false; G('resume'); startChapter(curChapter, { fromCheckpoint: save.cp === curChapter }); });
 $('#btnControls').addEventListener('click', () => { openSub('#ctlPanel'); Audio.sfx('ui'); });
+$('#btnInventory').addEventListener('click', () => { renderInventory(); openSub('#invPanel'); Audio.sfx('ui'); });
+function equipGrimoire(id) {
+  if (!id) return;
+  G('equipGrimoire', id);
+  const st = getState(); save.equipped = st && st.equipped !== undefined && st.equipped !== null ? st.equipped : id; persist();
+  grimKey = ''; renderInventory(); syncGrimUI(getState(), true); Audio.sfx('powerUp');
+}
+function renderInventory() {
+  const st = getState(), list = ownedGrimoires(st), eq = st && st.equipped !== undefined ? st.equipped : save.equipped, grid = $('#invGrid');
+  grid.innerHTML = '';
+  if (!list.length) { const p = document.createElement('p'); p.className = 'inv-empty'; p.textContent = 'No grimoires yet. Beat a boss to take its grimoire!'; grid.appendChild(p); return; }
+  for (const g of list) {
+    const b = document.createElement('button'); b.className = 'grim' + (g.id === eq ? ' on' : ''); b.setAttribute('data-testid', 'grim-' + g.id); b.style.setProperty('--gc', g.color);
+    b.innerHTML = '<span class="gi">' + BOOK_SVG + '</span><span class="gn"></span><span class="gd"></span><span class="ge">EQUIPPED</span>';
+    b.querySelector('.gn').textContent = g.name; b.querySelector('.gd').textContent = g.desc;
+    b.setAttribute('aria-pressed', g.id === eq ? 'true' : 'false');
+    b.addEventListener('click', () => equipGrimoire(g.id));
+    grid.appendChild(b);
+  }
+}
 $('#btnPauseSettings').addEventListener('click', () => { openSub('#setPanel'); Audio.sfx('ui'); });
 $('#btnQuit').addEventListener('click', () => { paused = false; quitToTitle(); });
 $('#btnRetry').addEventListener('click', () => { modal = null; startChapter(curChapter, { fromCheckpoint: save.cp === curChapter || true }); });
@@ -1076,15 +1158,16 @@ function showCard(c) { cardQ.push(c); if (!cardBusy) nextCard(); }
 function nextCard() {
   const c = cardQ.shift(); const layer = $('#cardLayer');
   if (!c) { cardBusy = null; return; }
-  const dur = c.dur || 2800;
+  const dur = c.dur || 1600;
   const el = document.createElement('div'); el.className = 'card k-' + c.kind; el.dataset.testid = 'card'; el.setAttribute('data-testid', 'card'); el.dataset.kind = c.kind;
-  el.style.setProperty('--dur', dur + 'ms');
+  el.style.setProperty('--dur', dur + 'ms'); if (c.color) el.style.setProperty('--gc', c.color);
   el.innerHTML = '<div class="lines"></div><div class="band"><div class="lab"></div><div class="ttl"></div><div class="sub"></div></div><div class="imp"></div>';
   el.querySelector('.lab').textContent = c.label || ''; el.querySelector('.ttl').textContent = c.title || ''; el.querySelector('.sub').textContent = c.sub || '';
   if (!c.sub) el.querySelector('.sub').remove();
+  if (c.kind === 'grim') el.querySelector('.ttl').insertAdjacentHTML('afterbegin', '<span class="gbook">' + BOOK_SVG + '</span>');
   layer.appendChild(el); void el.offsetWidth; el.classList.add('on');
   cardBusy = c; Audio.sfx(c.kind === 'ult' ? 'ult' : c.kind === 'boss' ? 'bossIntro' : c.kind === 'power' ? 'powerUp' : c.kind === 'phase' ? 'phase' : 'card');
-  if (c.kind === 'ult' || c.kind === 'power') flash();
+  if (c.kind === 'power' || c.kind === 'grim') flash();
   cardTimer = setTimeout(() => { el.remove(); nextCard(); }, dur + 50);
 }
 function clearCards() { cardQ.length = 0; clearTimeout(cardTimer); $('#cardLayer').innerHTML = ''; cardBusy = null; }
@@ -1160,11 +1243,18 @@ on('sceneEnd', () => { hideDialogue(true); relockIfTalkOver(); if (mode === 'end
 on('objective', o => { const el = $('#objective'); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); if (o && o.text) { $('#objText').textContent = o.text; show(el, true); } Audio.sfx('objective'); });
 on('powerLearned', p => {
   p = p || {}; if (p.id && !save.powers.includes(p.id)) { save.powers.push(p.id); persist(); }
-  showCard({ kind: 'power', label: 'NEW POWER UNLOCKED', title: p.name || 'NEW POWER', sub: p.desc || '', dur: 3200 });
+  showCard({ kind: 'power', label: 'NEW POWER UNLOCKED', title: p.name || 'NEW POWER', sub: p.desc || '', dur: 1800 });
 });
-on('bossIntro', b => { b = b || {}; const st = getState(); const n = st.chapter || curChapter; showCard({ kind: 'boss', label: (n >= LAST ? 'FINAL BOSS' : 'CHAPTER ' + n + ' BOSS'), title: b.name || 'BOSS', sub: b.title || '', dur: 2800 }); });
-on('bossPhase', p => { const ph = p && p.phase; showCard({ kind: 'phase', label: 'WARNING', title: 'PHASE ' + (ph || 2), sub: 'It\'s getting serious!', dur: 1800 }); });
-on('ult', u => { showCard({ kind: 'ult', label: 'ULTIMATE', title: (u && u.name) || 'DOMAIN', dur: 2300 }); });
+on('bossIntro', b => { b = b || {}; const st = getState(); const n = st.chapter || curChapter; showCard({ kind: 'boss', label: (n >= LAST ? 'FINAL BOSS' : 'CHAPTER ' + n + ' BOSS'), title: b.name || 'BOSS', sub: b.title || '', dur: 1700 }); });
+on('bossPhase', p => { const ph = p && p.phase; showCard({ kind: 'phase', label: 'WARNING', title: 'PHASE ' + (ph || 2), sub: 'It\'s getting serious!', dur: 1500 }); });
+on('ult', u => { showCard({ kind: 'ult', label: 'ULTIMATE', title: (u && u.name) || 'DOMAIN', dur: 1600 }); });
+on('grimoireGet', g => {
+  const gi = grimInfo(g && g.id ? g : { id: 'mystery' }); if (rememberGrimoire(gi.id)) persist();
+  const nm = /grimoire|pages/i.test(gi.name) ? gi.name : gi.name + ' Grimoire';
+  showCard({ kind: 'grim', label: 'GRIMOIRE ACQUIRED', title: 'You took the ' + nm + '!', sub: (gi.desc ? gi.desc + ' ' : '') + 'Equip it from Pause > Grimoires.', color: gi.color, dur: 2000 });
+  grimKey = '';
+});
+on('equip', e => { if (!e || !e.id) return; save.equipped = e.id; rememberGrimoire(e.id); persist(); grimKey = ''; const gi = grimInfo(e); toast(gi.name.toUpperCase()); });
 on('hit', h => { h = h || {}; Audio.sfx(h.heavy ? 'heavy' : 'hit'); const c = h.combo | 0; if (c && c % 10 === 0) Audio.sfx('combo'); });
 on('hurt', h => { Audio.sfx('hurt'); const v = $('#fx .vig'); v.classList.add('on'); setTimeout(() => v.classList.remove('on'), 140); if (navigator.vibrate) try { navigator.vibrate(30); } catch (e) {} });
 on('enemyDown', () => Audio.sfx('enemyDown'));
@@ -1227,7 +1317,24 @@ function powerKind(id) { id = String(id || '').toLowerCase(); if (/dash/.test(id
 function setRing(btn, v) { const c = btn.querySelector('.ring circle'); if (!c) return; v = clamp(v || 0, 0, 1); const L = 157.08; c.style.strokeDasharray = `${(v * L).toFixed(1)} ${L}`; btn.classList.toggle('cd', v > 0.001); }
 const BTN = Object.fromEntries($$('.abtn').map(b => [b.dataset.k, b]));
 
+let grimKey = '';
+function syncGrimUI(st, force) {
+  st = st || {};
+  // keep the save in step with the game's collection (covers grimoires the game grants without an event, e.g. Crimson Pages)
+  if (Array.isArray(st.grimoires)) { let ch = false; for (const g of st.grimoires) if (g && g.id && rememberGrimoire(g.id)) ch = true; if (st.equipped !== undefined && st.equipped !== save.equipped && mode === 'game') { save.equipped = st.equipped; ch = true; } if (ch) persist(); }
+  const list = ownedGrimoires(st), eq = st.equipped !== undefined ? st.equipped : save.equipped;
+  const key = list.map(g => g.id).join(',') + '|' + eq + '|' + (mode === 'game');
+  if (key === grimKey && !force) return; grimKey = key;
+  const btn = BTN.swap; if (!btn) return;
+  const g = list.find(x => x.id === eq) || null;
+  show(btn, mode === 'game' && list.length > 0);
+  btn.style.setProperty('--gc', g ? g.color : '#6a6a8a');
+  $('#swapGly').textContent = g ? glyphOf(g) : '-';
+  btn.setAttribute('aria-label', g ? 'Swap grimoire (equipped: ' + g.name + ')' : 'Swap grimoire');
+  btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop');
+}
 function updateHUD(st, dt) {
+  syncGrimUI(st);
   const inPlay = mode === 'game' && !modal && (st.screen === 'play' || st.screen === 'bossIntro');
   $('#hud').hidden = !(mode === 'game' && !modal);
   $('#hud').classList.toggle('off', !inPlay);
@@ -1277,11 +1384,14 @@ function updateHUD(st, dt) {
   // powers + cooldowns
   const powers = st.powers || [];
   const nonUlt = powers.filter(p => powerKind(p) !== 'domain' && powerKind(p) !== 'punch');
-  const curPower = nonUlt[nonUlt.length - 1] || '';
+  // an equipped grimoire decides the Power spell (contract: getState().equipped); otherwise the latest learned power
+  const eqG = st.equipped ? grimInfo((Array.isArray(st.grimoires) ? st.grimoires : []).find(g => g && g.id === st.equipped) || { id: st.equipped }) : null;
+  const curPower = eqG ? 'grimoire:' + eqG.id : (nonUlt[nonUlt.length - 1] || '');
   if (curPower !== hud.power) {
     hud.power = curPower; BTN.power.classList.toggle('none', !curPower);
     const k = powerKind(curPower); $('#powerIco').innerHTML = POWER_ICONS[curPower ? k : 'punch'];
-    $('#powerLbl').textContent = !curPower ? 'POWER' : k === 'dash' ? 'DASH' : k === 'book' ? 'GRIMOIRE' : 'POWER';
+    $('#powerLbl').textContent = eqG ? eqG.name.split(' ')[0].toUpperCase().slice(0, 9) : !curPower ? 'POWER' : k === 'dash' ? 'DASH' : k === 'book' ? 'GRIMOIRE' : 'POWER';
+    if (eqG) BTN.power.style.setProperty('--glow', eqG.color); else BTN.power.style.removeProperty('--glow'); BTN.power.classList.toggle('grim', !!eqG);
   }
   const cd = st.cooldowns || {};
   const pk = powerKind(curPower);
@@ -1294,9 +1404,9 @@ function updateHUD(st, dt) {
 /* ============================================================
    INPUT: touch (pointer events), keyboard + mouse, gamepad
    ============================================================ */
-const held = { attack: false, jump: false, dodge: false, power: false, ultimate: false, lockOn: false };
-const latch = { attack: false, jump: false, dodge: false, power: false, ultimate: false, lockOn: false };
-const keyMap = { attack: 'attack', jump: 'jump', dodge: 'dodge', power: 'power', ult: 'ultimate', lock: 'lockOn' };
+const held = { attack: false, jump: false, dodge: false, power: false, ultimate: false, lockOn: false, swapGrimoire: false };
+const latch = { attack: false, jump: false, dodge: false, power: false, ultimate: false, lockOn: false, swapGrimoire: false };
+const keyMap = { attack: 'attack', jump: 'jump', dodge: 'dodge', power: 'power', ult: 'ultimate', lock: 'lockOn', swap: 'swapGrimoire' };
 const btnPointers = new Map(); // pointerId -> action
 let joy = null;                // { id, ox, oy, x, y }
 let look = null;               // { id, x, y }
@@ -1395,7 +1505,7 @@ function exitPointerLock() { if (document.pointerLockElement) { lastUnlockReq = 
 // keyboard
 const KEYS = {
   KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right',
-  Space: 'jump', ShiftLeft: 'dodge', ShiftRight: 'dodge', KeyJ: 'attack', KeyK: 'power', KeyL: 'dodge', KeyE: 'ultimate', KeyQ: 'lockOn', Tab: 'lockOn'
+  Space: 'jump', ShiftLeft: 'dodge', ShiftRight: 'dodge', KeyJ: 'attack', KeyK: 'power', KeyL: 'dodge', KeyE: 'ultimate', KeyQ: 'lockOn', Tab: 'lockOn', KeyG: 'swapGrimoire'
 };
 window.addEventListener('keydown', e => {
   if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'range' && /Arrow/.test(e.code)) return;
@@ -1430,7 +1540,7 @@ function pollPad(dt) {
   const pressed = i => b(i) && !padPrev[i];
   const dz = v => Math.abs(v) < .18 ? 0 : (v - Math.sign(v) * .18) / .82;
   const out = { mx: dz(p.axes[0] || 0), my: -dz(p.axes[1] || 0), lx: dz(p.axes[2] || 0) * 900 * dt, ly: dz(p.axes[3] || 0) * 600 * dt,
-    attack: b(2), jump: b(0), dodge: b(1), power: b(3), ultimate: b(5) || b(7), lockOn: b(4) || b(11) };
+    attack: b(2), jump: b(0), dodge: b(1), power: b(3), ultimate: b(5) || b(7), lockOn: b(4) || b(11), swapGrimoire: b(15) };
   if (b(0) || b(1) || b(2) || b(3) || Math.abs(out.mx) > .5 || Math.abs(out.my) > .5) padActive = true;
   // menus + scenes
   const inGame = mode === 'game' && !paused && !modal;
@@ -1451,7 +1561,7 @@ function pollPad(dt) {
   return out;
 }
 
-const ZERO = { moveX: 0, moveY: 0, lookDX: 0, lookDY: 0, attack: false, jump: false, dodge: false, power: false, ultimate: false, lockOn: false };
+const ZERO = { moveX: 0, moveY: 0, lookDX: 0, lookDY: 0, attack: false, jump: false, dodge: false, power: false, ultimate: false, lockOn: false, swapGrimoire: false };
 function gather(pad) {
   let mx = 0, my = 0;
   if (joy) { mx += joy.x; my += -joy.y; }
