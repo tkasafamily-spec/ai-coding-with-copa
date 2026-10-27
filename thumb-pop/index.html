@@ -2393,6 +2393,9 @@ details.more[open] summary::after { content: "–"; }
     var slots = emptySlots();
     var fit = slots.filter(function (s) { return isCutSlot(s) === !!alpha; })[0];
     if (fit) return { kind: 'replace', id: fit.id };
+    // a see-through picture of their character -> the built-in player (the owner's own character slot)
+    var who = alpha ? design.layers.filter(function (s) { return s.type === 'skin' && !s.imageId && s.slotHint !== 'their skin'; })[0] : null;
+    if (who) return { kind: 'replace', id: who.id };
     if (!alpha && bgOpen()) return { kind: 'bg' };
     if (slots[0]) return { kind: 'replace', id: slots[0].id };
     if (bgOpen()) return { kind: 'bg' };

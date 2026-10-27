@@ -841,7 +841,7 @@
   }
   // the Minecraft character (the owner's skin, or the built-in one when imageId is null)
   function skinLayer(c, o) {
-    return {
+    var L = {
       id: newId(), type: 'skin', imageId: o.imageId || null, pose: o.pose || 'stand', facing: o.facing === 'left' ? 'left' : 'right',
       x: Math.round(o.x), y: Math.round(o.y), h: Math.round(o.h), rotation: o.rotation || 0,
       outline: { width: o.outline != null ? o.outline : 10, color: o.outlineColor || '#FFFFFF' },
@@ -849,6 +849,8 @@
       shadow: { blur: 26, color: 'rgba(0,0,0,0.55)', dx: 0, dy: 12 },
       slotHint: o.hint || 'your skin'
     };
+    if (o.variant) L.variant = o.variant;
+    return L;
   }
   function stickerLayer(c, id, o) {
     var L = { id: newId(), type: 'sticker', sticker: id, x: Math.round(o.x), y: Math.round(o.y), w: Math.round(o.w), rotation: o.rotation || 0, flipX: !!o.flipX,
@@ -934,8 +936,8 @@
           L.push(stickerLayer(c, takeSticker(isArrow) || 'px-arrow', arrowOpts(700, 330, 170, 12)));
           if (c.subline) L.push(below(hl, textLayer(c, { text: c.subline, x: X(360), y: 290, maxWidth: 500, maxSize: 70, maxLines: 1, minSize: 56, optional: true, color: pal.money, rotation: right ? 2 : -2 })));
         } else {
-          L.push(foodLayer(930, 400, 620, 0));
-          L.push(stickerLayer(c, ring, { x: X(960), y: 260, w: 230, rotation: -8 }));
+          L.push(foodLayer(930, 410, 700, 0));
+          L.push(stickerLayer(c, ring, { x: X(930), y: 370, w: 250, rotation: -8 }));
           if (hasFace) L.push(faceLayer(215, 565, 330));
           L.push(hl = textLayer(c, { text: c.headline, x: X(320), y: hasFace ? 145 : 230, maxWidth: 540, maxSize: hasFace && c.subline ? 110 : 130, rotation: right ? 3 : -3 }));
           L.push(stickerLayer(c, takeSticker(isArrow) || 'arrow-curved', arrowOpts(690, 250, 170, 0)));
@@ -946,7 +948,7 @@
       }
       case 'hero': {
         if (smp) L.push(hero('point', 990, 430, 540, 'left'));
-        else L.push(foodLayer(930, 390, 660, 0));
+        else L.push(foodLayer(935, 400, 740, 0));
         L.push(hl = textLayer(c, { text: c.headline, x: X(310), y: 290, maxWidth: 500, maxSize: 150, maxLines: 3, rotation: right ? 3 : -3 }));
         if (c.subline) L.push(below(hl, textLayer(c, { text: c.subline, x: X(320), y: 520, maxWidth: 520, maxSize: smp ? 72 : 80, maxLines: 2, minSize: 60, optional: true, font: smp ? c.font : 'caveat', uppercase: smp,
           color: smp ? pal.accent : '#FFFFFF', strokeWidth: smp ? undefined : 8, rotation: right ? 2 : -4 })));
@@ -959,8 +961,10 @@
         var hintA = hint(slots[0] || 'your first picture'), hintB = hint(slots[1] || 'your second picture');
         if (smp) {
           var sceneB = c.scene !== 'blocky-day' ? c.scene : 'blocky-night';
-          L.push(imageLayer(c, { x: 330, y: 400, w: 600, fill: 'scene:blocky-day', hint: hintA, shape: 'rounded', rotation: -2 }));
-          L.push(imageLayer(c, { x: 960, y: 390, w: 620, imageId: me.shotId, fill: 'scene:' + sceneB, hint: hintB, shape: 'rounded', rotation: 2 }));
+          var sp = c.setPiece || pickSetPiece(c, ''), trapFirst = /trap|pvp/.test(sp);
+          var pieceA = trapFirst ? sp : 'dirt-hut', pieceB = trapFirst ? 'stash-chests' : (sp === 'portal' ? 'base-house' : sp);
+          L.push(imageLayer(c, { x: 330, y: 400, w: 600, fill: 'scene:blocky-day:' + pieceA, hint: hintA, shape: 'rounded', rotation: -2 }));
+          L.push(imageLayer(c, { x: 960, y: 390, w: 620, imageId: me.shotId, fill: 'scene:' + sceneB + ':' + pieceB, hint: hintB, shape: 'rounded', rotation: 2 }));
         } else {
           L.push(imageLayer(c, { x: 330, y: 400, w: 600, fill: 'food:raw ' + (dish || 'ingredients'), hint: hintA, shape: 'rounded', rotation: -2 }));
           L.push(imageLayer(c, { x: 960, y: 390, w: 620, imageId: me.dishId, fill: food, hint: hintB, shape: 'rounded', rotation: 2 }));
@@ -977,7 +981,7 @@
         if (smp) {
           // me (the owner's skin) vs them (the built-in character)
           L.push(skinLayer(c, { imageId: me.skinId, pose: 'point', facing: 'right', x: 300, y: 420, h: 560, rotation: -3, glowColor: '#3CEB4C', hint: 'your skin' }));
-          L.push(skinLayer(c, { imageId: null, pose: 'stand', facing: 'left', x: 985, y: 420, h: 560, rotation: 3, glowColor: '#FF2D2D', hint: 'their skin' }));
+          L.push(skinLayer(c, { imageId: null, variant: 'rival', pose: 'stand', facing: 'left', x: 985, y: 420, h: 560, rotation: 3, glowColor: '#FF2D2D', hint: 'their skin' }));
         } else {
           L.push(imageLayer(c, { x: 330, y: 400, w: 580, fill: 'food:' + str(c.leftLabel).toLowerCase() + ' ' + (dish || 'food'), hint: hint(slots[0] || 'left picture'), shape: 'rounded', rotation: -3 }));
           L.push(imageLayer(c, { x: 950, y: 400, w: 580, imageId: me.dishId, fill: food, hint: hint(slots[1] || 'right picture'), shape: 'rounded', rotation: 3 }));
@@ -991,7 +995,7 @@
       case 'reaction': {
         if (smp) { L.push(hero('shock', 1010, 450, 600, 'left')); pieceSide = 'center'; }
         else if (hasFace) { L.push(foodLayer(560, 420, 470, -4)); L.push(faceLayer(1020, 480, 440)); }
-        else L.push(foodLayer(950, 400, 640, 0));
+        else L.push(foodLayer(945, 410, 720, 0));
         L.push(hl = textLayer(c, { text: c.headline, x: X(400), y: 120, maxWidth: 680, maxSize: 130, maxLines: 2, rotation: right ? 2 : -2 }));
         if (c.subline) L.push(textLayer(c, { text: c.subline, x: X(380), y: 640, maxWidth: 600, maxSize: 76, maxLines: 1, minSize: 56, optional: true, effect: 'box', box: { color: smp ? '#000000' : pal.accent, padding: 18, radius: smp ? 4 : 16 }, color: smp ? pal.accent : '#FFFFFF', rotation: right ? -1 : 1 }));
         if (c.number) {
@@ -1002,7 +1006,7 @@
         break;
       }
       case 'money': {
-        if (smp) L.push(hero('stand', 1150, 450, 520, 'left'));
+        if (smp) L.push(hero('stand', 1110, 450, 520, 'left'));
         else L.push(foodLayer(1000, 420, 520, 0));
         L.push(hl = textLayer(c, { text: c.headline || 'DONUT SMP', x: X(380), y: 150, maxWidth: 640, maxSize: 96, maxLines: 2, rotation: right ? 2 : -2 }));
         var num = c.number || '$1B', longNum = num.length > 9;
@@ -1012,7 +1016,7 @@
         break;
       }
       case 'rank': {
-        if (smp) L.push(hero('stand', 1120, 420, 540, 'left'));
+        if (smp) L.push(hero('stand', 1100, 420, 540, 'left'));
         else L.push(foodLayer(920, 380, 640, 0));
         var crown = takeSticker(function (s) { return /crown|flame|burst/.test(s); }) || (smp ? 'px-crown' : 'burst');
         L.push(stickerLayer(c, crown, { x: X(230), y: 120, w: crown === 'burst' ? 340 : 190, rotation: -10 }));
@@ -1021,7 +1025,7 @@
         break;
       }
       case 'count': {
-        if (smp) L.push(hero('stand', 1130, 430, 520, 'left'));
+        if (smp) L.push(hero('stand', 1105, 430, 520, 'left'));
         else L.push(foodLayer(930, 380, 640, 0));
         var badge = takeSticker(function (s) { return /burst|diamond|spawner|chest|emerald/.test(s); }) || (smp ? null : 'burst');
         if (badge === 'burst') L.push(stickerLayer(c, 'burst', { x: X(260), y: 300, w: 420, rotation: -8, color: pal.accent }));

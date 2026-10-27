@@ -1909,6 +1909,8 @@
   function foodKind(t) {
     t = String(t || '').toLowerCase();
     if (FOODS.indexOf(t) >= 0) return t;
+    // the "before" side of a split ('raw pasta', 'dough', 'uncooked ...') is the ingredients spread
+    if (/^\s*(raw|uncooked|before|prep|dough|batter)\b|\bingredients?\b/.test(t)) return 'ingredients';
     if (/cookie|biscuit|snickerdoodle/.test(t)) return 'cookies';
     if (/pancake|waffle|crepe|crêpe|french toast/.test(t)) return 'pancakes';
     if (/pasta|spaghetti|noodle|mac\b|macaroni|lasagn|carbonara|bolognese|ramen|penne|linguine/.test(t)) return 'pasta';
