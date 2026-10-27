@@ -1286,7 +1286,8 @@
   /* ------------------------------------------------------------------ background */
   function bgKey(bg, theme, src, s) {
     return ['B', bg.kind, bg.kind === 'image' && natSize(src) ? tokenOf(src) : '', bg.scene || '', bg.color, bg.color2, num(bg.angle, 135), num(bg.zoom, 1), num(bg.fx, 0.5), num(bg.fy, 0.5),
-      num(bg.brightness, 0), num(bg.contrast, 0), num(bg.saturation, 0), num(bg.blur, 0), num(bg.vignette, 0), bg.tint || '', num(bg.tintAmount, 0), theme, s.toFixed(3)].join('|');
+      num(bg.brightness, 0), num(bg.contrast, 0), num(bg.saturation, 0), num(bg.blur, 0), num(bg.vignette, 0), bg.tint || '', num(bg.tintAmount, 0), theme, s.toFixed(3),
+      SETPIECES[bg.setPiece] ? bg.setPiece + '/' + str(bg.setPieceSide, 'right') : ''].join('|');
   }
   function adjustPixels(c, w, h, b, ct, sat) {
     var d;
@@ -1332,6 +1333,7 @@
       var sid = SCENE_BY[bg.scene] ? bg.scene : THEME_SCENE[theme];
       var sc = sceneCanvas(sid);
       if (num(bg.zoom, 1) > 1.001) coverDraw(c, sc, { w: W, h: H }, bg.fx, bg.fy, bg.zoom, 0, 0, W, H); else c.drawImage(sc, 0, 0, W, H);
+      if (SETPIECES[bg.setPiece]) { try { drawSetPiece(c, bg.setPiece, bg.setPieceSide); } catch (e) { if (window.console) console.warn('ThumbRender set-piece failed', e); } }
     }
     c.setTransform(1, 0, 0, 1, 0, 0);
     var blur = clamp(num(bg.blur, 0), 0, 1);
@@ -1662,6 +1664,278 @@
     var m = (e.m || 1) * (e.w0 ? L.h / e.w0 : 1);
     ctx.save(); smooth(ctx, true); ctx.drawImage(e.canvas, x - e.ax * m, y - e.ay * m, e.canvas.width * m, e.canvas.height * m); ctx.restore();
     return { w: skinSpec(L, img && natSize(img) ? img : null).w, h: L.h };
+  }
+
+  /* ------------------------------------------------------------------ set-pieces: original 8x8 block textures + a tiny voxel renderer */
+  var BTEX = {};
+  function btex(id) {
+    if (BTEX[id]) return BTEX[id];
+    var C = mk(8, 8), c = C.getContext('2d'), R = rng(strHash(id) + 17);
+    var px = function (x, y, col) { if (!col) return; c.fillStyle = col; c.fillRect(x, y, 1, 1); };
+    var nf = function (x0, y0, w, h, cols) { for (var y = y0; y < y0 + h; y++) for (var x = x0; x < x0 + w; x++) px(x, y, cols[(R() * cols.length) | 0]); };
+    (TEXP[id] || TEXP.stone)(px, nf, R, c);
+    BTEX[id] = { canvas: C, shades: {} };
+    return BTEX[id];
+  }
+  var TEXP = {
+    grass_top: function (px, nf) { nf(0, 0, 8, 8, shades('#62b83c', 6, 0.32)); },
+    grass_side: function (px, nf, R) { nf(0, 0, 8, 8, shades('#8b5a2b', 5, 0.3)); var g = shades('#62b83c', 5, 0.3); for (var x = 0; x < 8; x++) { var d = 2 + (R() < 0.5 ? 1 : 0) + (R() < 0.18 ? 1 : 0); for (var y = 0; y < d; y++) px(x, y, g[(R() * 5) | 0]); } },
+    dirt: function (px, nf) { nf(0, 0, 8, 8, shades('#8b5a2b', 6, 0.32)); },
+    farmland: function (px, nf) { nf(0, 0, 8, 8, shades('#5a3a1c', 5, 0.3)); for (var x = 0; x < 8; x++) { px(x, 2, '#3e2712'); px(x, 6, '#3e2712'); } },
+    stone: function (px, nf) { nf(0, 0, 8, 8, shades('#808080', 6, 0.2)); },
+    deepslate: function (px, nf) { nf(0, 0, 8, 8, shades('#4b4b52', 6, 0.22)); for (var x = 0; x < 8; x++) px(x, 3, '#3a3a40'); },
+    cobble: function (px, nf, R) { nf(0, 0, 8, 8, shades('#7a7a7a', 6, 0.3)); [[0, 2], [3, 0], [5, 4], [1, 6], [6, 1], [3, 5]].forEach(function (p) { px(p[0], p[1], '#505050'); px(p[0] + 1, p[1], '#555'); px(p[0], p[1] + 1, '#5a5a5a'); px(p[0] + 1, p[1] + 1, '#9a9a9a'); }); },
+    stone_bricks: function (px, nf) { nf(0, 0, 8, 8, shades('#7d7d7d', 5, 0.16)); for (var x = 0; x < 8; x++) { px(x, 3, '#555'); px(x, 7, '#555'); } px(3, 0, '#555'); px(3, 1, '#555'); px(3, 2, '#555'); px(7, 4, '#555'); px(7, 5, '#555'); px(7, 6, '#555'); },
+    obsidian: function (px, nf, R) { nf(0, 0, 8, 8, ['#100a1c', '#140d24', '#1b1230', '#0c0816']); for (var i = 0; i < 5; i++) px((R() * 8) | 0, (R() * 8) | 0, R() < 0.5 ? '#3d2a66' : '#5a3f8f'); },
+    planks: function (px, nf) { nf(0, 0, 8, 8, shades('#b8874e', 4, 0.18)); for (var x = 0; x < 8; x++) { px(x, 3, '#7a5530'); px(x, 7, '#7a5530'); } px(2, 1, '#8a6136'); px(6, 5, '#8a6136'); },
+    roof: function (px, nf) { nf(0, 0, 8, 8, shades('#5a3a24', 4, 0.2)); for (var x = 0; x < 8; x++) { px(x, 3, '#3a2414'); px(x, 7, '#3a2414'); } },
+    log: function (px, nf) { nf(0, 0, 8, 8, shades('#6b4423', 4, 0.3)); for (var y = 0; y < 8; y++) { px(1, y, '#4a2e17'); px(5, y, '#4a2e17'); } },
+    log_top: function (px, nf) { nf(0, 0, 8, 8, shades('#b98b52', 3, 0.15)); for (var i = 0; i < 8; i++) { px(i, 0, '#6b4423'); px(i, 7, '#6b4423'); px(0, i, '#6b4423'); px(7, i, '#6b4423'); } [[2, 2], [3, 2], [4, 2], [5, 2], [2, 5], [3, 5], [4, 5], [5, 5], [2, 3], [2, 4], [5, 3], [5, 4]].forEach(function (p) { px(p[0], p[1], '#9a7040'); }); },
+    leaves: function (px, nf, R) { nf(0, 0, 8, 8, shades('#2f8f2a', 6, 0.45)); for (var i = 0; i < 6; i++) px((R() * 8) | 0, (R() * 8) | 0, '#1d5a1a'); },
+    glass: function (px) { for (var i = 0; i < 8; i++) { px(i, 0, '#e6f6ff'); px(i, 7, '#bcdbe8'); px(0, i, '#e6f6ff'); px(7, i, '#bcdbe8'); } px(2, 2, 'rgba(255,255,255,0.8)'); px(3, 3, 'rgba(255,255,255,0.7)'); px(2, 3, 'rgba(255,255,255,0.55)'); for (var y = 1; y < 7; y++) for (var x = 1; x < 7; x++) if (!((x === 2 && y === 2) || (x === 3 && y === 3) || (x === 2 && y === 3))) px(x, y, 'rgba(150,210,240,0.28)'); },
+    lava: function (px, nf, R) { nf(0, 0, 8, 8, ['#ff6a00', '#ff8a10', '#ff9f1c', '#e85100', '#ffb52e']); for (var i = 0; i < 6; i++) px((R() * 8) | 0, (R() * 8) | 0, '#ffe066'); for (var j = 0; j < 4; j++) px((R() * 8) | 0, (R() * 8) | 0, '#c23a00'); },
+    water: function (px, nf) { nf(0, 0, 8, 8, ['rgba(40,110,230,0.85)', 'rgba(52,124,240,0.85)', 'rgba(34,96,210,0.85)', 'rgba(70,140,250,0.85)']); px(1, 2, 'rgba(180,220,255,0.9)'); px(2, 2, 'rgba(180,220,255,0.9)'); px(5, 5, 'rgba(180,220,255,0.9)'); },
+    netherrack: function (px, nf, R) { nf(0, 0, 8, 8, shades('#7a2626', 6, 0.3)); for (var i = 0; i < 5; i++) px((R() * 8) | 0, (R() * 8) | 0, '#4e1414'); },
+    gold_block: function (px, nf) { nf(0, 0, 8, 8, ['#ffd83a', '#ffcf1f', '#f7c614', '#ffe36a']); for (var i = 0; i < 8; i++) { px(i, 0, '#fff3a6'); px(0, i, '#fff3a6'); px(i, 7, '#c99400'); px(7, i, '#c99400'); } px(2, 2, '#fffbe0'); },
+    diamond_block: function (px, nf) { nf(0, 0, 8, 8, ['#5fe8e0', '#4fdcd4', '#74f2ea', '#3fcfc6']); for (var i = 0; i < 8; i++) { px(i, 0, '#d8fffb'); px(0, i, '#d8fffb'); px(i, 7, '#1e9e98'); px(7, i, '#1e9e98'); } px(2, 2, '#ffffff'); px(5, 4, '#b8fff9'); },
+    emerald_block: function (px, nf) { nf(0, 0, 8, 8, ['#3ee07a', '#2fd06a', '#52ef8c', '#22b85a']); for (var i = 0; i < 8; i++) { px(i, 0, '#c8ffd8'); px(0, i, '#c8ffd8'); px(i, 7, '#13853d'); px(7, i, '#13853d'); } },
+    iron_block: function (px, nf) { nf(0, 0, 8, 8, ['#dcdcdc', '#e8e8e8', '#cfcfcf']); for (var i = 0; i < 8; i++) { px(i, 0, '#ffffff'); px(i, 7, '#a8a8a8'); } },
+    tnt_side: function (px, nf) { nf(0, 0, 8, 8, ['#e0332b', '#d42a22', '#ea4038']); for (var x = 0; x < 8; x++) { px(x, 3, '#f2ede4'); px(x, 4, '#f2ede4'); } px(2, 3, '#1b1b1b'); px(3, 4, '#1b1b1b'); px(4, 3, '#1b1b1b'); px(5, 4, '#1b1b1b'); },
+    tnt_top: function (px, nf) { nf(0, 0, 8, 8, ['#e0332b', '#d42a22']); px(3, 3, '#f2ede4'); px(4, 3, '#f2ede4'); px(3, 4, '#f2ede4'); px(4, 4, '#2b2b2b'); },
+    chest_top: function (px, nf) { nf(0, 0, 8, 8, shades('#b8742f', 4, 0.15)); for (var i = 0; i < 8; i++) { px(i, 0, '#5a3210'); px(i, 7, '#5a3210'); px(0, i, '#5a3210'); px(7, i, '#5a3210'); } },
+    chest_side: function (px, nf) { nf(0, 0, 8, 8, shades('#b8742f', 4, 0.15)); for (var i = 0; i < 8; i++) { px(i, 3, '#4a2a0c'); px(0, i, '#5a3210'); px(7, i, '#5a3210'); px(i, 7, '#5a3210'); } },
+    chest_front: function (px, nf) { TEXP.chest_side(px, nf); px(3, 2, '#d8d8d8'); px(4, 2, '#d8d8d8'); px(3, 3, '#a0a0a0'); px(4, 3, '#a0a0a0'); px(3, 4, '#d8d8d8'); px(4, 4, '#d8d8d8'); },
+    spawner: function (px) {
+      for (var y = 0; y < 8; y++) for (var x = 0; x < 8; x++) px(x, y, '#121620');
+      px(3, 4, '#ff3b1f'); px(4, 4, '#ff6a1a'); px(3, 5, '#ff8a1a'); px(4, 5, '#ffd23f'); px(4, 3, '#ff3b1f'); px(2, 5, '#c41a12'); px(5, 5, '#c41a12');
+      for (var i = 0; i < 8; i++) { px(i, 0, '#7f8a9c'); px(0, i, '#7f8a9c'); px(i, 7, '#3c4452'); px(7, i, '#3c4452'); px(i, 3.5 | 0, i % 2 ? '#56607a' : null); px(3, i, i % 3 ? '#56607a' : null); }
+    },
+    piston_side_e: function (px, nf) { nf(0, 0, 8, 8, shades('#7a7a7a', 5, 0.3)); for (var y = 0; y < 8; y++) { px(6, y, '#b8874e'); px(7, y, '#c9975c'); } for (var x = 0; x < 6; x++) px(x, 4, '#5a5a5a'); },
+    piston_side_w: function (px, nf) { nf(0, 0, 8, 8, shades('#7a7a7a', 5, 0.3)); for (var y = 0; y < 8; y++) { px(0, y, '#c9975c'); px(1, y, '#b8874e'); } for (var x = 2; x < 8; x++) px(x, 4, '#5a5a5a'); },
+    piston_face: function (px, nf) { nf(0, 0, 8, 8, shades('#b8874e', 4, 0.15)); for (var y = 2; y < 6; y++) for (var x = 2; x < 6; x++) px(x, y, x === 2 || y === 2 ? '#8fd45f' : '#5cb83a'); },
+    piston_back: function (px, nf) { nf(0, 0, 8, 8, shades('#6a6a6a', 5, 0.3)); px(3, 3, '#3a3a3a'); px(4, 3, '#3a3a3a'); px(3, 4, '#3a3a3a'); px(4, 4, '#3a3a3a'); },
+    dust: function (px) { for (var i = 1; i < 7; i++) { px(i, 4, '#e0140c'); px(i, 3, i % 2 ? '#ff3a22' : '#b80e08'); } px(3, 5, '#a00c06'); },
+    redstone_block: function (px, nf) { nf(0, 0, 8, 8, ['#c4140c', '#e01e12', '#a80e08', '#ff3a22']); },
+    torch: function (px) { for (var y = 2; y < 8; y++) { px(3, y, '#7a5230'); px(4, y, '#5c3c20'); } px(3, 0, '#fff6c0'); px(4, 0, '#ffd23f'); px(3, 1, '#ffb52e'); px(4, 1, '#ff8a10'); },
+    lantern: function (px, nf) { nf(1, 1, 6, 6, ['#ffcf5a', '#ffe28a', '#ffb52e']); for (var i = 1; i < 7; i++) { px(i, 1, '#3a3a44'); px(i, 6, '#3a3a44'); px(1, i, '#3a3a44'); px(6, i, '#3a3a44'); } },
+    wheat: function (px) { var col = ['#d9b23a', '#e8c64e', '#b8902a']; for (var x = 0; x < 8; x += 2) { for (var y = 2; y < 8; y++) px(x + (y % 2), y, y < 4 ? col[(x + y) % 3] : (y < 6 ? '#9bb83a' : '#6f9a2a')); px(x, 1, '#f2d65c'); } },
+    carrots: function (px) { for (var x = 0; x < 8; x += 2) { for (var y = 2; y < 6; y++) px(x + (y % 2), y, y % 2 ? '#4fbf3a' : '#2f9a2a'); px(x, 6, '#ff8a1a'); px(x + 1, 7, '#e86a10'); px(x, 1, '#6fdf4a'); } },
+    flower: function (px) { px(3, 4, '#3a8a2a'); px(3, 5, '#3a8a2a'); px(3, 6, '#2f7a22'); px(3, 7, '#2f7a22'); px(2, 6, '#3a8a2a'); px(3, 2, '#ffd23f'); px(2, 2, '#ff4d6d'); px(4, 2, '#ff4d6d'); px(3, 1, '#ff4d6d'); px(3, 3, '#ff4d6d'); },
+    tall_grass: function (px) { [[1, 3], [2, 1], [4, 2], [5, 4], [6, 2]].forEach(function (p) { for (var y = p[1]; y < 8; y++) px(p[0], y, y < p[1] + 2 ? '#7fd34a' : '#4f9f2f'); }); },
+    hay_side: function (px, nf) { nf(0, 0, 8, 8, ['#d9b23a', '#c9a02a', '#e8c64e']); for (var x = 0; x < 8; x++) { px(x, 2, '#8a5a1a'); px(x, 5, '#8a5a1a'); } },
+    hay_top: function (px, nf) { nf(0, 0, 8, 8, ['#d9b23a', '#c9a02a', '#e8c64e', '#b8902a']); },
+    crafting_top: function (px, nf) { nf(0, 0, 8, 8, shades('#b8874e', 4, 0.15)); for (var i = 0; i < 8; i++) { px(i, 0, '#6b4423'); px(0, i, '#6b4423'); px(i, 7, '#6b4423'); px(7, i, '#6b4423'); px(i, 4, '#7a5530'); px(4, i, '#7a5530'); } },
+    crafting_side: function (px, nf) { nf(0, 0, 8, 8, shades('#9a6a3a', 4, 0.2)); for (var x = 0; x < 8; x++) px(x, 0, '#c9975c'); px(1, 3, '#7f7f7f'); px(2, 3, '#7f7f7f'); px(2, 4, '#6b4423'); px(5, 2, '#c4c4c4'); px(5, 3, '#6b4423'); px(5, 4, '#6b4423'); },
+    furnace_front: function (px, nf) { nf(0, 0, 8, 8, shades('#6f6f6f', 5, 0.25)); for (var x = 2; x < 6; x++) { px(x, 4, '#1a1a1a'); px(x, 5, x % 2 ? '#ff8a10' : '#ffd23f'); px(x, 6, '#2a2a2a'); } },
+    door_bottom: function (px, nf) { nf(0, 0, 8, 8, shades('#6b4423', 3, 0.15)); for (var y = 0; y < 8; y++) { px(0, y, '#4a2e17'); px(7, y, '#4a2e17'); } px(6, 1, '#c9c9c9'); for (var x = 0; x < 8; x++) px(x, 4, '#4a2e17'); },
+    door_top: function (px, nf) { nf(0, 0, 8, 8, shades('#6b4423', 3, 0.15)); for (var y = 2; y < 6; y++) for (var x = 2; x < 6; x++) px(x, y, (x === 2 && y === 2) ? '#e6f6ff' : '#9fd0e8'); for (var i = 0; i < 8; i++) { px(0, i, '#4a2e17'); px(7, i, '#4a2e17'); } },
+    portal: function (px, nf, R) { for (var y = 0; y < 8; y++) for (var x = 0; x < 8; x++) { var v = Math.sin((x * 1.1 + y * 0.7) + Math.sin(y * 1.3) * 1.4); px(x, y, v > 0.5 ? 'rgba(232,180,255,0.88)' : v > -0.2 ? 'rgba(170,80,255,0.84)' : 'rgba(110,30,220,0.84)'); } },
+    fire: function (px) { [[1, 4], [2, 2], [3, 1], [4, 3], [5, 2], [6, 4]].forEach(function (p) { for (var y = p[1]; y < 8; y++) px(p[0], y, y < p[1] + 1 ? '#ffe066' : y < p[1] + 3 ? '#ffb52e' : '#ff6a00'); }); },
+    shulker_p: function (px, nf) { nf(0, 0, 8, 8, ['#9a5fc9', '#a96fd6', '#8a4fb9']); for (var x = 0; x < 8; x++) px(x, 3, '#5a2f80'); },
+    shulker_c: function (px, nf) { nf(0, 0, 8, 8, ['#2fb9c9', '#3fc9d6', '#1fa9b9']); for (var x = 0; x < 8; x++) px(x, 3, '#156f7a'); },
+    glowstone: function (px, nf) { nf(0, 0, 8, 8, ['#ffd76a', '#ffe38f', '#e8b23a', '#fff1b8', '#c98f2a']); },
+    sign: function (px, nf) { nf(0, 0, 8, 8, shades('#b8874e', 3, 0.12)); for (var x = 1; x < 7; x++) { px(x, 2, '#3a2414'); px(x, 5, '#3a2414'); } }
+  };
+  /* block defs: per-face texture ids (top/bottom/front=+z/back=-z/east=+x/west=-x, side = fallback) */
+  var BLK = {
+    grass: { top: 'grass_top', side: 'grass_side', bottom: 'dirt' }, dirt: { side: 'dirt' }, farmland: { top: 'farmland', side: 'dirt', box: [0, 0, 0, 1, 0.94, 1] },
+    stone: { side: 'stone' }, deepslate: { side: 'deepslate' }, cobble: { side: 'cobble' }, bricks: { side: 'stone_bricks' }, obsidian: { side: 'obsidian' },
+    planks: { side: 'planks' }, roof: { side: 'roof' }, log: { side: 'log', top: 'log_top', bottom: 'log_top' }, leaves: { side: 'leaves' }, glass: { side: 'glass', clear: 1 },
+    lava: { side: 'lava', emit: '#ff7a1a', box: [0, 0, 0, 1, 0.88, 1] }, water: { side: 'water', clear: 1, box: [0, 0, 0, 1, 0.88, 1] }, netherrack: { side: 'netherrack' },
+    gold: { side: 'gold_block' }, diamond: { side: 'diamond_block' }, emerald: { side: 'emerald_block' }, iron: { side: 'iron_block' },
+    tnt: { side: 'tnt_side', top: 'tnt_top', bottom: 'tnt_top' }, chest: { side: 'chest_side', top: 'chest_top', front: 'chest_front', box: [0.06, 0, 0.06, 0.94, 0.88, 0.94] },
+    spawner: { side: 'spawner', emit: '#ff5a1a', dim: 1 }, piston_e: { side: 'piston_side_e', east: 'piston_face', west: 'piston_back' }, piston_w: { side: 'piston_side_w', west: 'piston_face', east: 'piston_back' },
+    piston_up: { side: 'piston_side_e', top: 'piston_face' }, dust: { side: 'dust', flat: 1 }, plate: { side: 'stone', box: [0.1, 0, 0.1, 0.9, 0.08, 0.9] }, redstone: { side: 'redstone_block' },
+    torch: { side: 'torch', emit: '#ffc46a', box: [0.42, 0, 0.42, 0.58, 0.65, 0.58] }, lantern: { side: 'lantern', emit: '#ffc46a', box: [0.3, 0, 0.3, 0.7, 0.5, 0.7] },
+    wheat: { side: 'wheat', cross: 1 }, carrots: { side: 'carrots', cross: 1 }, flower: { side: 'flower', cross: 1 }, tallgrass: { side: 'tall_grass', cross: 1 }, fire: { side: 'fire', cross: 1, emit: '#ff8a1a' },
+    hay: { side: 'hay_side', top: 'hay_top', bottom: 'hay_top' }, crafting: { side: 'crafting_side', top: 'crafting_top' }, furnace: { side: 'cobble', front: 'furnace_front', top: 'stone', emit: '#ff9a2a', dim: 1 },
+    door_b: { side: 'planks', front: 'door_bottom', box: [0, 0, 0.8, 1, 1, 1] }, door_t: { side: 'planks', front: 'door_top', box: [0, 0, 0.8, 1, 1, 1] },
+    portal: { side: 'portal', emit: '#b45cff', clear: 1, box: [0, 0, 0.38, 1, 1, 0.62] }, shulker_p: { side: 'shulker_p' }, shulker_c: { side: 'shulker_c' },
+    glowstone: { side: 'glowstone', emit: '#ffd76a' }, sign: { side: 'sign', box: [0.1, 0.3, 0.45, 0.9, 0.9, 0.55] }
+  };
+  function VW() {
+    var at = {}, o = {
+      at: at, sprites: [], glows: [],
+      set: function (x, y, z, t) { var k = x + ',' + y + ',' + z; if (t) at[k] = t; else delete at[k]; },
+      get: function (x, y, z) { return at[x + ',' + y + ',' + z]; },
+      box: function (x0, y0, z0, x1, y1, z1, t) { for (var x = x0; x <= x1; x++) for (var y = y0; y <= y1; y++) for (var z = z0; z <= z1; z++) o.set(x, y, z, typeof t === 'function' ? t(x, y, z) : t); }
+    };
+    return o;
+  }
+  function vwGround(w, X, Z, top, under) {
+    w.box(0, -3, 0, X - 1, -3, Z - 1, 'stone'); w.box(0, -2, 0, X - 1, -1, Z - 1, under || 'dirt'); w.box(0, 0, 0, X - 1, 0, Z - 1, top || 'grass');
+  }
+  var SETPIECES = {
+    'trap-lava': { name: 'Lava trap', build: function (w) {
+      vwGround(w, 9, 8);
+      w.box(2, 0, 2, 6, 0, 6, 'cobble'); w.box(3, -1, 3, 5, 0, 5, null); w.box(3, -2, 3, 5, -2, 5, 'lava');
+      w.set(3, 1, 0, 'chest'); w.set(4, 1, 0, 'chest'); w.set(5, 1, 0, 'diamond'); w.set(2, 1, 2, 'torch'); w.set(6, 1, 2, 'torch'); w.set(4, 1, 6, 'plate');
+      w.set(1, 1, 6, 'tallgrass'); w.set(7, 1, 5, 'flower'); w.set(0, 1, 2, 'tallgrass'); w.set(8, 1, 7, 'tallgrass');
+      w.glows.push({ p: [4.5, -0.6, 4.5], r: 3.6, c: '#ff7a1a', a: 0.75 });
+      w.sprites.push({ who: 'rival', pose: 'shock', facing: 'right', p: [4.5, 1.6, 4.4], h: 1.9 });
+    } },
+    'trap-piston': { name: 'Piston trap', build: function (w) {
+      vwGround(w, 9, 7);
+      w.box(4, -1, 2, 4, 0, 4, null); w.box(4, -2, 2, 4, -2, 4, 'lava');
+      w.box(3, 1, 2, 3, 1, 4, 'piston_e'); w.box(5, 1, 2, 5, 1, 4, 'piston_w');
+      w.box(2, 1, 1, 2, 1, 5, 'dust'); w.box(6, 1, 1, 6, 1, 5, 'dust'); w.box(3, 1, 1, 5, 1, 1, 'dust'); w.box(3, 1, 5, 3, 1, 5, 'dust'); w.box(5, 1, 5, 5, 1, 5, 'dust');
+      w.set(4, 1, 5, 'plate'); w.set(4, 1, 0, 'redstone'); w.set(7, 1, 1, 'tnt'); w.set(8, 1, 1, 'tnt'); w.set(7, 2, 1, 'tnt'); w.set(1, 1, 0, 'obsidian'); w.set(0, 1, 0, 'obsidian'); w.set(0, 2, 0, 'obsidian');
+      w.set(1, 1, 5, 'tallgrass'); w.set(7, 1, 5, 'flower');
+      w.glows.push({ p: [4.5, -0.6, 3.5], r: 2.6, c: '#ff7a1a', a: 0.7 }); w.glows.push({ p: [4.5, 1.2, 0.5], r: 1.6, c: '#ff2a1a', a: 0.45 });
+    } },
+    'base-house': { name: 'Blocky house', build: function (w) {
+      vwGround(w, 11, 9);
+      w.box(2, 1, 2, 8, 1, 6, 'cobble'); w.box(2, 2, 2, 8, 4, 6, 'planks');
+      [[2, 2], [8, 2], [2, 6], [8, 6]].forEach(function (p) { w.box(p[0], 1, p[1], p[0], 4, p[1], 'log'); });
+      w.set(3, 3, 6, 'glass'); w.set(4, 3, 6, 'glass'); w.set(6, 3, 6, 'glass'); w.set(7, 3, 6, 'glass'); w.set(8, 3, 4, 'glass'); w.set(2, 3, 4, 'glass');
+      w.set(5, 2, 6, null); w.set(5, 3, 6, null); w.set(5, 2, 7, 'door_b'); w.set(5, 3, 7, 'door_t'); w.set(5, 1, 7, 'cobble');
+      w.box(1, 5, 1, 9, 5, 7, 'roof'); w.box(1, 6, 2, 9, 6, 6, 'roof'); w.box(1, 7, 3, 9, 7, 5, 'roof'); w.box(1, 8, 4, 9, 8, 4, 'roof');
+      w.box(7, 6, 3, 7, 9, 3, 'cobble');
+      w.set(4, 1, 8, 'torch'); w.set(6, 1, 8, 'torch'); w.set(1, 1, 7, 'chest'); w.set(9, 1, 7, 'crafting');
+      w.box(10, 1, 1, 10, 3, 1, 'log'); w.box(9, 4, 0, 10, 5, 2, 'leaves'); w.set(10, 6, 1, 'leaves'); w.set(0, 1, 4, 'flower'); w.set(0, 1, 8, 'tallgrass'); w.set(10, 1, 6, 'tallgrass'); w.set(3, 1, 8, 'flower');
+    } },
+    'base-bunker': { name: 'Secret bunker', build: function (w) {
+      w.box(0, -7, 0, 8, -7, 7, 'deepslate'); w.box(0, -6, 0, 8, -3, 7, 'stone'); w.box(0, -2, 0, 8, -1, 7, 'dirt'); w.box(0, 0, 0, 8, 0, 7, 'grass');
+      w.box(1, -6, 1, 7, -6, 7, 'obsidian'); w.box(1, -5, 1, 1, -2, 7, 'obsidian'); w.box(7, -5, 1, 7, -2, 7, 'obsidian'); w.box(1, -5, 1, 7, -2, 1, 'obsidian'); w.box(1, -2, 1, 7, -2, 7, 'obsidian');
+      w.box(2, -5, 2, 6, -3, 7, null);
+      w.box(2, -5, 2, 6, -5, 2, 'chest'); w.set(2, -4, 2, 'chest'); w.set(3, -4, 2, 'gold'); w.set(5, -4, 2, 'diamond'); w.set(6, -4, 2, 'chest');
+      w.set(2, -5, 4, 'furnace'); w.set(6, -5, 4, 'crafting'); w.set(4, -5, 5, 'lantern'); w.set(2, -3, 2, 'torch');
+      w.set(4, 0, 3, 'plate'); w.set(1, 1, 1, 'tallgrass'); w.set(7, 1, 6, 'flower'); w.set(6, 1, 1, 'tallgrass');
+      w.glows.push({ p: [4.5, -4, 4.5], r: 3.4, c: '#ffb04a', a: 0.6 });
+    } },
+    'spawner-farm': { name: 'Spawner farm', build: function (w) {
+      vwGround(w, 9, 7, 'bricks', 'stone');
+      [1, 3, 5, 7].forEach(function (x) { [1, 3].forEach(function (z) { w.set(x, 1, z, 'spawner'); w.set(x, 2, z, 'spawner'); w.glows.push({ p: [x + 0.5, 1.6, z + 0.5], r: 1.15, c: '#ff5a1a', a: 0.4 }); }); });
+      [0, 2, 4, 6, 8].forEach(function (x) { w.set(x, 1, 5, 'chest'); }); w.set(1, 1, 6, 'gold'); w.set(7, 1, 6, 'emerald'); w.set(4, 1, 6, 'torch');
+    } },
+    'crop-farm': { name: 'Crop farm', build: function (w) {
+      vwGround(w, 11, 9);
+      w.box(1, 0, 1, 9, 0, 7, 'farmland'); w.box(1, 0, 4, 9, 0, 4, 'water');
+      w.box(1, 1, 1, 9, 1, 3, 'wheat'); w.box(1, 1, 5, 9, 1, 7, 'carrots');
+      w.set(10, 1, 1, 'hay'); w.set(10, 1, 2, 'hay'); w.set(10, 2, 1, 'hay'); w.set(0, 1, 8, 'chest'); w.set(0, 1, 0, 'torch'); w.set(10, 1, 8, 'torch'); w.set(10, 1, 5, 'flower');
+    } },
+    'pvp-duel': { name: 'PvP duel', build: function (w) {
+      vwGround(w, 9, 6, 'bricks', 'stone');
+      w.box(0, 1, 0, 8, 1, 0, 'bricks'); w.set(0, 2, 0, 'bricks'); w.set(8, 2, 0, 'bricks'); w.set(0, 3, 0, 'torch'); w.set(8, 3, 0, 'torch'); w.set(4, 2, 0, 'gold');
+      w.sprites.push({ who: 'hero', pose: 'point', facing: 'right', p: [2.6, 1, 3.2], h: 2.05, sword: 1 });
+      w.sprites.push({ who: 'rival', pose: 'point', facing: 'left', p: [6.4, 1, 3.0], h: 2.05, sword: 1 });
+    } },
+    'stash-chests': { name: 'Loot stash', build: function (w) {
+      vwGround(w, 8, 7, 'bricks', 'stone');
+      w.box(0, 1, 0, 7, 2, 0, 'chest'); w.box(0, 1, 1, 7, 1, 1, 'chest'); w.set(0, 3, 0, 'chest'); w.set(1, 3, 0, 'chest'); w.set(6, 3, 0, 'chest'); w.set(7, 3, 0, 'chest');
+      w.box(1, 1, 3, 3, 1, 4, 'gold'); w.set(2, 2, 3, 'gold'); w.set(2, 2, 4, 'gold'); w.box(5, 1, 3, 6, 1, 4, 'diamond'); w.set(5, 2, 3, 'diamond'); w.set(6, 1, 5, 'emerald'); w.set(4, 1, 5, 'shulker_p'); w.set(0, 1, 5, 'shulker_c'); w.set(3, 1, 6, 'emerald');
+      w.glows.push({ p: [3.5, 2.2, 4], r: 3, c: '#fff2a0', a: 0.35 });
+    } },
+    'portal': { name: 'Nether portal', build: function (w) {
+      vwGround(w, 9, 7, 'netherrack', 'netherrack');
+      for (var x = 2; x <= 5; x++) for (var y = 1; y <= 5; y++) w.set(x, y, 3, (x === 2 || x === 5 || y === 1 || y === 5) ? 'obsidian' : 'portal');
+      w.box(6, 0, 4, 8, 0, 6, 'lava'); w.set(1, 1, 1, 'fire'); w.set(7, 1, 2, 'fire'); w.set(0, 1, 5, 'glowstone'); w.set(1, 1, 6, 'netherrack');
+      w.glows.push({ p: [4, 3, 3.5], r: 3.4, c: '#b45cff', a: 0.6 }); w.glows.push({ p: [7.5, 0.6, 5.5], r: 2.4, c: '#ff7a1a', a: 0.55 });
+    } },
+    'dirt-hut': { name: 'Dirt hut', build: function (w) {
+      vwGround(w, 7, 6);
+      w.box(2, 1, 1, 4, 3, 3, 'dirt'); w.box(3, 1, 3, 3, 2, 3, null); w.set(1, 1, 4, 'torch'); w.set(5, 1, 4, 'tallgrass'); w.set(0, 1, 1, 'flower');
+    } }
+  };
+  var SETPIECE_IDS = Object.keys(SETPIECES);
+  var VFACES = [
+    { k: 'top', n: [0, 1, 0], d: [0, 1, 0] }, { k: 'bottom', n: [0, -1, 0], d: [0, -1, 0] }, { k: 'front', n: [0, 0, 1], d: [0, 0, 1] },
+    { k: 'back', n: [0, 0, -1], d: [0, 0, -1] }, { k: 'east', n: [1, 0, 0], d: [1, 0, 0] }, { k: 'west', n: [-1, 0, 0], d: [-1, 0, 0] }
+  ];
+  var FACE_OF = { front: 'front', back: 'back', left: 'east', right: 'west', top: 'top', bottom: 'bottom' }; // boxFaces names -> world dirs
+  function solidCube(def) { return def && !def.box && !def.cross && !def.flat && !def.clear; }
+  /* draws world w into a new canvas; returns { canvas, w, h } (design px at block size bs) */
+  function renderVoxels(w, yaw, pitch, bs) {
+    var M = m3(rotX(pitch), rotY(yaw)), Lt = vnorm([-0.45 * (yaw < 0 ? -1 : 1), 0.85, 0.5]);
+    var P = function (p) { var q = mv(M, p); return [q[0] * bs, -q[1] * bs, q[2]]; };
+    var cells = Object.keys(w.at).map(function (k) { var a = k.split(','); return { x: +a[0], y: +a[1], z: +a[2], t: w.at[k] }; });
+    var minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
+    var grow = function (q) { minx = Math.min(minx, q[0]); maxx = Math.max(maxx, q[0]); miny = Math.min(miny, q[1]); maxy = Math.max(maxy, q[1]); };
+    cells.forEach(function (b) { for (var i = 0; i < 8; i++) grow(P([b.x + (i & 1), b.y + ((i >> 1) & 1), b.z + ((i >> 2) & 1)])); });
+    w.sprites.forEach(function (sp) { grow(P([sp.p[0], sp.p[1] + sp.h + 0.6, sp.p[2]])); });
+    var pad = Math.ceil(bs * 0.3), C = mk(maxx - minx + pad * 2, maxy - miny + pad * 2), c = C.getContext('2d');
+    var ox = pad - minx, oy = pad - miny;
+    smooth(c, false);
+    cells.forEach(function (b) { b.d = mv(M, [b.x + 0.5, b.y + 0.5, b.z + 0.5])[2]; });
+    cells.sort(function (a, b) { return a.d - b.d; });
+    var faceB = {}; VFACES.forEach(function (f) { var n = mv(M, f.n); f.vis = n[2] > 0.02; faceB[f.k] = 0.5 + 0.55 * Math.max(0, vdot(n, Lt)) + (f.k === 'top' ? 0.06 : 0); });
+    var drawQuad = function (tid, b, p, U, V, e) {
+      var t = btex(tid), tex = shadedCopy(t.shades, t.canvas, b, false);
+      var p2 = P(p), u2 = P(vadd(p, U)), v2 = P(vadd(p, V));
+      drawFace(c, tex, [0, 0, 8, 8], [p2[0], p2[1]], [u2[0] - p2[0], u2[1] - p2[1]], [v2[0] - p2[0], v2[1] - p2[1]], 1, ox, oy, e);
+    };
+    cells.forEach(function (b) {
+      var def = BLK[b.t]; if (!def) return;
+      var emit = def.emit && !def.dim;
+      if (def.cross) {
+        var bb = emit ? 1.05 : 0.95;
+        drawQuad(def.side, bb, [b.x + 0.1, b.y + 1, b.z + 0.1], [0.8, 0, 0.8], [0, -1, 0], 0.02);
+        drawQuad(def.side, bb, [b.x + 0.9, b.y + 1, b.z + 0.1], [-0.8, 0, 0.8], [0, -1, 0], 0.02);
+        return;
+      }
+      var bx = def.box || (def.flat ? [0, 0, 0, 1, 0.06, 1] : null), full = !bx;
+      var geom = boxFaces(bx ? [b.x + bx[0], b.y + bx[1], b.z + bx[2], bx[3] - bx[0], bx[4] - bx[1], bx[5] - bx[2]] : [b.x, b.y, b.z, 1, 1, 1], 0, null, false);
+      geom.forEach(function (g) {
+        var dir = FACE_OF[g.f], vf = null;
+        for (var i = 0; i < 6; i++) if (VFACES[i].k === dir) vf = VFACES[i];
+        if (!vf.vis) return;
+        if (full || dir === 'bottom' || (bx && bx[1] === 0 && dir === 'bottom')) {
+          var nb = BLK[w.get(b.x + vf.d[0], b.y + vf.d[1], b.z + vf.d[2])];
+          if (nb && (solidCube(nb) || (nb === def && def.clear))) return;
+        } else if (dir === 'top' && bx[4] === 1) { var nt = BLK[w.get(b.x, b.y + 1, b.z)]; if (solidCube(nt)) return; }
+        if (def.flat && dir !== 'top') return;
+        var tid = def[dir] || (dir === 'east' || dir === 'west' || dir === 'front' || dir === 'back' ? def.side : null) || def.side;
+        drawQuad(tid, emit ? 1.02 : faceB[dir], g.p, g.U, g.V, def.clear ? 0.005 : 0.03);
+      });
+    });
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    // characters (drawn after the blocks: they always stand in the open)
+    w.sprites.forEach(function (sp) {
+      var hPx = sp.h * bs * Math.cos(pitch * DEG), ch = charSprite(sp.who, sp.pose, sp.facing, hPx);
+      var f = P(sp.p), x0 = ox + f[0] - ch.fx, y0 = oy + f[1] - ch.fy;
+      c.save(); c.globalAlpha = 0.35; c.fillStyle = '#000'; c.beginPath();
+      if (c.ellipse) c.ellipse(ox + f[0], oy + f[1], hPx * 0.2, hPx * 0.07, 0, 0, Math.PI * 2); c.fill(); c.restore();
+      c.drawImage(ch.canvas, Math.round(x0), Math.round(y0));
+      if (sp.sword && ch.hand) {
+        var hx = x0 + ch.fx + ch.hand[0] * ch.k, hy = y0 + ch.fy + ch.hand[1] * ch.k, sw = hPx * 0.62;
+        c.save(); c.translate(hx, hy); c.rotate((sp.facing === 'right' ? 1 : -1) * 0.55 - (sp.facing === 'right' ? 0 : 0)); if (sp.facing !== 'right') c.scale(-1, 1);
+        c.translate(-sw * 0.16, -sw * 0.84); smooth(c, false); drawPixelSprite(c, PX['px-sword'], 0, 0, sw, sw, null); c.restore();
+      }
+    });
+    // light from lava / portals / torches
+    c.save(); c.globalCompositeOperation = 'lighter';
+    var gl = w.glows.slice();
+    cells.forEach(function (b) { var def = BLK[b.t]; if (def && def.emit && (b.t === 'torch' || b.t === 'lantern' || b.t === 'fire' || b.t === 'glowstone')) gl.push({ p: [b.x + 0.5, b.y + 0.7, b.z + 0.5], r: 1.3, c: def.emit, a: 0.45 }); });
+    gl.forEach(function (g) {
+      var q = P(g.p), x = ox + q[0], y = oy + q[1], r = g.r * bs;
+      var rg = c.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, rgba(g.c, g.a)); rg.addColorStop(1, rgba(g.c, 0));
+      c.fillStyle = rg; c.fillRect(x - r, y - r, r * 2, r * 2);
+    });
+    c.restore();
+    return { canvas: C, w: C.width, h: C.height };
+  }
+  function setPieceCanvas(id, side) {
+    var key = 'SP|' + id + '|' + side, hit = cget(key); if (hit) return hit;
+    var def = SETPIECES[id]; if (!def) return null;
+    var w = VW(); def.build(w);
+    var yaw = side === 'left' ? 34 : side === 'center' ? 26 : -34, pitch = 30;
+    var probe = renderVoxels(w, yaw, pitch, 4);
+    var tw = side === 'center' ? 720 : 620, th = 470, k = Math.min(tw / probe.w, th / probe.h);
+    free(probe.canvas);
+    var out = renderVoxels(w, yaw, pitch, 4 * k);
+    return cset(key, { canvas: out.canvas, w: out.w, h: out.h });
+  }
+  /* paints a set-piece onto a 1280x720 design-space context */
+  function drawSetPiece(c, id, side) {
+    side = side === 'left' || side === 'center' ? side : 'right';
+    var sp = setPieceCanvas(id, side); if (!sp) return;
+    var cx = side === 'left' ? 330 : side === 'center' ? 640 : 950, x = cx - sp.w / 2, y = H - sp.h * 0.93;
+    c.save();
+    var halo = c.createRadialGradient(cx, y + sp.h * 0.55, 10, cx, y + sp.h * 0.55, sp.w * 0.62);
+    halo.addColorStop(0, 'rgba(255,255,235,0.22)'); halo.addColorStop(1, 'rgba(255,255,235,0)'); c.fillStyle = halo; c.fillRect(cx - sp.w, y - sp.h * 0.2, sp.w * 2, sp.h * 1.6);
+    c.shadowColor = 'rgba(0,0,0,0.5)'; c.shadowBlur = 30; c.shadowOffsetY = 14;
+    c.drawImage(sp.canvas, x, y);
+    c.restore();
   }
 
   /* ------------------------------------------------------------------ boxes + hit test */
@@ -2036,6 +2310,7 @@
     sceneCanvas: sceneCanvas,
     drawSticker: drawSticker,
     isSkinTexture: isSkinTexture,
+    setPieces: SETPIECE_IDS.map(function (id) { return { id: id, name: SETPIECES[id].name }; }),
     renderSkinPreview: renderSkinPreview,
     _stats: function () { return { entries: cache.size, megapixels: +(cachePx / 1e6).toFixed(2), fontEpoch: fontEpoch }; }
   };

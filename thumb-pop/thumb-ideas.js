@@ -830,6 +830,7 @@
     var id = o.imageId || null;
     return {
       id: newId(), type: 'image', imageId: id, fill: id ? null : (o.fill || null),
+      scene: !id && /^scene:/.test(o.fill || '') ? o.fill.slice(6) : undefined,
       x: Math.round(o.x), y: Math.round(o.y), w: Math.round(o.w), rotation: o.rotation || 0, flipX: !!o.flipX, opacity: 1,
       shape: o.shape || 'rounded',
       outline: { width: o.outline != null ? o.outline : (cut ? 12 : 8), color: o.outlineColor || '#FFFFFF' },

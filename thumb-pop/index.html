@@ -128,9 +128,10 @@ svg.i { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor;
 .me { margin-top: 2px; }
 .me-h { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--text-2); }
 .me-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+:root[data-mode="smp"] .me-row { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+@media (max-width: 700px) { :root[data-mode="smp"] .me-row { grid-template-columns: minmax(0, 1fr); } }
 .me-card { display: flex; gap: 12px; align-items: flex-start; min-width: 0; padding: 12px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface-2); }
 .me-card.has { border-color: var(--accent); background: var(--accent-soft); }
-.me-card.wide { grid-column: 1 / -1; }
 .me-pv { flex: none; position: relative; width: 64px; height: 76px; border-radius: 10px; background: var(--surface-3); display: grid; place-items: center; overflow: hidden; color: var(--text-3); }
 .me-pv canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .me-tx { flex: 1; min-width: 0; }
@@ -389,7 +390,7 @@ details.more[open] summary::after { content: "–"; }
         <div class="me" id="meWrap">
           <p class="me-h" id="meHead">Make it yours (optional) — added once, used in every thumbnail</p>
           <div class="me-row" id="meRow" data-testid="me-row">
-            <div class="me-card wide" data-me="skin" data-for="smp">
+            <div class="me-card" data-me="skin" data-for="smp">
               <div class="me-pv"><svg class="i"><use href="#i-plus"/></svg><canvas id="skinPv" data-testid="skin-preview" width="128" height="152" hidden aria-label="Your Minecraft character"></canvas></div>
               <div class="me-tx"><b>Add your Minecraft skin</b><span class="me-s">Put your skin in the thumbnails. Use your skin file (the 64×64 picture from your skin site or launcher) or a screenshot/picture of your character.</span>
                 <div class="me-acts"><button type="button" class="btn sm primary" data-me-pick="skin"><span>Add my skin</span></button><button type="button" class="btn sm ghost" data-me-remove="skin" data-testid="skin-remove" hidden>Remove</button></div></div>
