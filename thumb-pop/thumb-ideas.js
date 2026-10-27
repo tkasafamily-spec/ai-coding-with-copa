@@ -411,7 +411,7 @@
         why: '"I Made 1B with this Insane Trap" blew up with a huge green money number - money + trap makes people curious.' }));
       out.push(C('smp', { key: 'trap-react', layout: 'reaction', headline: pick(r, ['IT WORKED...', 'HE FELL FOR IT', 'NO WAY...']), subline: trapWhat,
         stickers: ['px-alert', 'px-trap'], emoji: [], palette: P.gold, font: 'lilita', scene: 'nether',
-        imageSlots: ['Your screenshot of the trap', faceSlot], why: 'A real surprised face next to the trap tells the story - keep the face natural, not a fake scream.' }));
+        imageSlots: ['Your screenshot of the trap', faceSlot], why: 'A shocked player right next to the trap tells the whole story in one look.' }));
       out.push(C('smp', { key: 'trap-split', layout: 'split', headline: '', leftLabel: 'THE TRAP', rightLabel: amt ? amt + ' LOOT' : 'THE LOOT',
         stickers: ['arrow-straight', 'px-chest'], palette: P.danger, font: 'bungee', scene: 'cave',
         imageSlots: ['Your screenshot of the trap', 'Your screenshot of the loot'], why: 'A clean side-by-side (trap → loot) is easier to read than one busy picture.' }));
@@ -1056,6 +1056,20 @@
       }
     }
     L = L.filter(Boolean);
+    // every SMP idea with a drawn set-piece gets the red circle on it (the trap / base / farm is the subject),
+    // unless the layout already points at something or the words sit there
+    if (smp && !split && !bgImage && !L.some(function (l) { return l.type === 'sticker' && (isArrow(l.sticker) || isRing(l.sticker)); })) {
+      var fx = pieceSide === 'center' ? 590 : pieceSide === 'left' ? 340 : 940, fy = pieceSide === 'center' ? 450 : 430;
+      // ease it off the character a little (half the overlap) so the circle stays on the build
+      L.forEach(function (l) {
+        if (l.type !== 'skin') return; var kb = roughBox(l);
+        if (l.x > fx && kb.x0 < fx + 120) fx -= Math.round((fx + 120 - kb.x0) / 2);
+        else if (l.x < fx && kb.x1 > fx - 120) fx += Math.round((kb.x1 - fx + 120) / 2);
+      });
+      var rb = { x0: fx - 120, x1: fx + 120, y0: fy - 120, y1: fy + 120 };
+      var clash = L.some(function (l) { if (l.type !== 'text') return false; var tb = roughBox(l); return tb.x0 < rb.x1 && rb.x0 < tb.x1 && tb.y0 < rb.y1 && rb.y0 < tb.y1; });
+      if (!clash) L.unshift(stickerLayer(c, takeSticker(isRing) || 'px-circle', { x: fx, y: fy, w: 250, rotation: -8 }));
+    }
 
     // remaining stickers: put them in free corners (never on top of words, the character or the dish), small, slightly rotated
     var spots = split ? [{ x: 640, y: 640 }, { x: 640, y: 150 }] :

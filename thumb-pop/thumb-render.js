@@ -2495,6 +2495,27 @@
       ]);
     } }
   ];
+  /* the owner's dish / face photo with no see-through parts would show as a hard-edged rectangle in a
+     cut-out slot: frame it instead (index.html passes me.dishCut / me.faceCut). */
+  TEMPLATES.forEach(function (t) {
+    var make = t.make;
+    t.make = function (o) {
+      var d = make(o), m = obj(o && o.me);
+      try {
+        (d.layers || []).forEach(function (l) {
+          if (l.type !== 'image' || !l.imageId || l.shape !== 'none') return;
+          var opaque = (l.imageId === m.dishId && m.dishCut === false) || (l.imageId === m.faceId && m.faceCut === false);
+          if (!opaque) return;
+          l.shape = 'circle'; l.aspect = 1;
+          if (l.w > 560) l.w = 560;
+          if (l.y - l.w / 2 < 20) l.y = Math.round(20 + l.w / 2);
+          if (l.y + l.w / 2 > 700) l.y = Math.round(700 - l.w / 2);
+          if (!l.outline || !(l.outline.width > 0)) l.outline = { width: 12, color: '#ffffff' };
+        });
+      } catch (e) { /* keep the design as made */ }
+      return d;
+    };
+  });
 
   /* ------------------------------------------------------------------ extras for UI (sticker sheet / scene previews) */
   function drawSticker(ctx, id, x, y, w, color, extra) {
