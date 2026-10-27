@@ -373,12 +373,12 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
 .card.k-clear{--b1:#4a2a00;--b2:#ffb300;--edge:#fff;--lab:#fff}
 .card.k-grim{--b1:#140a2a;--b2:var(--gc,#7b5cff);--edge:#ffe08a;--lab:#ffe08a}
 .card.k-grim .ttl{display:flex;align-items:center;justify-content:center;gap:12px;font-size:clamp(20px,3vw,34px)}
-.card.k-grim{top:calc(var(--sat) + max(54px,8.5vh))} /* just under the cinematic bar, above Ren's raised book */
+.card.k-grim,.card.k-power{top:calc(var(--sat) + max(54px,8.5vh))} /* just under the cinematic bar (both play in story shots), above Ren's head and raised book */
 .card.k-grim .gbook{width:1.1em;height:1.1em;flex:none;filter:drop-shadow(2px 2px 0 #000)}
 /* during the ultimate / domain: a thin band hugging the very top edge only */
 .card.k-ult{top:0}
 .card.k-ult .band{max-width:none;width:100%;padding:calc(var(--sat) + 3px) 0 4px;transform:translateY(-110%);display:flex;align-items:baseline;justify-content:center;gap:14px;
-  --b1:rgba(0,0,0,.82);--b2:rgba(40,30,0,.86);--edge:#ffcc33;--lab:#ffcc33;box-shadow:0 2px 0 var(--edge)}
+  --b1:rgba(0,0,0,.96);--b2:rgba(40,30,0,.97);--edge:#ffcc33;--lab:#ffcc33;box-shadow:0 2px 0 var(--edge)}
 .card.k-ult .band>*{transform:none}
 .card.k-ult.on .band{animation:ultband var(--dur,1.6s) ease-out forwards}
 @keyframes ultband{0%{transform:translateY(-110%)}12%{transform:none}86%{transform:none;opacity:1}100%{transform:translateY(-110%);opacity:0}}
@@ -429,7 +429,7 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
 @keyframes rot{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
 #rotate p{font-family:"M PLUS Rounded 1c";font-weight:800;font-size:20px;margin:0}
 
-@media (max-height:500px){ .card{top:calc(var(--sat) + 92px)} .card .ttl{font-size:26px} .card .band{padding:4px 22px 5px} .card .lab{font-size:10px} .card .sub{font-size:11px;margin-top:1px} .card.k-ult .ttl{font-size:18px} .card.k-grim{top:calc(var(--sat) + 40px)} .card.k-grim .ttl{font-size:20px} }
+@media (max-height:500px){ .card{top:calc(var(--sat) + 92px)} .card .ttl{font-size:26px} .card .band{padding:4px 22px 5px} .card .lab{font-size:10px} .card .sub{font-size:11px;margin-top:1px} .card.k-ult .ttl{font-size:18px} .card.k-grim,.card.k-power{top:calc(var(--sat) + 40px)} .card.k-grim .ttl{font-size:20px} }
 @media (prefers-reduced-motion: reduce){ .logo .glint{animation:none} }
 </style>
 </head>
@@ -733,7 +733,7 @@ function grimInfo(g) {
 function ownedGrimoires(st) { const list = st && Array.isArray(st.grimoires) && mode === 'game' ? st.grimoires : save.grimoires; return list.map(grimInfo).filter(g => g && g.id); }
 function rememberGrimoire(id) { if (id && !save.grimoires.includes(id)) { save.grimoires.push(id); return true; } return false; }
 const BOOK_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M3 4c3-1 6-1 8 1v15c-2-2-5-2-8-1zM21 4c-3-1-6-1-8 1v15c2-2 5-2 8-1z"/></svg>';
-const glyphOf = g => { const ic = String(g.icon || ''); return ic && ic.length <= 3 ? ic : g.name.charAt(0); };
+const glyphOf = g => { const ic = String(g.icon || ''); return ic && ic.length <= 2 ? ic : g.name.charAt(0); }; // the game's icons are words ('orb', 'wind'): use the book's initial
 
 /* ============================================================
    AUDIO ENGINE — everything synthesized with Web Audio

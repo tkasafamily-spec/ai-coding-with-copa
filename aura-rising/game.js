@@ -1362,7 +1362,7 @@ export function createGame(canvas, opts = {}) {
     const cov = toon(0xb0142a, { em: 0x400010, ei: 1 }), pg = toon(0xfff4e0);
     for (const s of [-1, 1]) { const half = new THREE.Group(); half.rotation.y = s * 0.5; book.add(half); part(half, G.box, cov, [s * 0.17, 0, 0], [0.34, 0.46, 0.04]); part(half, G.box, pg, [s * 0.16, 0, 0.03], [0.3, 0.42, 0.03], null, null); }
     const bg = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff5a2a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); bg.scale.setScalar(1.6); book.add(bg);
-    p.book = book;
+    book.scale.setScalar(0.72); p.book = book;
     return p;
   }
   function nearestEnemy(from, maxD, dirYaw, cone) {
@@ -1444,7 +1444,7 @@ export function createGame(canvas, opts = {}) {
     for (const k in p.cd) p.cd[k] = Math.max(0, p.cd[k] - dt);
     for (const k in gcd) gcd[k] = Math.max(0, gcd[k] - dt); castLock = Math.max(0, castLock - dt);
     p.inv = Math.max(0, p.inv - dt); p.st += dt;
-    if (p.book.visible) { p.bookT -= dt; const tgt = p.pos.clone().add(new THREE.Vector3(Math.sin(p.yaw + 0.9) * 0.7, 1.9 + Math.sin(rig.t * 3) * 0.08, Math.cos(p.yaw + 0.9) * 0.7)); p.book.position.lerp(tgt, 1 - Math.exp(-10 * dt)); p.book.rotation.y = p.yaw; if (p.bookT < 0) p.book.visible = false; if (Math.random() < 0.3) spawnP(PA, p.book.position.x, p.book.position.y, p.book.position.z, rand(-0.5, 0.5), 1, rand(-0.5, 0.5), 0.5, 0.18, 0xff7a2a); }
+    if (p.book.visible) { p.bookT -= dt; const tgt = p.pos.clone().add(new THREE.Vector3(Math.sin(p.yaw + 1.35) * 0.55, 1.05 + Math.sin(rig.t * 3) * 0.05, Math.cos(p.yaw + 1.35) * 0.55)); /* tucked by his hip, out of the view */ p.book.position.lerp(tgt, 1 - Math.exp(-10 * dt)); p.book.rotation.y = p.yaw; if (p.bookT < 0) p.book.visible = false; if (Math.random() < 0.3) spawnP(PA, p.book.position.x, p.book.position.y, p.book.position.z, rand(-0.5, 0.5), 1, rand(-0.5, 0.5), 0.5, 0.14, p.bookCol || 0xff7a2a); }
     if (p.dead) { p.vel.x = p.vel.z = 0; physics(p, dt); return; }
     const playing = state.screen === 'play';
     // camera-relative movement
@@ -1562,14 +1562,14 @@ export function createGame(canvas, opts = {}) {
     equipped = id == null ? null : id; const g = GRIM(equipped);
     if (player && g) {
       tintBook(g.color);
-      if (fx && state.screen === 'play') { const p = player; if (!p.book.visible) p.book.position.copy(p.pos).add(new THREE.Vector3(0, 1.8, 0)); p.book.visible = true; p.bookT = Math.max(p.bookT, 1.2); shockRing(p.pos, 1.8, g.color, 0.35); burst(p.pos.x, p.pos.y + 1.4, p.pos.z, 14, g.color, 3, 0.5, 0.3, 0); }
+      if (fx && state.screen === 'play') { const p = player; if (!p.book.visible) p.book.position.copy(p.pos).add(new THREE.Vector3(0, 1.05, 0)); p.book.visible = true; p.bookT = Math.max(p.bookT, 1.2); shockRing(p.pos, 1.8, g.color, 0.35); burst(p.pos.x, p.pos.y + 1.4, p.pos.z, 14, g.color, 3, 0.5, 0.3, 0); }
     }
     emit('equip', { id: equipped, name: g ? g.name : 'Aura Dash', color: g ? g.color : null, icon: g ? g.icon : null }); if (fx) sfx('equip');
     return true;
   }
   // recolour Ren's floating book to the equipped grimoire (covers + glow; near-white page materials are left alone)
   function tintBook(col) {
-    const p = player; if (!p || !p.book) return; const c = new THREE.Color(col);
+    const p = player; if (!p || !p.book) return; const c = new THREE.Color(col); p.bookCol = c.getHex();
     p.book.traverse((o) => {
       if (o.isSprite && o.material) o.material.color.copy(c);
       else if (o.isMesh && o.material && o.material.isMeshToonMaterial && !o.userData.outline) {
@@ -1582,7 +1582,7 @@ export function createGame(canvas, opts = {}) {
   function castSpell(id) {
     const g = GRIM(id), S = g.spell, fn = SPELLS[S.kind]; if (!fn || !player) return;
     const p = player; p.state = 'cast'; p.st = 0; play(p.rig, 'cast', 0.5); gcd[id] = S.cd; castLock = 0.7;
-    if (!p.book.visible) p.book.position.copy(p.pos).add(new THREE.Vector3(0, 1.8, 0)); p.book.visible = true; p.bookT = 2.5; tintBook(g.color);
+    if (!p.book.visible) p.book.position.copy(p.pos).add(new THREE.Vector3(0, 1.05, 0)); p.book.visible = true; p.bookT = 2.5; tintBook(g.color);
     const t = lockTarget || nearestEnemy(p.pos, 16, p.yaw, 1.4); if (t) faceTarget(p, t);
     fn(S, hexOf(g.color), t);
     emit('cast', { id, name: g.name });
@@ -2471,7 +2471,7 @@ export function createGame(canvas, opts = {}) {
     } else if (cam.mode === 'shot' && cam.shot) shotCamera(dt);
     else if (cam.mode === 'orbit') { const t = clock * 0.18; cam.pos.set(cam.orbitC.x + Math.sin(t) * cam.orbitR, cam.orbitC.y + cam.orbitH + 0.3, cam.orbitC.z + Math.cos(t) * cam.orbitR); cam.look.copy(cam.orbitC).add(new THREE.Vector3(0, 0.15, 0)); cam.fov = 45; }
     // ult cinematic
-    if (ultSeq && ultSeq.t < (ultSeq.domain ? 1.6 : 0.7) && player) { const t = ultSeq.t; const r = player.rig; const yaw = player.yaw + t * 1.2; cam.pos.set(player.pos.x + Math.sin(yaw) * 3.2, player.pos.y + 1.0 + t * 0.6, player.pos.z + Math.cos(yaw) * 3.2); cam.look.copy(player.pos).add(new THREE.Vector3(0, 1.3, 0)); cam.fov = 42; }
+    if (ultSeq && ultSeq.t < (ultSeq.domain ? 1.6 : 0.7) && player) { const t = ultSeq.t; const r = player.rig; const yaw = player.yaw + 0.8 + t * 1.2; /* three-quarter shot, so the enemy he faces never blocks him */ cam.pos.set(player.pos.x + Math.sin(yaw) * 3.2, player.pos.y + 1.0 + t * 0.6, player.pos.z + Math.cos(yaw) * 3.2); cam.look.copy(player.pos).add(new THREE.Vector3(0, 1.3, 0)); cam.fov = 42; }
     camera.position.copy(cam.pos); cam.shake = Math.max(0, cam.shake - dt * 1.6);
     if (cam.shake > 0) camera.position.add(tmpV.set(rand(-1, 1), rand(-1, 1), rand(-1, 1)).multiplyScalar(cam.shake * 0.25));
     camera.lookAt(cam.look); camera.fov = cam.fov; camera.updateProjectionMatrix();
@@ -2634,7 +2634,7 @@ export function createGame(canvas, opts = {}) {
       aura(full = true) { if (player) player.aura = full ? 100 : 0; },
       chapter(n) { startChapter(n, { powers: CHAPTERS.slice(0, n - 1).map((c) => c.power.id) }); },
       boss() { const n = state.chapter || 1; startChapter(n, { fromCheckpoint: 2, powers: CHAPTERS.slice(0, n).map((c) => c.power.id) }); },
-      killAll() { for (const e of enemies.slice()) if (!e.dead) { if (e.boss) { e.hp = 1; damageEnemy(e, 999, { heavy: true }); } else killEnemy(e); } },
+      killAll() { for (const e of enemies.slice()) if (!e.dead) { if (e.boss) { e.hp = 1; e.iframe = 0; if (e.state === 'evade' || e.state === 'guard') e.state = 'idle'; damageEnemy(e, 999, { heavy: true }); } else killEnemy(e); } },
       skip() { api.skipScene(); },
       view(p, l, fov = 40) { if (!p) { cam.mode = 'follow'; return; } cam.mode = 'fixed'; const o = player ? player.pos : new THREE.Vector3(); cam.pos.set(o.x + p[0], o.y + p[1], o.z + p[2]); cam.look.set(o.x + l[0], o.y + l[1], o.z + l[2]); cam.fov = fov; },
       pose(anim, emo, yaw) { if (!player) return; if (anim) play(player.rig, anim, 99); if (emo) setEmotion(player.rig, emo); if (yaw != null) player.yaw = yaw; },
