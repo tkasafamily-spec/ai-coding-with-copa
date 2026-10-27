@@ -1733,11 +1733,11 @@
   var SETPIECES = {
     'trap-lava': { name: 'Lava trap', build: function (w) {
       vwGround(w, 9, 8);
-      w.box(2, 0, 2, 6, 0, 6, 'cobble'); w.box(3, -1, 3, 5, 0, 5, null); w.box(3, -2, 3, 5, -2, 5, 'lava');
-      w.set(3, 1, 0, 'chest'); w.set(4, 1, 0, 'chest'); w.set(5, 1, 0, 'diamond'); w.set(2, 1, 2, 'torch'); w.set(6, 1, 2, 'torch'); w.set(4, 1, 6, 'plate');
-      w.set(1, 1, 6, 'tallgrass'); w.set(7, 1, 5, 'flower'); w.set(0, 1, 2, 'tallgrass'); w.set(8, 1, 7, 'tallgrass');
-      w.glows.push({ p: [4.5, -0.6, 4.5], r: 3.6, c: '#ff7a1a', a: 0.75 });
-      w.sprites.push({ who: 'rival', pose: 'shock', facing: 'right', p: [4.5, 1.6, 4.4], h: 1.9 });
+      w.box(1, 0, 1, 6, 0, 6, 'cobble'); w.box(2, -1, 2, 5, 0, 5, null); w.box(2, -2, 2, 5, -2, 5, 'lava');
+      w.set(3, 1, 0, 'chest'); w.set(4, 1, 0, 'chest'); w.set(5, 1, 0, 'diamond'); w.set(2, 1, 0, 'gold'); w.set(1, 1, 1, 'torch'); w.set(6, 1, 6, 'torch'); w.set(7, 1, 3, 'plate');
+      w.set(0, 1, 6, 'tallgrass'); w.set(8, 1, 5, 'flower'); w.set(0, 1, 2, 'tallgrass'); w.set(8, 1, 7, 'tallgrass'); w.set(7, 1, 0, 'tallgrass');
+      w.glows.push({ p: [4, -0.6, 4], r: 4.2, c: '#ff7a1a', a: 0.8 });
+      w.sprites.push({ who: 'rival', pose: 'shock', facing: 'right', p: [4, 1.3, 4.2], h: 2.2 });
     } },
     'trap-piston': { name: 'Piston trap', build: function (w) {
       vwGround(w, 9, 7);
