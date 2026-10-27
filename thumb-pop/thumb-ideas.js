@@ -2,8 +2,10 @@
  * window.ThumbIdeas: turns "what's your video about?" into 3–4 ready-made thumbnail designs.
  *   detectTheme(prompt)            -> 'cooking' | 'smp'
  *   offline(prompt, {theme, seed}) -> concept[]   (instant, no network, research-based rules)
- *   toDesign(concept)              -> design      (1280x720 design model, see thumb-render.js)
- *   generate(prompt, {theme, lookAtPopular, onStep, signal, timeoutMs, fresh, seed}) -> Promise<result> (never throws)
+ *   toDesign(concept, {me})        -> design      (1280x720 design model, see thumb-render.js) - finished-looking:
+ *     me = { skinId, faceId, dishId, shotId, faceCut?, dishCut? } (ids of the owner's stored pictures, any may be null);
+ *     empty slots get generated art (scene + setPiece, the built-in character, a drawn plate) - never placeholder text.
+ *   generate(prompt, {theme, lookAtPopular, onStep, signal, timeoutMs, fresh, seed, me}) -> Promise<result> (never throws)
  *     signal: an AbortSignal for a "Stop" button (gives built-in ideas). No timer by default: the first vidIQ /
  *     Claude call can be waiting on the viewer's "Allow" box. timeoutMs adds an overall deadline (tests).
  * Plain JS, no modules. Works with or without window.ThumbRender / window.claude.
@@ -30,6 +32,21 @@
   var TINTABLE = { 'arrow-straight': 1, 'arrow-curved': 1, 'circle-ring': 1 };
   var SCENES = { cooking: ['kitchen-bokeh', 'wood-board', 'marble', 'color-pop'], smp: ['blocky-day', 'blocky-night', 'cave', 'nether'] };
   var LAYOUTS = ['hero', 'split', 'reveal', 'reaction', 'money', 'rank', 'vs', 'count', 'time', 'band'];
+  var SETPIECES = ['trap-lava', 'trap-piston', 'base-house', 'base-bunker', 'spawner-farm', 'crop-farm', 'pvp-duel', 'stash-chests', 'portal'];
+  // the pixel-art set-piece drawn on the SMP scene so the idea reads without the owner's screenshot
+  function pickSetPiece(c, key) {
+    var t = (str(key) + ' ' + str(c.headline) + ' ' + str(c.subline) + ' ' + str(c.number) + ' ' + str(c.leftLabel) + ' ' + str(c.rightLabel) + ' ' + (c.imageSlots || []).join(' ')).toLowerCase();
+    var odd = hash(t) & 1, sc = c.scene;
+    if (/trap/.test(t)) return sc === 'nether' || sc === 'cave' || odd ? 'trap-lava' : 'trap-piston';
+    if (/spawner/.test(t)) return 'spawner-farm';
+    if (/farm|afk|crop|wheat|sugar ?cane|grind/.test(t)) return sc === 'cave' ? 'spawner-farm' : 'crop-farm';
+    if (/stash|chest|loot|shulker|giveaway|free|mystery|inside|crate/.test(t)) return 'stash-chests';
+    if (/raid|base|bunker|house|hidden|vault/.test(t)) return sc === 'blocky-night' || sc === 'cave' || sc === 'nether' ? 'base-bunker' : 'base-house';
+    if (/pvp|fight|duel|bounty|clutch|heart|sword|kill|1v1/.test(t)) return 'pvp-duel';
+    if (/\$|money|rich|billion|million|profit|balance|method/.test(t)) return odd ? 'stash-chests' : 'spawner-farm';
+    if (/portal|nether/.test(t)) return 'portal';
+    return sc === 'nether' ? 'portal' : sc === 'cave' ? 'stash-chests' : sc === 'blocky-night' ? 'base-bunker' : 'base-house';
+  }
 
   // Generic "AI voice" words real creators don't put on thumbnails.
   var BANNED = /\b(unleash\w*|ultimate|epic|journey|discover\w*|master(ing|class)?|guide|delv\w*|embark\w*|elevate\w*|unlock\w*|revolution\w*|transform\w*|adventure|realm|tapestry|whimsical|captivating|mouth-?watering|culinary|delectable|savou?ry delight|secrets? revealed|you won'?t believe|game-?changing)\b/i;
@@ -359,7 +376,8 @@
     return {
       theme: theme, layout: o.layout, headline: o.headline || '', subline: o.subline || '', number: o.number || '',
       leftLabel: o.leftLabel || '', rightLabel: o.rightLabel || '', stickers: o.stickers || [], emoji: o.emoji || [],
-      palette: o.palette, font: o.font, scene: o.scene, imageSlots: o.imageSlots || [], why: o.why || '', _key: o.key || o.layout
+      palette: o.palette, font: o.font, scene: o.scene, imageSlots: o.imageSlots || [], why: o.why || '', _key: o.key || o.layout,
+      dish: o.dish || '', setPiece: o.setPiece || ''
     };
   }
   function moneyNumber(ctx, style) {
@@ -607,6 +625,7 @@
       palette: P.yellow, font: 'luckiest', scene: 'kitchen-bokeh', imageSlots: [photo, face], why: 'Your real face + the food is more trustworthy than a stock photo.' }));
     out.push(C('cooking', { key: 'time2', layout: 'time', headline: dishShort, number: (ctx.minutes || 15) + ' MIN', stickers: ['clock'], palette: P.yellow, font: 'anton', scene: 'color-pop',
       imageSlots: [photo], why: 'A time badge tells busy people it\'s quick.' }));
+    out.forEach(function (c) { c.dish = ctx.dish || t.meal || ''; });
     var CP = { vs: 0, react: t.taste ? 0 : 1, count: 2, 'only': 2, time: 3, healthy: 4, giant: 5, rank: 6 };
     return stableSort(out, function (c) { var g = c._key === 'time-split' ? 'time' : c._key.split('-')[0]; return CP[g] != null && ['react2', 'time2'].indexOf(c._key) < 0 ? CP[g] : 10; });
   }
@@ -715,6 +734,8 @@
     o.imageSlots = (Array.isArray(c.imageSlots) ? c.imageSlots : []).map(function (s) { return cleanText(s, 10, 60); }).filter(Boolean).slice(0, 3);
     if (!o.imageSlots.length) o.imageSlots = [theme === 'smp' ? 'Your screenshot' : 'Your photo of the food'];
     if ((o.layout === 'split' || o.layout === 'vs') && o.imageSlots.length < 2) o.imageSlots.push(theme === 'smp' ? 'Your second screenshot' : 'Your second photo');
+    o.dish = theme === 'cooking' ? cleanText(c.dish, 4, 30).toLowerCase().replace(/[^a-z' -]/g, '').trim() : '';
+    o.setPiece = theme === 'smp' ? (SETPIECES.indexOf(c.setPiece) >= 0 ? c.setPiece : pickSetPiece(o, str(c._key))) : '';
     o.why = clip(str(c.why).replace(/[\r\n\t]+/g, ' ').replace(/[<>{}\[\]\\`*_|]/g, '').replace(/\s+/g, ' ').trim(), 170) || 'Short words, one big picture and an arrow - like top creators do.';
     return o;
   }
@@ -789,21 +810,43 @@
       w = Math.min(l.maxWidth, est.longest) + 2 * (half - est.n * l.size * l.lineHeight / 2); h = 2 * half;
     } else if (l.type === 'image') { w = l.w; h = l.shape === 'none' ? l.w * 1.25 : l.shape === 'circle' ? l.w : l.w * 9 / 16; }
     else if (l.type === 'emoji') { w = h = l.size; }
+    else if (l.type === 'skin') { h = l.h; w = l.h * (l.pose === 'point' || l.pose === 'run' ? 0.75 : 0.55); }
     else { w = h = l.w; }
     return { x0: l.x - w / 2 - 8, x1: l.x + w / 2 + 8, y0: l.y - h / 2 - 8, y1: l.y + h / 2 + 8 };
   }
   // keep the whole text block inside the frame (estimated line count)
   function keepInFrame(L) { var half = textExtent(L); L.y = Math.round(clamp(L.y, half + 12, H - half - 12)); return L; }
+  // Short words for the side panel only ("your trap screenshot"); never painted on the thumbnail.
+  function hint(s) { s = str(s).replace(/\s*\((background|cut-?out)\)\s*/ig, ' ').replace(/\s+/g, ' ').trim(); return s ? clip(s.charAt(0).toLowerCase() + s.slice(1), 44) : ''; }
+  // the owner's stored pictures ({ skinId, faceId, dishId, shotId } + optional faceCut / dishCut = has see-through parts)
+  function cleanMe(me) {
+    me = me && typeof me === 'object' ? me : {};
+    var ok = function (v) { return typeof v === 'string' && /^[A-Za-z0-9_.:-]{1,80}$/.test(v) ? v : null; };
+    return { skinId: ok(me.skinId), faceId: ok(me.faceId), dishId: ok(me.dishId), shotId: ok(me.shotId), faceCut: !!me.faceCut, dishCut: !!me.dishCut };
+  }
   function imageLayer(c, o) {
     var smp = c.theme === 'smp';
     var cut = o.shape === 'none';
+    var id = o.imageId || null;
     return {
-      id: newId(), type: 'image', imageId: null, x: Math.round(o.x), y: Math.round(o.y), w: Math.round(o.w), rotation: o.rotation || 0, flipX: !!o.flipX, opacity: 1,
+      id: newId(), type: 'image', imageId: id, fill: id ? null : (o.fill || null),
+      x: Math.round(o.x), y: Math.round(o.y), w: Math.round(o.w), rotation: o.rotation || 0, flipX: !!o.flipX, opacity: 1,
       shape: o.shape || 'rounded',
       outline: { width: o.outline != null ? o.outline : (cut ? 12 : 8), color: o.outlineColor || '#FFFFFF' },
-      glow: { size: cut ? (smp ? 36 : 0) : 0, color: o.glowColor || (smp ? c.palette.accent : '#FFFFFF') },
-      shadow: { blur: 28, color: 'rgba(0,0,0,0.45)', dx: 0, dy: 10 },
-      placeholder: o.label || 'Your photo'
+      glow: { size: o.glow != null ? o.glow : (cut ? (smp ? 36 : 0) : 0), color: o.glowColor || (smp ? c.palette.accent : '#FFFFFF') },
+      shadow: o.shadow || { blur: 28, color: 'rgba(0,0,0,0.45)', dx: 0, dy: 10 },
+      slotHint: hint(o.hint) || (smp ? 'your screenshot' : 'your photo')
+    };
+  }
+  // the Minecraft character (the owner's skin, or the built-in one when imageId is null)
+  function skinLayer(c, o) {
+    return {
+      id: newId(), type: 'skin', imageId: o.imageId || null, pose: o.pose || 'stand', facing: o.facing === 'left' ? 'left' : 'right',
+      x: Math.round(o.x), y: Math.round(o.y), h: Math.round(o.h), rotation: o.rotation || 0,
+      outline: { width: o.outline != null ? o.outline : 10, color: o.outlineColor || '#FFFFFF' },
+      glow: { size: o.glow != null ? o.glow : 30, color: o.glowColor || c.palette.accent },
+      shadow: { blur: 26, color: 'rgba(0,0,0,0.55)', dx: 0, dy: 12 },
+      slotHint: o.hint || 'your skin'
     };
   }
   function stickerLayer(c, id, o) {
@@ -819,53 +862,90 @@
     if (/\$/.test(num)) return { kind: 'gradient', color: c.palette.money, color2: darker(c.palette.money, 0.72) };
     return { kind: 'gradient', color: c.palette.accent, color2: darker(c.palette.accent, 0.78) };
   }
+  // what's on the plate: the concept's dish, else "photo of the X" from its picture list, else food words in the headline
+  var FOOD_WORDS = /\b(cookies?|brownies?|cakes?|cupcakes?|muffins?|pancakes?|waffles?|pasta|spaghetti|noodles|ramen|mac(aroni)?( and| n)? cheese|pizza|burgers?|sandwich(es)?|tacos?|salad|soup|curry|rice|fries|chicken|nuggets|wings|steak|eggs?|omelette|toast|bread|donuts?|pie|ice cream|smoothie|milkshake|sushi|lasagna|dough|breakfast|lunch|dinner|dessert|snacks?)\b/i;
+  function dishOf(c) {
+    if (c.dish) return c.dish;
+    for (var i = 0; i < c.imageSlots.length; i++) { var m = str(c.imageSlots[i]).match(/(?:photo|picture|pic) of (?:the |your |my )?(.+)$/i); if (m && !/food|dish/i.test(m[1])) return m[1].toLowerCase(); }
+    var f = (c.headline + ' ' + c.subline).match(FOOD_WORDS);
+    return f ? f[0].toLowerCase() : '';
+  }
 
-  function toDesign(concept) {
+  // toDesign(concept, { me }): a finished-looking design. Every picture slot is filled: the owner's own pictures
+  // when given (me), else generated art (scene + set-piece, the built-in character, a drawn plate of food).
+  // No layer carries words meant for the picture; slotHint is for the side panel only.
+  function toDesign(concept, opts) {
+    opts = opts || {};
+    var me = cleanMe(opts.me);
     var c = sanitizeConcept(concept, concept && concept.theme) || sanitizeConcept({ theme: 'smp', layout: 'reveal', headline: 'MY BASE' }, 'smp');
     var smp = c.theme === 'smp', pal = c.palette;
     var L = [];
     var slots = c.imageSlots.slice();
-    var slot = function (i, d) { return slots[i] || d; };
     var st = c.stickers.slice();
     var takeSticker = function (pred) { for (var i = 0; i < st.length; i++) if (pred(st[i])) return st.splice(i, 1)[0]; return null; };
     var isArrow = function (s) { return /arrow/.test(s); };
     var isRing = function (s) { return /circle/.test(s); };
-    var faceIdx = slots.findIndex ? slots.findIndex(function (s) { return /face|skin|cut-?out|you\b/i.test(s) && !/screenshot/i.test(s); }) : -1;
-    var hasFace = faceIdx >= 0;
+    var faceIdx = -1;
+    for (var fi = 0; fi < slots.length; fi++) if (/face|skin|cut-?out|you\b/i.test(slots[fi]) && !/screenshot/i.test(slots[fi])) { faceIdx = fi; break; }
+    // SMP: the character (owner's skin or the built-in one) stands in for every face cut-out.
+    // Cooking: the owner's face only when they added one - never a fake face.
+    var hasFace = !smp && !!me.faceId && (faceIdx >= 0 || c.layout === 'reaction');
     // Layouts are written "text on the left, picture on the right"; half of the ideas are mirrored (asymmetry + variety).
     var right = (hash(c.headline + '|' + c.layout + '|' + c.number) & 1) === 1; // true = mirrored (text on the right)
     var X = function (x) { return right ? W - x : x; };
-    var mainLabel = slots.filter(function (s, i) { return i !== faceIdx; })[0] || slot(0, 'Your screenshot');
-    var faceLabel = hasFace ? slots[faceIdx] : '';
-    // an arrow that points from the text toward the picture
+    var F = function (f) { return right ? (f === 'left' ? 'right' : 'left') : f; };
+    var mainHint = hint(slots.filter(function (s, i) { return i !== faceIdx; })[0] || (smp ? 'your screenshot' : 'your food photo'));
     var arrowOpts = function (x, y, w, deg) { return { x: X(x), y: y, w: w, rotation: right ? -deg : deg, flipX: right }; };
-
-    // A smaller line goes under the headline's real (wrapped) block, never into it.
     var below = function (hl, sub) {
       if (!hl || !sub) return sub;
       var want = hl.y + textExtent(hl) + textExtent(sub) + 14;
       if (sub.y < want) { sub.y = Math.round(want); keepInFrame(sub); }
       return sub;
     };
-    // Real Donut SMP / cooking thumbnails let the owner's own screenshot or dish fill the whole frame,
-    // so in every layout but split/vs the main picture is the background slot (the scene only shows until
-    // a photo is added). Face cut-outs and the split/vs cards stay as photo boxes on top.
-    var bleed = c.layout !== 'split' && c.layout !== 'vs';
+    var split = c.layout === 'split' || c.layout === 'vs';
+    // the owner's screenshot is the background (split/vs: it goes in the "after" card instead)
+    var dish = dishOf(c), food = 'food:' + (dish || 'generic');
+    var dishBg = !smp && !split && !!me.dishId && !me.shotId && !me.dishCut;  // a real dish photo fills the frame
+    var bgImage = split ? null : (me.shotId || (dishBg ? me.dishId : null));
+    var pieceSide = right ? 'left' : 'right';
+    // cooking: the dish (owner's photo or the drawn plate) on the picture side
+    var foodLayer = function (x, y, w, rot) {
+      if (dishBg) return null;
+      var own = me.dishId;
+      return imageLayer(c, { x: X(x), y: y, w: w, rotation: rot || 0, imageId: own, fill: own ? null : food, hint: mainHint,
+        shape: own ? (me.dishCut ? 'none' : 'circle') : 'none', outline: own ? (me.dishCut ? 12 : 10) : 0, glow: 0,
+        shadow: { blur: 34, color: 'rgba(0,0,0,0.5)', dx: 0, dy: 16 } });
+    };
+    var faceLayer = function (x, y, w) {
+      return imageLayer(c, { x: X(x), y: y, w: w, imageId: me.faceId, shape: me.faceCut ? 'none' : 'circle', outline: me.faceCut ? 12 : 10, glow: 0, hint: 'your face' });
+    };
+    var hero = function (pose, x, y, h, facing, rot) { return skinLayer(c, { imageId: me.skinId, pose: pose, facing: F(facing), x: X(x), y: y, h: h, rotation: rot || 0 }); };
     var hl;
 
     switch (c.layout) {
       case 'reveal': {
         var ring = takeSticker(isRing) || (smp ? 'px-circle' : 'circle-ring');
-        L.push(stickerLayer(c, ring, { x: X(980), y: 250, w: 220, rotation: -8 }));
-        if (hasFace) L.push(imageLayer(c, { x: X(215), y: 565, w: 350, shape: 'none', label: faceLabel }));
-        L.push(hl = textLayer(c, { text: c.headline, x: X(320), y: hasFace ? 145 : 230, maxWidth: 540, maxSize: hasFace && c.subline ? 110 : 130, rotation: right ? 3 : -3 }));
-        var arrow = takeSticker(isArrow) || (smp ? 'px-arrow' : 'arrow-curved');
-        L.push(stickerLayer(c, arrow, arrowOpts(705, 250, 180, 0)));
-        if (c.subline) L.push(below(hl, textLayer(c, { text: c.subline, x: X(320), y: hasFace ? 300 : 420, maxWidth: 520, maxSize: 72, maxLines: hasFace ? 1 : 2, minSize: 60, optional: true, color: smp ? pal.money : pal.accent, rotation: right ? 2 : -2 })));
+        if (smp) {
+          // character on the text side pointing at the set-piece, which the red circle rings
+          L.push(stickerLayer(c, ring, { x: X(960), y: 430, w: 300, rotation: -8 }));
+          L.push(hero('point', 190, 520, 400, 'right'));
+          L.push(hl = textLayer(c, { text: c.headline, x: X(330), y: 140, maxWidth: 560, maxSize: c.subline ? 106 : 120, rotation: right ? 3 : -3 }));
+          L.push(stickerLayer(c, takeSticker(isArrow) || 'px-arrow', arrowOpts(700, 330, 170, 12)));
+          if (c.subline) L.push(below(hl, textLayer(c, { text: c.subline, x: X(360), y: 290, maxWidth: 500, maxSize: 70, maxLines: 1, minSize: 56, optional: true, color: pal.money, rotation: right ? 2 : -2 })));
+        } else {
+          L.push(foodLayer(930, 400, 620, 0));
+          L.push(stickerLayer(c, ring, { x: X(960), y: 260, w: 230, rotation: -8 }));
+          if (hasFace) L.push(faceLayer(215, 565, 330));
+          L.push(hl = textLayer(c, { text: c.headline, x: X(320), y: hasFace ? 145 : 230, maxWidth: 540, maxSize: hasFace && c.subline ? 110 : 130, rotation: right ? 3 : -3 }));
+          L.push(stickerLayer(c, takeSticker(isArrow) || 'arrow-curved', arrowOpts(690, 250, 170, 0)));
+          if (c.subline) L.push(below(hl, textLayer(c, { text: c.subline, x: X(320), y: hasFace ? 300 : 420, maxWidth: 520, maxSize: 72, maxLines: hasFace ? 1 : 2, minSize: 60, optional: true, color: pal.accent, rotation: right ? 2 : -2 })));
+        }
         if (c.number) L.push(textLayer(c, { text: c.number, x: X(1000), y: 640, maxWidth: 480, maxSize: 96, maxLines: 1, fill: numberFill(c, c.number), effect: smp ? 'extrude' : 'none', effectColor: '#000000', rotation: -2 }));
         break;
       }
       case 'hero': {
+        if (smp) L.push(hero('point', 990, 430, 540, 'left'));
+        else L.push(foodLayer(930, 390, 660, 0));
         L.push(hl = textLayer(c, { text: c.headline, x: X(310), y: 290, maxWidth: 500, maxSize: 150, maxLines: 3, rotation: right ? 3 : -3 }));
         if (c.subline) L.push(below(hl, textLayer(c, { text: c.subline, x: X(320), y: 520, maxWidth: 520, maxSize: smp ? 72 : 80, maxLines: 2, minSize: 60, optional: true, font: smp ? c.font : 'caveat', uppercase: smp,
           color: smp ? pal.accent : '#FFFFFF', strokeWidth: smp ? undefined : 8, rotation: right ? 2 : -4 })));
@@ -875,8 +955,15 @@
         break;
       }
       case 'split': {
-        L.push(imageLayer(c, { x: 330, y: 400, w: 600, label: slot(0, 'Your first picture'), shape: 'rounded', rotation: -2 }));
-        L.push(imageLayer(c, { x: 960, y: 390, w: 620, label: slot(1, 'Your second picture'), shape: 'rounded', rotation: 2 }));
+        var hintA = hint(slots[0] || 'your first picture'), hintB = hint(slots[1] || 'your second picture');
+        if (smp) {
+          var sceneB = c.scene !== 'blocky-day' ? c.scene : 'blocky-night';
+          L.push(imageLayer(c, { x: 330, y: 400, w: 600, fill: 'scene:blocky-day', hint: hintA, shape: 'rounded', rotation: -2 }));
+          L.push(imageLayer(c, { x: 960, y: 390, w: 620, imageId: me.shotId, fill: 'scene:' + sceneB, hint: hintB, shape: 'rounded', rotation: 2 }));
+        } else {
+          L.push(imageLayer(c, { x: 330, y: 400, w: 600, fill: 'food:raw ' + (dish || 'ingredients'), hint: hintA, shape: 'rounded', rotation: -2 }));
+          L.push(imageLayer(c, { x: 960, y: 390, w: 620, imageId: me.dishId, fill: food, hint: hintB, shape: 'rounded', rotation: 2 }));
+        }
         L.push(textLayer(c, { text: c.leftLabel, x: 320, y: 120, maxWidth: 520, maxSize: 120, maxLines: 1, rotation: -3, color: pal.text }));
         var rl = c.rightLabel, rlMoney = /\$/.test(rl);
         L.push(textLayer(c, { text: rl, x: 975, y: 112, maxWidth: 560, maxSize: 140, maxLines: 1, rotation: 3, fill: rlMoney ? numberFill(c, rl) : { kind: 'gradient', color: pal.accent, color2: darker(pal.accent, 0.8) }, effect: smp ? 'extrude' : 'none', effectColor: '#000000' }));
@@ -886,8 +973,14 @@
         break;
       }
       case 'vs': {
-        L.push(imageLayer(c, { x: 330, y: 400, w: 580, label: slot(0, 'Left picture'), shape: smp ? 'none' : 'rounded', rotation: -3 }));
-        L.push(imageLayer(c, { x: 950, y: 400, w: 580, label: slot(1, 'Right picture'), shape: smp ? 'none' : 'rounded', rotation: 3, flipX: smp }));
+        if (smp) {
+          // me (the owner's skin) vs them (the built-in character)
+          L.push(skinLayer(c, { imageId: me.skinId, pose: 'point', facing: 'right', x: 300, y: 420, h: 560, rotation: -3, glowColor: '#3CEB4C', hint: 'your skin' }));
+          L.push(skinLayer(c, { imageId: null, pose: 'stand', facing: 'left', x: 985, y: 420, h: 560, rotation: 3, glowColor: '#FF2D2D', hint: 'their skin' }));
+        } else {
+          L.push(imageLayer(c, { x: 330, y: 400, w: 580, fill: 'food:' + str(c.leftLabel).toLowerCase() + ' ' + (dish || 'food'), hint: hint(slots[0] || 'left picture'), shape: 'rounded', rotation: -3 }));
+          L.push(imageLayer(c, { x: 950, y: 400, w: 580, imageId: me.dishId, fill: food, hint: hint(slots[1] || 'right picture'), shape: 'rounded', rotation: 3 }));
+        }
         L.push(textLayer(c, { text: 'VS', x: 640, y: 380, size: 210, maxWidth: 400, rotation: -8, fill: { kind: 'gradient', color: pal.accent, color2: darker(pal.accent, 0.7) }, effect: smp ? 'extrude' : 'none', effectColor: '#000000', strokeWidth: 18 }));
         L.push(textLayer(c, { text: c.leftLabel, x: 300, y: 640, maxWidth: 480, maxSize: 100, maxLines: 1, rotation: -2 }));
         L.push(textLayer(c, { text: c.rightLabel, x: 990, y: 640, maxWidth: 480, maxSize: 100, maxLines: 1, rotation: 2, color: smp ? pal.accent : pal.text }));
@@ -895,17 +988,21 @@
         break;
       }
       case 'reaction': {
-        L.push(imageLayer(c, { x: X(1010), y: 480, w: 460, shape: 'none', label: faceLabel || (smp ? 'Your skin or face (cut-out)' : 'Your face (cut-out)') }));
+        if (smp) { L.push(hero('shock', 1010, 450, 600, 'left')); pieceSide = 'center'; }
+        else if (hasFace) { L.push(foodLayer(560, 420, 470, -4)); L.push(faceLayer(1020, 480, 440)); }
+        else L.push(foodLayer(950, 400, 640, 0));
         L.push(hl = textLayer(c, { text: c.headline, x: X(400), y: 120, maxWidth: 680, maxSize: 130, maxLines: 2, rotation: right ? 2 : -2 }));
         if (c.subline) L.push(textLayer(c, { text: c.subline, x: X(380), y: 640, maxWidth: 600, maxSize: 76, maxLines: 1, minSize: 56, optional: true, effect: 'box', box: { color: smp ? '#000000' : pal.accent, padding: 18, radius: smp ? 4 : 16 }, color: smp ? pal.accent : '#FFFFFF', rotation: right ? -1 : 1 }));
         if (c.number) {
-          // the face takes the right side: a long "$1,000,000,000" would shrink below the headline, so use "$1B"
+          // the character takes the right side: a long "$1,000,000,000" would shrink below the headline, so use "$1B"
           var rn = /^\$[\d,]{8,}$/.test(c.number) ? moneyShort(parseFloat(c.number.slice(1).replace(/,/g, ''))) : c.number;
           L.push(below(hl, textLayer(c, { text: rn, x: X(420), y: c.subline ? 500 : 590, maxWidth: 680, maxSize: 150, maxLines: 1, fill: numberFill(c, rn), effect: smp ? 'extrude' : 'none', effectColor: '#000000', rotation: -2 })));
         }
         break;
       }
       case 'money': {
+        if (smp) L.push(hero('stand', 1070, 440, 520, 'left'));
+        else L.push(foodLayer(1000, 420, 520, 0));
         L.push(hl = textLayer(c, { text: c.headline || 'DONUT SMP', x: X(380), y: 150, maxWidth: 640, maxSize: 96, maxLines: 2, rotation: right ? 2 : -2 }));
         var num = c.number || '$1B', longNum = num.length > 9;
         // a long number gets the full width under the headline, so it stays the biggest thing on the thumbnail
@@ -914,6 +1011,8 @@
         break;
       }
       case 'rank': {
+        if (smp) L.push(hero('stand', 1000, 410, 540, 'left'));
+        else L.push(foodLayer(920, 380, 640, 0));
         var crown = takeSticker(function (s) { return /crown|flame|burst/.test(s); }) || (smp ? 'px-crown' : 'burst');
         L.push(stickerLayer(c, crown, { x: X(230), y: 120, w: crown === 'burst' ? 340 : 190, rotation: -10 }));
         L.push(textLayer(c, { text: c.number || '#1', x: X(240), y: crown === 'burst' ? 150 : 330, maxWidth: 420, maxSize: crown === 'burst' ? 120 : 260, maxLines: 1, fill: { kind: 'gradient', color: '#FFE14A', color2: '#FF9A1F' }, effect: smp ? 'extrude' : 'none', effectColor: '#3A1C00', strokeWidth: 18, rotation: -6 }));
@@ -921,7 +1020,8 @@
         break;
       }
       case 'count': {
-        if (slots.length > 1 && !hasFace) L.push(imageLayer(c, { x: X(1110), y: 560, w: 260, label: slots[1], shape: 'circle', rotation: 0 }));
+        if (smp) L.push(hero('stand', 1010, 420, 520, 'left'));
+        else L.push(foodLayer(930, 380, 640, 0));
         var badge = takeSticker(function (s) { return /burst|diamond|spawner|chest|emerald/.test(s); }) || (smp ? null : 'burst');
         if (badge === 'burst') L.push(stickerLayer(c, 'burst', { x: X(260), y: 300, w: 420, rotation: -8, color: pal.accent }));
         else if (badge) L.push(stickerLayer(c, badge, { x: X(420), y: 120, w: 150, rotation: 10 }));
@@ -931,6 +1031,8 @@
         break;
       }
       case 'time': {
+        if (smp) L.push(hero('run', 1000, 440, 500, 'left'));
+        else L.push(foodLayer(930, 400, 640, 0));
         var clock = takeSticker(function (s) { return /clock|pickaxe/.test(s); }) || (smp ? null : 'clock');
         if (clock) L.push(stickerLayer(c, clock, { x: X(85), y: 190, w: 130, rotation: -12 }));
         L.push(textLayer(c, { text: c.number || '10 MIN', x: X(385), y: 190, maxWidth: 430, maxSize: 150, maxLines: 1, fill: { kind: 'gradient', color: pal.accent, color2: darker(pal.accent, 0.75) }, effect: smp ? 'extrude' : 'none', effectColor: '#000000', strokeWidth: 16, rotation: -4 }));
@@ -940,6 +1042,8 @@
       }
       case 'band':
       default: {
+        if (smp) L.push(hero('shock', 1020, 330, 470, 'left'));
+        else L.push(foodLayer(900, 300, 580, 0));
         L.push(textLayer(c, { text: c.headline, x: X(560), y: 590, maxWidth: 1000, maxSize: 110, maxLines: 1, effect: 'box', box: { color: smp ? '#000000' : pal.accent, padding: 24, radius: smp ? 6 : 20 }, color: smp ? pal.accent : '#FFFFFF', rotation: right ? 1.5 : -1.5 }));
         if (c.subline) L.push(textLayer(c, { text: c.subline, x: X(300), y: 470, maxWidth: 560, maxSize: smp ? 72 : 90, maxLines: 1, minSize: 60, optional: true, font: smp ? c.font : 'caveat', uppercase: smp, color: smp ? pal.money : '#FFFFFF', strokeWidth: smp ? undefined : 9, rotation: right ? 5 : -6 }));
         if (c.number) L.push(textLayer(c, { text: c.number, x: X(1080), y: 110, maxWidth: 360, maxSize: 96, maxLines: 1, fill: numberFill(c, c.number), effect: smp ? 'extrude' : 'none', effectColor: '#000000', rotation: 5 }));
@@ -948,8 +1052,8 @@
     }
     L = L.filter(Boolean);
 
-    // remaining stickers: put them in free corners (never on top of words or a face box), small, slightly rotated
-    var spots = (c.layout === 'split' || c.layout === 'vs') ? [{ x: 640, y: 640 }, { x: 640, y: 150 }] :
+    // remaining stickers: put them in free corners (never on top of words, the character or the dish), small, slightly rotated
+    var spots = split ? [{ x: 640, y: 640 }, { x: 640, y: 150 }] :
       [{ x: X(1180), y: 110 }, { x: X(110), y: 640 }, { x: X(1190), y: 640 }, { x: X(110), y: 110 }, { x: X(1190), y: 380 }, { x: X(100), y: 380 }];
     var taken = L.map(roughBox);
     var used = 0;
@@ -958,24 +1062,26 @@
       var sw = smp ? 140 : 150;
       for (var k = 0; k < spots.length; k++) {
         var sp = spots[k]; if (!sp) continue;
-        var me = { x0: sp.x - sw / 2, x1: sp.x + sw / 2, y0: sp.y - sw / 2, y1: sp.y + sw / 2 };
-        if (taken.some(function (b) { return b && b.x0 < me.x1 && me.x0 < b.x1 && b.y0 < me.y1 && me.y0 < b.y1; })) continue;
-        spots[k] = null; used++; taken.push(me);
+        var box = { x0: sp.x - sw / 2, x1: sp.x + sw / 2, y0: sp.y - sw / 2, y1: sp.y + sw / 2 };
+        if (taken.some(function (b) { return b && b.x0 < box.x1 && box.x0 < b.x1 && b.y0 < box.y1 && box.y0 < b.y1; })) continue;
+        spots[k] = null; used++; taken.push(box);
         L.push(stickerLayer(c, s, { x: sp.x, y: sp.y, w: sw, rotation: (used % 2 ? 1 : -1) * 10 }));
         return;
       }
     });
     c.emoji.forEach(function (e, i) { L.push(emojiLayer(e, { x: X(i ? 140 : 700), y: i ? 600 : 470, size: 120, rotation: i ? -10 : 8 })); });
 
-    // keep text on top (after images/stickers), preserving relative order
-    var imgs = L.filter(function (l) { return l.type === 'image'; });
+    // pictures first, then stickers, then words on top (relative order kept)
+    var imgs = L.filter(function (l) { return l.type === 'image' || l.type === 'skin'; });
     var rest = L.filter(function (l) { return l.type === 'sticker' || l.type === 'emoji'; });
     var texts = L.filter(function (l) { return l.type === 'text'; });
     var layers = imgs.concat(rest, texts);
 
-    var bg = { kind: bleed ? 'image' : 'scene', imageId: null, scene: c.scene, color: smp ? '#1E7A2E' : '#F4A63A', color2: smp ? '#0B3D17' : '#E2552B', angle: 135,
+    var bg = { kind: bgImage ? 'image' : 'scene', imageId: bgImage || null, scene: c.scene, color: smp ? '#1E7A2E' : '#F4A63A', color2: smp ? '#0B3D17' : '#E2552B', angle: 135,
       zoom: 1, fx: 0.5, fy: 0.5, brightness: 0, contrast: 0, saturation: 0, blur: 0, vignette: smp ? 0.3 : 0.2, tint: null, tintAmount: 0 };
-    if (bleed) bg.placeholder = mainLabel + ' (Background)';
+    if (smp && !bgImage && !split) { bg.setPiece = c.setPiece || pickSetPiece(c, ''); bg.setPieceSide = pieceSide; }
+    // the scene stands in for the owner's main picture (the side panel offers "Use my own screenshot")
+    if (!split) bg.slotHint = smp ? mainHint : (dishBg || me.shotId ? 'your photo' : 'your background photo');
     var name = cap(c.headline || c.number || c.leftLabel || 'My thumbnail');
     name = titleCase(name).replace(/\bvs\b/i, 'vs');
     return { v: 1, id: newId(), name: name, theme: c.theme, template: 'idea-' + c.layout, background: bg, layers: layers };
@@ -1066,7 +1172,7 @@
       ' "leftLabel": "split/vs only, else empty", "rightLabel": "split/vs only, else empty",',
       ' "stickers": up to 3 of ' + JSON.stringify(ids.stickers) + ', "emoji": up to 2 emoji (cooking only, usually 0-1),',
       ' "palette": {"text":"#hex","stroke":"#hex (dark)","accent":"#hex","money":"#hex (green)"},',
-      ' "font": one of ' + JSON.stringify(ids.fonts) + ', "scene": one of ' + JSON.stringify(ids.scenes) + ',',
+      ' "font": one of ' + JSON.stringify(ids.fonts) + ', "scene": one of ' + JSON.stringify(ids.scenes) + ',' + (theme === 'smp' ? ' "setPiece": one of ' + JSON.stringify(SETPIECES) + ' (the pixel-art thing drawn in the scene),' : ''),
       ' "imageSlots": ["what photo/screenshot the creator should add, e.g. Your screenshot of the trap", "optional: Your face (cut-out)"],',
       ' "why": "one short plain sentence a kid understands, saying what real top videos do that this copies"}',
       'Layouts: hero=big picture + 2-line title; split=two pictures with leftLabel/rightLabel (day 1 vs day 100, before/after); reveal=screenshot + red circle + arrow + text;',
@@ -1107,6 +1213,7 @@
     var ctx = parse(prompt, theme);
     var topicWord = theme === 'smp' ? (ctx.t.trap ? 'trapping' : ctx.t.base || ctx.t.raid ? 'base' : ctx.t.money ? 'money' : ctx.t.pvp ? 'PvP' : ctx.t.spawner ? 'spawner' : ctx.t.farm ? 'farm' : 'Donut SMP') : (ctx.dish ? ctx.dish : 'cooking');
     var popular = [], notes = [], aiConcepts = [];
+    var mine = { me: opts.me || null };
     var ALLOW = ' If a box pops up, tap Allow.';
 
     function finish() {
@@ -1119,11 +1226,12 @@
         off.forEach(function (c) { if (concepts.length < 3 && concepts.indexOf(c) < 0) concepts.push(c); });
       }
       var designs = [];
+      concepts.forEach(function (c) { if (theme === 'cooking' && !c.dish) c.dish = ctx.dish || ctx.t.meal || ''; });
       concepts = concepts.filter(function (c) {
-        try { designs.push(toDesign(c)); return true; } catch (e) { return false; }
+        try { designs.push(toDesign(c, mine)); return true; } catch (e) { return false; }
       });
       if (!designs.length) { // should never happen; last-resort
-        concepts = offline('', { theme: theme }); designs = concepts.map(toDesign);
+        concepts = offline('', { theme: theme }); designs = concepts.map(function (c) { return toDesign(c, mine); });
       }
       var inspiredBy = popular.slice(0, 5).map(function (p) { return { title: p.title, channel: p.channel, views: p.views, viewsText: fmtViews(p.views) + ' views' }; });
       var uniq = notes.filter(function (n, i) { return n && notes.indexOf(n) === i; });
@@ -1137,7 +1245,7 @@
     var claude = (typeof window !== 'undefined') ? window.claude : null;
     if (!claude || typeof claude.use !== 'function') {
       onStep('Making ideas…');
-      return Promise.resolve().then(finish).catch(function () { return safeOffline(prompt, theme); });
+      return Promise.resolve().then(finish).catch(function () { return safeOffline(prompt, theme, mine); });
     }
 
     var run = Promise.resolve().then(function () {
@@ -1229,13 +1337,13 @@
       }, function (e) { notes.push(sampleNote(stopped() ? 'stopped' : e && e.code === 'timeout' ? 'not_granted' : e && e.code)); });
     }).then(function () { onStep('Making your thumbnails…'); return finish(); });
 
-    return run.catch(function () { return safeOffline(prompt, theme); });
+    return run.catch(function () { return safeOffline(prompt, theme, mine); });
   }
   function stripPrivateKeep(c) { var o = {}; Object.keys(c).forEach(function (k) { if (k[0] !== '_') o[k] = c[k]; }); return o; }
-  function safeOffline(prompt, theme) {
+  function safeOffline(prompt, theme, mine) {
     try {
       var cs = offline(prompt, { theme: theme });
-      return { concepts: cs.map(stripPrivateKeep), designs: cs.map(toDesign), inspiredBy: [], source: 'offline', note: 'Built-in ideas made on this device.' };
+      return { concepts: cs.map(stripPrivateKeep), designs: cs.map(function (c) { return toDesign(c, mine); }), inspiredBy: [], source: 'offline', note: 'Built-in ideas made on this device.' };
     } catch (e) {
       return { concepts: [], designs: [], inspiredBy: [], source: 'offline', note: 'Something went wrong making ideas.' };
     }
@@ -1251,6 +1359,7 @@
     normalize: normalize,
     research: CHEAT,
     rules: NOT_AI_RULES,
-    _internal: { parse: parse, buildPrompt: buildPrompt, parseSearchPayload: parseSearchPayload, parseOutliersText: parseOutliersText, searchQuery: searchQuery, extractMoney: extractMoney }
+    setPieces: SETPIECES,
+    _internal: { pickSetPiece: pickSetPiece, cleanMe: cleanMe, parse: parse, buildPrompt: buildPrompt, parseSearchPayload: parseSearchPayload, parseOutliersText: parseOutliersText, searchQuery: searchQuery, extractMoney: extractMoney }
   };
 })();

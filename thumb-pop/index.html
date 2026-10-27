@@ -117,7 +117,27 @@ svg.i { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor;
 .note { margin: 0 0 12px; font-size: 15px; color: var(--text-2); }
 .idea-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
 .idea-card { display: flex; flex-direction: column; border-radius: var(--r); border: 1px solid var(--border); background: var(--surface-2); overflow: hidden; }
-.idea-card .pv { display: block; width: 100%; aspect-ratio: 16/9; border: 0; padding: 0; background: #222; position: relative; }
+.idea-card .pv { display: block; width: 100%; aspect-ratio: 16/9; border: 0; padding: 0; background: #222; position: relative; overflow: hidden; }
+.idea-card .bld { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 8px; border-radius: 999px; background: rgba(12,12,14,.72); color: #fff; font-size: 13px; font-weight: 600; line-height: 1.3; pointer-events: none; transition: opacity .3s; }
+.idea-card .bld::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--hi); animation: blink .7s ease-in-out infinite alternate; }
+.idea-card .bld.done { opacity: 0; }
+@keyframes blink { from { opacity: .35; } to { opacity: 1; } }
+.idea-card canvas.fade { opacity: 0; transition: opacity .5s ease-out; }
+.idea-card canvas.fade.in { opacity: 1; }
+/* "make it yours": the owner's skin / dish / face / screenshot, asked once and reused */
+.me { margin-top: 2px; }
+.me-h { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--text-2); }
+.me-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+.me-card { display: flex; gap: 12px; align-items: flex-start; min-width: 0; padding: 12px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface-2); }
+.me-card.has { border-color: var(--accent); background: var(--accent-soft); }
+.me-card.wide { grid-column: 1 / -1; }
+.me-pv { flex: none; position: relative; width: 64px; height: 76px; border-radius: 10px; background: var(--surface-3); display: grid; place-items: center; overflow: hidden; color: var(--text-3); }
+.me-pv canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.me-tx { flex: 1; min-width: 0; }
+.me-tx b { display: block; font-size: 16px; line-height: 1.25; }
+.me-tx .me-s { display: block; margin-top: 2px; font-size: 14px; line-height: 1.35; color: var(--text-2); }
+.me-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.btn.sm { min-height: 40px; padding: 0 14px; font-size: 15px; }
 .idea-card canvas, .tcard canvas { display: block; width: 100%; height: 100%; }
 .idea-card .meta { display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 16px; }
 .idea-card .why { flex: 1; margin: 0; font-size: 15px; line-height: 1.35; color: var(--text-2); }
@@ -361,11 +381,40 @@ details.more[open] summary::after { content: "–"; }
 
     <section class="idea" id="ideaSec" aria-labelledby="ideaTitle">
       <h1 id="ideaTitle">What’s your video about?</h1>
-      <p class="sub">Type it like you’d tell a friend. You’ll get a few thumbnail ideas — then add your own screenshot or photo to finish it.</p>
+      <p class="sub">Type it like you’d tell a friend. You’ll get a few finished thumbnails, ready to save — change anything you like.</p>
       <div class="idea-field">
         <label for="ideaInput" class="vh">What’s your video about?</label>
         <textarea id="ideaInput" data-testid="idea-input" rows="2" maxlength="160" enterkeyhint="go" autocomplete="off" autocapitalize="sentences" placeholder="e.g. trapping a base on Donut SMP"></textarea>
         <div class="chips" id="ideaChips" aria-label="Examples"></div>
+        <div class="me" id="meWrap">
+          <p class="me-h" id="meHead">Make it yours (optional) — added once, used in every thumbnail</p>
+          <div class="me-row" id="meRow" data-testid="me-row">
+            <div class="me-card wide" data-me="skin" data-for="smp">
+              <div class="me-pv"><svg class="i"><use href="#i-plus"/></svg><canvas id="skinPv" data-testid="skin-preview" width="128" height="152" hidden aria-label="Your Minecraft character"></canvas></div>
+              <div class="me-tx"><b>Add your Minecraft skin</b><span class="me-s">Put your skin in the thumbnails. Use your skin file (the 64×64 picture from your skin site or launcher) or a screenshot/picture of your character.</span>
+                <div class="me-acts"><button type="button" class="btn sm primary" data-me-pick="skin"><span>Add my skin</span></button><button type="button" class="btn sm ghost" data-me-remove="skin" data-testid="skin-remove" hidden>Remove</button></div></div>
+            </div>
+            <div class="me-card" data-me="dish" data-for="cooking">
+              <div class="me-pv"><svg class="i"><use href="#i-photo"/></svg><canvas id="dishPv" data-testid="dish-preview" width="128" height="152" hidden aria-label="Your dish"></canvas></div>
+              <div class="me-tx"><b>Add a photo of your dish</b><span class="me-s">It goes big in every thumbnail.</span>
+                <div class="me-acts"><button type="button" class="btn sm primary" data-me-pick="dish"><span>Add photo</span></button><button type="button" class="btn sm ghost" data-me-remove="dish" data-testid="dish-remove" hidden>Remove</button></div></div>
+            </div>
+            <div class="me-card" data-me="face" data-for="cooking">
+              <div class="me-pv"><svg class="i"><use href="#i-photo"/></svg><canvas id="facePv" data-testid="face-preview" width="128" height="152" hidden aria-label="Your face"></canvas></div>
+              <div class="me-tx"><b>Add your face</b><span class="me-s">Optional. For taste-test ideas.</span>
+                <div class="me-acts"><button type="button" class="btn sm" data-me-pick="face"><span>Add photo</span></button><button type="button" class="btn sm ghost" data-me-remove="face" data-testid="face-remove" hidden>Remove</button></div></div>
+            </div>
+            <div class="me-card" data-me="shot" data-for="both">
+              <div class="me-pv"><svg class="i"><use href="#i-image-bg"/></svg><canvas id="shotPv" data-testid="shot-preview" width="128" height="152" hidden aria-label="Your background picture"></canvas></div>
+              <div class="me-tx"><b id="shotTitle">Add a screenshot</b><span class="me-s" id="shotSub">Optional. Used as the background.</span>
+                <div class="me-acts"><button type="button" class="btn sm" data-me-pick="shot"><span>Add picture</span></button><button type="button" class="btn sm ghost" data-me-remove="shot" data-testid="shot-remove" hidden>Remove</button></div></div>
+            </div>
+          </div>
+          <input class="file-in" type="file" id="skinInput" data-testid="skin-input" accept="image/*" tabindex="-1" aria-hidden="true">
+          <input class="file-in" type="file" id="dishInput" data-testid="dish-input" accept="image/*" tabindex="-1" aria-hidden="true">
+          <input class="file-in" type="file" id="faceInput" data-testid="face-input" accept="image/*" tabindex="-1" aria-hidden="true">
+          <input class="file-in" type="file" id="shotInput" data-testid="shot-input" accept="image/*" tabindex="-1" aria-hidden="true">
+        </div>
         <div class="idea-actions">
           <div class="seg" id="ideaTheme" role="group" aria-label="Kind of video">
             <button type="button" data-v="auto" aria-pressed="true">Auto</button>
@@ -564,7 +613,7 @@ details.more[open] summary::after { content: "–"; }
 
   /* ================================================== storage (IndexedDB with in-memory fallback) */
   var Store = (function () {
-    var mem = { designs: {}, images: {} };
+    var mem = { designs: {}, images: {}, kv: {} };
     var dbp = null;
     function open() {
       if (dbp) return dbp;
@@ -573,11 +622,12 @@ details.more[open] summary::after { content: "–"; }
         function fin(db) { if (!done) { done = true; resolve(db); } }
         try {
           if (!window.indexedDB) return fin(null);
-          var req = indexedDB.open('thumb-pop', 1);
+          var req = indexedDB.open('thumb-pop', 2);
           req.onupgradeneeded = function () {
             var db = req.result;
             if (!db.objectStoreNames.contains('designs')) db.createObjectStore('designs', { keyPath: 'id' });
             if (!db.objectStoreNames.contains('images')) db.createObjectStore('images');
+            if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
           };
           req.onsuccess = function () { var db = req.result; db.onversionchange = function () { try { db.close(); } catch (e) {} }; fin(db); };
           req.onerror = function () { fin(null); };
@@ -595,7 +645,21 @@ details.more[open] summary::after { content: "–"; }
         t.onabort = function () { rej(t.error || new Error('abort')); };
       });
     }
+    function hasKv(db) { try { return !!db && db.objectStoreNames.contains('kv'); } catch (e) { return false; } }
     return {
+      getKV: function (k) {
+        return open().then(function (db) {
+          if (!hasKv(db)) return mem.kv[k];
+          return tx(db, 'kv', 'readonly', function (os) { return os.get(k); }).then(function (v) { return v === undefined ? mem.kv[k] : v; }, function () { return mem.kv[k]; });
+        });
+      },
+      putKV: function (k, v) {
+        mem.kv[k] = v;
+        return open().then(function (db) {
+          if (!hasKv(db)) return;
+          return tx(db, 'kv', 'readwrite', function (os) { os.put(v, k); }).catch(function () {});
+        });
+      },
       allDesigns: function () {
         return open().then(function (db) {
           if (!db) return Object.keys(mem.designs).map(function (k) { return mem.designs[k]; });
@@ -700,7 +764,9 @@ details.more[open] summary::after { content: "–"; }
   // Leaving the editor: drop every decoded photo and the renderer's caches (they reload from IndexedDB when a
   // design is opened again), so a long session of imports doesn't pile up canvas memory.
   function releaseImages() {
+    var keepMe = {}; meIds().forEach(function (id) { keepMe[id] = true; });
     Object.keys(images).forEach(function (id) {
+      if (keepMe[id]) return; // the owner's skin / dish / face / screenshot stay ready for the home previews
       var im = images[id];
       try {
         if (im && typeof im.close === 'function') im.close();
@@ -708,7 +774,8 @@ details.more[open] summary::after { content: "–"; }
         else if (im && /^blob:/.test(im.src || '')) URL.revokeObjectURL(im.src);
       } catch (e) {}
     });
-    images = {};
+    var kept = {}; Object.keys(keepMe).forEach(function (id) { if (images[id]) kept[id] = images[id]; });
+    images = kept;
     try { if (R && R.clearCache) R.clearCache(); } catch (e) {}
   }
   function sourceToCanvas(src, sw, sh) {
@@ -738,11 +805,27 @@ details.more[open] summary::after { content: "–"; }
       return { id: registerImage(c, blob, alpha), w: cw, h: ch, alpha: alpha };
     });
   }
+  // A skin texture (64x64 / 64x32) must stay pixel-exact: PNG, no smoothing, no JPEG. Big pictures go the normal way.
+  function importSkinFile(file) {
+    return viaImg(file).then(function (im) {
+      var w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+      try {
+        if (!w || !h) throw new Error('empty');
+        if (w > 512 || h > 512) return importDrawable(im, w, h, true);
+        var c = document.createElement('canvas'); c.width = w; c.height = h;
+        var x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(im, 0, 0);
+        return canvasToBlob(c, 'image/png').then(function (blob) {
+          if (!blob) throw new Error('encode');
+          return { id: registerImage(c, blob, true), w: w, h: h, alpha: true };
+        });
+      } finally { try { URL.revokeObjectURL(im.src); } catch (e) {} }
+    });
+  }
   function referencedImages(d) {
     var out = [];
     if (!d) return out;
     if (d.background && d.background.imageId) out.push(d.background.imageId);
-    (d.layers || []).forEach(function (l) { if (l.type === 'image' && l.imageId) out.push(l.imageId); });
+    (d.layers || []).forEach(function (l) { if ((l.type === 'image' || l.type === 'skin') && l.imageId) out.push(l.imageId); });
     return out;
   }
   function ensureImages(d) {
@@ -764,6 +847,7 @@ details.more[open] summary::after { content: "–"; }
       recs.forEach(function (r) { referencedImages(r.design).forEach(function (id) { keep[id] = true; }); });
       referencedImages(design).forEach(function (id) { keep[id] = true; });
       Object.keys(protectImages).forEach(function (id) { keep[id] = true; });
+      meIds().forEach(function (id) { keep[id] = true; });
       return Store.imageKeys().then(function (keys) {
         return Promise.all(keys.filter(function (k) { return !keep[k]; }).map(function (k) { return Store.deleteImage(k); }));
       });
@@ -789,7 +873,7 @@ details.more[open] summary::after { content: "–"; }
     ctx.save();
     var res;
     try {
-      var o = { scale: canvas.width / W, placeholders: true };
+      var o = { scale: canvas.width / W, placeholders: false };
       if (opts) for (var k in opts) o[k] = opts[k];
       res = R.render(ctx, viewDesign(d), images, o);
     } catch (e) { ctx.restore(); return false; }
@@ -834,10 +918,17 @@ details.more[open] summary::after { content: "–"; }
   var nudgeDismissed = false;
   var fontsReady = false;
 
+  // the owner's own pictures, asked once on the home screen and put into every idea / template
+  var me = { skinId: null, faceId: null, dishId: null, shotId: null, faceCut: false, dishCut: false };
+  var ME_KINDS = ['skin', 'dish', 'face', 'shot'];
+  function meIds() { return ME_KINDS.map(function (k) { return me[k + 'Id']; }).filter(Boolean); }
+  function meCopy() { return { skinId: me.skinId, faceId: me.faceId, dishId: me.dishId, shotId: me.shotId, faceCut: !!me.faceCut, dishCut: !!me.dishCut }; }
+
   function setMode(m) {
     mode = m === 'smp' ? 'smp' : 'cooking';
     root.setAttribute('data-mode', mode);
     lsSet('thumbpop.mode', mode);
+    updateMeRow();
   }
   setMode(mode);
 
@@ -895,7 +986,7 @@ details.more[open] summary::after { content: "–"; }
       grid.appendChild(b);
       var c = b.querySelector('canvas');
       jobs.push(function () {
-        var d; try { d = t.make(); } catch (e) { return; }
+        var d; try { d = t.make({ me: meCopy() }); } catch (e) { return; }
         if (paint(c, d)) b.querySelector('.pv').classList.remove('skel');
       });
     });
@@ -904,7 +995,7 @@ details.more[open] summary::after { content: "–"; }
   $('tplGrid').addEventListener('click', function (e) {
     var b = e.target.closest('[data-template]'); if (!b) return;
     var t = templateById(b.getAttribute('data-template')); if (!t) return;
-    var d; try { d = t.make(); } catch (er) { toast('That style didn’t load. Try another one.'); return; }
+    var d; try { d = t.make({ me: meCopy() }); } catch (er) { toast('That style didn’t load. Try another one.'); return; }
     d.id = newId('d'); d.theme = d.theme || mode; d.template = d.template || t.id;
     openEditor(d, { fresh: true });
   });
@@ -958,6 +1049,102 @@ details.more[open] summary::after { content: "–"; }
     }
   });
   var cleanupTimer = null;
+
+  // ---- "Make it yours": skin (SMP), dish + face (cooking), screenshot (both)
+  function meCard(k) { return document.querySelector('.me-card[data-me="' + k + '"]'); }
+  function updateMeRow() {
+    var row = $('meRow'); if (!row) return;
+    ME_KINDS.forEach(function (k) {
+      var card = meCard(k), f = card.getAttribute('data-for'), has = !!me[k + 'Id'];
+      card.hidden = !(f === 'both' || f === mode);
+      card.classList.toggle('has', has);
+      card.querySelector('[data-me-remove]').hidden = !has;
+      var pick = card.querySelector('[data-me-pick] span');
+      pick.textContent = has ? 'Change' : k === 'skin' ? 'Add my skin' : k === 'shot' ? 'Add picture' : 'Add photo';
+      drawMePreview(k);
+    });
+    $('shotTitle').textContent = mode === 'smp' ? 'Add a screenshot' : 'Add a background photo';
+    $('shotSub').textContent = mode === 'smp' ? 'Optional. Used as the background instead of a made-up scene.' : 'Optional. Used as the background (your kitchen, a table…).';
+  }
+  function drawMePreview(k) {
+    var cvp = $(k + 'Pv'); if (!cvp) return;
+    var id = me[k + 'Id'], im = id ? images[id] : null;
+    cvp.hidden = !id;
+    if (!id) return;
+    var x = cvp.getContext('2d'); x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, cvp.width, cvp.height);
+    if (k === 'skin' && R && typeof R.renderSkinPreview === 'function') {
+      try { x.save(); R.renderSkinPreview(x, im || null, 'stand', cvp.width / 2, cvp.height / 2, cvp.height * 0.88); x.restore(); return; } catch (e) { x.restore(); }
+    }
+    if (!im) return;
+    var iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height; if (!iw || !ih) return;
+    var small = Math.max(iw, ih) <= 128;
+    var sc = small ? Math.min(cvp.width / iw, cvp.height / ih) : Math.max(cvp.width / iw, cvp.height / ih);
+    x.imageSmoothingEnabled = !small;
+    x.drawImage(im, (cvp.width - iw * sc) / 2, (cvp.height - ih * sc) / 2, iw * sc, ih * sc);
+  }
+  function loadMeImages() {
+    return Promise.all(meIds().filter(function (id) { return !images[id]; }).map(function (id) {
+      return Store.getImage(id).then(function (blob) {
+        if (!blob) return;
+        return decodeStored(blob).then(function (im) {
+          images[id] = im;
+          imageMeta[id] = { w: im.naturalWidth || im.width, h: im.naturalHeight || im.height, alpha: /png|webp/i.test(blob.type || '') };
+        });
+      }).catch(function () {});
+    }));
+  }
+  var meReady = Store.getKV('me').then(function (v) {
+    if (v && typeof v === 'object') ME_KINDS.forEach(function (k) { if (typeof v[k + 'Id'] === 'string') me[k + 'Id'] = v[k + 'Id']; });
+    if (v) { me.faceCut = !!v.faceCut; me.dishCut = !!v.dishCut; }
+    meIds().forEach(function (id) { protectImages[id] = true; });
+    return loadMeImages();
+  }).catch(function () {}).then(function () { updateMeRow(); });
+  function saveMe() { Store.putKV('me', meCopy()); }
+  // after a change: templates and the shown ideas are re-made with the new pictures
+  function meChanged() {
+    updateMeRow(); saveMe();
+    clearTimeout(tplTimer); tplTimer = setTimeout(renderTemplates, 60);
+    var I = ideasApi();
+    if (lastIdeas && I) {
+      var res = lastIdeas.res;
+      try {
+        var ds = (res.concepts || []).map(function (c) { return I.toDesign(c, { me: meCopy() }); });
+        if (ds.length === res.designs.length) { res.designs = ds; showIdeas(); }
+      } catch (e) {}
+    }
+  }
+  var mePickKind = null;
+  $('meRow').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-me-pick]');
+    if (b) { mePickKind = b.getAttribute('data-me-pick'); $(mePickKind + 'Input').click(); return; }
+    b = e.target.closest('[data-me-remove]');
+    if (b) {
+      var k = b.getAttribute('data-me-remove');
+      me[k + 'Id'] = null; if (k === 'face') me.faceCut = false; if (k === 'dish') me.dishCut = false;
+      meChanged();
+      toast(k === 'skin' ? 'Skin removed. Ideas use the built-in character.' : 'Removed');
+    }
+  });
+  ME_KINDS.forEach(function (k) {
+    $(k + 'Input').addEventListener('change', function () {
+      var f = this.files && this.files[0]; this.value = '';
+      if (f) addMeFile(k, f);
+    });
+  });
+  function addMeFile(k, file) {
+    if (file.type && !/^image\//.test(file.type)) { toast('That isn’t a picture. Try a different file.'); return Promise.resolve(null); }
+    var job = k === 'skin' ? importSkinFile(file) : importImageFile(file);
+    return job.then(function (info) {
+      me[k + 'Id'] = info.id;
+      if (k === 'face') me.faceCut = !!info.alpha;
+      if (k === 'dish') me.dishCut = !!info.alpha;
+      protectImages[info.id] = true;
+      meChanged();
+      var isTex = false; try { isTex = !!(R && R.isSkinTexture && R.isSkinTexture(images[info.id])); } catch (e) {}
+      toast(k === 'skin' ? (isTex ? 'Got your skin! It’s in your thumbnails now.' : 'Got it! Your character is in your thumbnails now.') : k === 'shot' ? 'Got it! It’s the background now.' : 'Got it! It’s in your thumbnails now.');
+      return info;
+    }, function () { toast('Couldn’t open that picture. Try a different one.'); return null; });
+  }
 
   // ---- Ideas
   var ideaTheme = 'auto';
@@ -1039,16 +1226,16 @@ details.more[open] summary::after { content: "–"; }
     addStep('Reading what your video is about…');
     var theme = ideaTheme === 'auto' ? undefined : ideaTheme;
     var lookAtPopular = !$('popularWrap').hidden && $('popularChk').checked;
-    var p;
-    try {
-      genOpts.theme = theme; genOpts.lookAtPopular = lookAtPopular;
-      p = Promise.resolve(I.generate(prompt, genOpts));
-    } catch (e) { p = Promise.reject(e); }
+    genOpts.theme = theme; genOpts.lookAtPopular = lookAtPopular;
+    var p = Promise.resolve(meReady).then(function () {
+      genOpts.me = meCopy();
+      return I.generate(prompt, genOpts);
+    });
     p.then(null, function () { return null; }).then(function (res) {
       if (!res || !res.designs || !res.designs.length) {
         try {
           var cs = I.offline(prompt, { theme: theme, seed: genOpts.seed });
-          res = { concepts: cs, designs: cs.map(function (c) { return I.toDesign(c); }), inspiredBy: [], source: 'offline', note: '' };
+          res = { concepts: cs, designs: cs.map(function (c) { return I.toDesign(c, { me: meCopy() }); }), inspiredBy: [], source: 'offline', note: '' };
         } catch (e) { res = null; }
       }
       finishSteps();
@@ -1072,26 +1259,102 @@ details.more[open] summary::after { content: "–"; }
     var designs = res.designs.slice(0, 4);
     var th = designs[0] && designs[0].theme;
     if (th && th !== mode) { setMode(th); renderModeCards(); renderTemplates(); }
-    var jobs = [];
+    var token = ++buildToken;
     designs.forEach(function (d, i) {
       var c = (res.concepts || [])[i] || {};
       var card = document.createElement('div');
       card.className = 'idea-card'; card.setAttribute('data-testid', 'idea-result'); card.setAttribute('data-source', res.source === 'ai' ? 'ai' : 'offline'); card.setAttribute('data-i', i);
       var head = c.headline ? String(c.headline) : nameOf(d);
-      card.innerHTML = '<button type="button" class="pv skel" data-open="' + i + '" aria-label="Use idea ' + (i + 1) + '"><canvas width="640" height="360"></canvas></button>' +
+      card.innerHTML = '<button type="button" class="pv" data-open="' + i + '" aria-label="Use idea ' + (i + 1) + '"><canvas width="640" height="360"></canvas><span class="bld" aria-hidden="true">Starting…</span></button>' +
         '<div class="meta"><p class="why" data-testid="idea-why"><b>' + esc(niceTitle(head)) + '</b>' + esc(c.why || 'A clean, bold layout that reads at small sizes.') + '</p>' +
         '<button type="button" class="btn primary" data-testid="idea-open" data-open="' + i + '">Use this</button></div>';
       grid.appendChild(card);
-      var cv = card.querySelector('canvas');
-      jobs.push(function () { if (paint(cv, d)) card.querySelector('.pv').classList.remove('skel'); });
+      buildCard(card, d, i * 320, token);
     });
-    scheduleJobs(jobs);
     var ins = (res.inspiredBy || []).filter(function (v) { return v && v.title; }).slice(0, 5);
     $('inspired').hidden = !ins.length;
     $('inspiredList').innerHTML = ins.map(function (v) {
       var meta = [v.channel, fmtViews(v.views)].filter(Boolean).join(' · ');
       return '<li><span class="vt">' + esc(v.title) + '</span>' + (meta ? '<span class="vm">' + esc(meta) + '</span>' : '') + '</li>';
     }).join('');
+  }
+  // "See the AI making it": each card builds itself - scene, set-piece, pictures pop in, words slam in,
+  // then stickers (about 1.3 s, cards staggered). Reduced motion: the finished card just fades in.
+  var buildToken = 0;
+  var REDUCED = false; try { REDUCED = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) {}
+  function easeBack(t) { var c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); }
+  function groupBox(d, ls) {
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    ls.forEach(function (l) {
+      var b = null; try { b = R.layerBox(d, l, images); } catch (e) {}
+      if (!b || !isFinite(b.x)) b = { x: num(l.x, W / 2), y: num(l.y, H / 2), w: 200, h: 200 };
+      x0 = Math.min(x0, b.x - b.w / 2); x1 = Math.max(x1, b.x + b.w / 2); y0 = Math.min(y0, b.y - b.h / 2); y1 = Math.max(y1, b.y + b.h / 2);
+    });
+    return isFinite(x0) ? { x: (x0 + x1) / 2, y: (y0 + y1) / 2 } : { x: W / 2, y: H / 2 };
+  }
+  function buildCard(card, d, delay, token) {
+    var cvs = card.querySelector('canvas'), pv = card.querySelector('.pv'), lbl = card.querySelector('.bld');
+    var finish = function () {
+      if (token !== buildToken) return;
+      paint(cvs, d); card.setAttribute('data-built', '1');
+      if (lbl) lbl.classList.add('done');
+    };
+    if (REDUCED || !R || !R.layerBox) {
+      cvs.classList.add('fade');
+      setTimeout(function () { if (token !== buildToken) return; finish(); requestAnimationFrame(function () { cvs.classList.add('in'); }); }, Math.min(delay, 400));
+      return;
+    }
+    var smp = d.theme === 'smp', bg = d.background || {};
+    var plain = function (layers, bgo) { var o = {}; for (var k in d) o[k] = d[k]; o.layers = layers; o.background = bgo; return o; };
+    var clear = { kind: 'color', color: 'rgba(0,0,0,0)', zoom: 1, fx: 0.5, fy: 0.5, brightness: 0, contrast: 0, saturation: 0, blur: 0, vignette: 0 };
+    var vis = (d.layers || []).filter(function (l) { return !l.hidden; });
+    var pics = vis.filter(function (l) { return l.type === 'image' || l.type === 'skin'; });
+    var texts = vis.filter(function (l) { return l.type === 'text'; });
+    var bits = vis.filter(function (l) { return l.type === 'sticker' || l.type === 'emoji'; });
+    var stages = [];
+    var hasPiece = bg.kind === 'scene' && !!bg.setPiece;
+    if (hasPiece) {
+      var bare = {}; for (var k in bg) bare[k] = bg[k]; bare.setPiece = null;
+      stages.push({ label: smp ? 'Building the scene…' : 'Setting the table…', design: plain([], bare), fx: 'fade', ms: 200 });
+      stages.push({ label: /trap/.test(bg.setPiece) ? 'Building the trap…' : /base|stash/.test(bg.setPiece) ? 'Building the base…' : /farm/.test(bg.setPiece) ? 'Building the farm…' : 'Adding details…', design: plain([], bg), fx: 'fade', ms: 240 });
+    } else stages.push({ label: bg.kind === 'image' && bg.imageId ? 'Adding your picture…' : smp ? 'Building the scene…' : 'Setting the table…', design: plain([], bg), fx: 'fade', ms: 240 });
+    if (pics.length) stages.push({ label: pics.some(function (l) { return l.type === 'skin'; }) ? (pics.some(function (l) { return l.type === 'skin' && l.imageId; }) ? 'Adding your skin…' : 'Adding the player…') : smp ? 'Adding the pictures…' : 'Plating up…', design: plain(pics, clear), fx: 'pop', ms: 280, at: groupBox(d, pics) });
+    texts.forEach(function (l, i) { stages.push({ label: 'Big words…', design: plain([l], clear), fx: 'slam', ms: i ? 150 : 190, at: groupBox(d, [l]) }); });
+    if (bits.length) stages.push({ label: 'Arrows + stickers…', design: plain(bits, clear), fx: 'pop', ms: 220, at: groupBox(d, bits), spin: true });
+    var base = makeCanvas(cvs.width, cvs.height), layerC = makeCanvas(cvs.width, cvs.height);
+    var bx = base.getContext('2d'), cx2 = cvs.getContext('2d'), k = cvs.width / W;
+    var free = function () { base.width = base.height = 0; layerC.width = layerC.height = 0; };
+    var si = -1, t0 = 0, st = null;
+    function next() {
+      if (token !== buildToken) { free(); return; }
+      if (st) { bx.setTransform(1, 0, 0, 1, 0, 0); if (st.fx === 'fade' && si === 0) bx.clearRect(0, 0, base.width, base.height); bx.globalAlpha = 1; bx.drawImage(layerC, 0, 0); }
+      si++;
+      if (si >= stages.length) { free(); finish(); return; }
+      st = stages[si];
+      if (lbl) lbl.textContent = st.label;
+      if (!paint(layerC, st.design)) { free(); finish(); return; }
+      t0 = 0; requestAnimationFrame(frame);
+    }
+    function frame(now) {
+      if (token !== buildToken) { free(); return; }
+      if (!t0) t0 = now;
+      var t = Math.min(1, (now - t0) / st.ms);
+      cx2.setTransform(1, 0, 0, 1, 0, 0); cx2.clearRect(0, 0, cvs.width, cvs.height);
+      cx2.globalAlpha = 1; cx2.drawImage(base, 0, 0);
+      if (st.fx === 'fade') { cx2.globalAlpha = t; cx2.drawImage(layerC, 0, 0); }
+      else {
+        var sc, a;
+        if (st.fx === 'slam') { sc = t < 0.7 ? 1.75 - 0.81 * Math.pow(t / 0.7, 2) : 0.94 + 0.06 * (t - 0.7) / 0.3; a = Math.min(1, t / 0.3); }
+        else { sc = 0.45 + 0.55 * easeBack(t); a = Math.min(1, t * 3); }
+        var px = st.at.x * k, py = st.at.y * k;
+        cx2.globalAlpha = a;
+        cx2.translate(px, py); if (st.spin) cx2.rotate((1 - t) * -0.35); cx2.scale(sc, sc); cx2.translate(-px, -py);
+        cx2.drawImage(layerC, 0, 0);
+      }
+      cx2.setTransform(1, 0, 0, 1, 0, 0); cx2.globalAlpha = 1;
+      if (t < 1) requestAnimationFrame(frame); else setTimeout(next, 40);
+    }
+    setTimeout(next, delay);
   }
   $('ideaGrid').addEventListener('click', function (e) {
     var b = e.target.closest('[data-open]'); if (!b || !lastIdeas) return;
@@ -2425,8 +2688,9 @@ details.more[open] summary::after { content: "–"; }
   function repaintIdeas() {
     if (!lastIdeas) return;
     var ds = lastIdeas.res.designs, jobs = [];
-    Array.prototype.forEach.call($('ideaGrid').querySelectorAll('.idea-card canvas'), function (pc, i) {
-      if (ds[i]) jobs.push(function () { paint(pc, ds[i]); });
+    Array.prototype.forEach.call($('ideaGrid').querySelectorAll('.idea-card'), function (card, i) {
+      var pc = card.querySelector('canvas');
+      if (ds[i] && card.getAttribute('data-built') === '1') jobs.push(function () { paint(pc, ds[i]); });
     });
     scheduleJobs(jobs);
   }

@@ -1352,6 +1352,318 @@
     return cset(key, { canvas: C });
   }
 
+  /* ------------------------------------------------------------------ tiny orthographic 3D (skins + set-pieces)
+   * Every face of a box is a parallelogram on screen, so a texture rect maps onto it with one affine
+   * drawImage (nearest-neighbour, slightly overdrawn so neighbouring faces never show seams). */
+  function m3(a, b) {
+    var r = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (var i = 0; i < 3; i++) for (var j = 0; j < 3; j++) r[i * 3 + j] = a[i * 3] * b[j] + a[i * 3 + 1] * b[3 + j] + a[i * 3 + 2] * b[6 + j];
+    return r;
+  }
+  function rotX(a) { var c = Math.cos(a * DEG), s = Math.sin(a * DEG); return [1, 0, 0, 0, c, -s, 0, s, c]; }
+  function rotY(a) { var c = Math.cos(a * DEG), s = Math.sin(a * DEG); return [c, 0, s, 0, 1, 0, -s, 0, c]; }
+  function rotZ(a) { var c = Math.cos(a * DEG), s = Math.sin(a * DEG); return [c, -s, 0, s, c, 0, 0, 0, 1]; }
+  var I3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+  function mv(m, v) { return [m[0] * v[0] + m[1] * v[1] + m[2] * v[2], m[3] * v[0] + m[4] * v[1] + m[5] * v[2], m[6] * v[0] + m[7] * v[1] + m[8] * v[2]]; }
+  function vnorm(v) { var l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
+  function vdot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  function vadd(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }
+  /* the six faces of box [x,y,z,w,h,d] (inflated by inf) with Minecraft skin UVs at (u,v) */
+  function boxFaces(bx, inf, uv, mirror) {
+    var w = bx[3], h = bx[4], d = bx[5], u = uv ? uv[0] : 0, v = uv ? uv[1] : 0;
+    var x0 = bx[0] - inf, y0 = bx[1] - inf, z0 = bx[2] - inf, W_ = w + 2 * inf, H_ = h + 2 * inf, D_ = d + 2 * inf, x1 = x0 + W_, y1 = y0 + H_, z1 = z0 + D_;
+    var R = { top: [u + d, v, w, d], bottom: [u + d + w, v, w, d], right: [u, v + d, d, h], front: [u + d, v + d, w, h], left: [u + d + w, v + d, d, h], back: [u + 2 * d + w, v + d, w, h] };
+    var F = [
+      { n: [0, 0, 1], f: 'front', p: [x0, y1, z1], U: [W_, 0, 0], V: [0, -H_, 0] },
+      { n: [0, 0, -1], f: 'back', p: [x1, y1, z0], U: [-W_, 0, 0], V: [0, -H_, 0] },
+      { n: [-1, 0, 0], f: 'right', p: [x0, y1, z0], U: [0, 0, D_], V: [0, -H_, 0] },
+      { n: [1, 0, 0], f: 'left', p: [x1, y1, z1], U: [0, 0, -D_], V: [0, -H_, 0] },
+      { n: [0, 1, 0], f: 'top', p: [x0, y1, z0], U: [W_, 0, 0], V: [0, 0, D_] },
+      { n: [0, -1, 0], f: 'bottom', p: [x0, y0, z1], U: [W_, 0, 0], V: [0, 0, -D_] }
+    ];
+    F.forEach(function (q) {
+      var k = q.f; if (mirror && (k === 'left' || k === 'right')) k = k === 'left' ? 'right' : 'left';
+      q.r = R[k];
+      if (mirror) { q.p = vadd(q.p, q.U); q.U = [-q.U[0], -q.U[1], -q.U[2]]; }
+    });
+    return F;
+  }
+  function drawFace(c, tex, r, p, U, V, k, ox, oy, e) {
+    c.setTransform(k * U[0] / r[2], k * U[1] / r[2], k * V[0] / r[3], k * V[1] / r[3], ox + k * p[0], oy + k * p[1]);
+    c.drawImage(tex, r[0], r[1], r[2], r[3], -e, -e, r[2] + 2 * e, r[3] + 2 * e);
+  }
+  /* darker/lighter copies of a texture (shading baked in, so transparent texels stay transparent) */
+  function shadedCopy(store, tex, b, cool) {
+    var q = Math.round(clamp(b, 0.2, 1.3) * 25) / 25, key = 'b' + q;
+    if (store[key]) return store[key];
+    var C = mk(tex.width, tex.height), c = C.getContext('2d');
+    c.drawImage(tex, 0, 0);
+    c.globalCompositeOperation = 'source-atop';
+    if (q < 0.999) { c.fillStyle = cool ? 'rgba(18,16,48,' + (1 - q).toFixed(3) + ')' : 'rgba(0,0,0,' + (1 - q).toFixed(3) + ')'; c.fillRect(0, 0, C.width, C.height); }
+    else if (q > 1.001) { c.fillStyle = 'rgba(255,248,230,' + (q - 1).toFixed(3) + ')'; c.fillRect(0, 0, C.width, C.height); }
+    store[key] = C;
+    return C;
+  }
+
+  /* ------------------------------------------------------------------ skins: texture parsing */
+  var SKIN_INFO = new WeakMap();
+  function isSkinSize(n) { return !!n && n.w >= 64 && n.w <= 1024 && n.w % 64 === 0 && (n.h === n.w || n.h * 2 === n.w); }
+  function skinInfoOf(src) {
+    if (!src || typeof src !== 'object') return null;
+    var tok = tokenOf(src), hit = SKIN_INFO.get(src);
+    if (hit && hit.tok === tok) return hit.info;
+    var info = null, n = natSize(src);
+    if (isSkinSize(n)) {
+      var C = mk(64, n.h * 64 / n.w), c = C.getContext('2d'); smooth(c, false); c.drawImage(src, 0, 0, C.width, C.height);
+      info = { tex: C, legacy: C.height === 32, slim: false, hat: true, shades: {}, tok: tok };
+      try {
+        var d = c.getImageData(0, 0, 64, C.height).data, A = function (x, y) { return d[(y * 64 + x) * 4 + 3]; };
+        var cnt = function (x0, y0, w, h) { var k = 0; for (var y = y0; y < y0 + h; y++) for (var x = x0; x < x0 + w; x++) if (A(x, y) > 128) k++; return k; };
+        // a real skin has an opaque face + body front; a random 64x64 picture usually doesn't
+        if (cnt(8, 8, 8, 8) < 44 || cnt(20, 20, 8, 12) < 66) info = null;
+        else if (!info.legacy) info.slim = cnt(54, 20, 2, 12) === 0 && cnt(50, 16, 2, 4) === 0;
+        else info.hat = cnt(32, 0, 32, 16) < 32 * 16 - 8; // old skins with a fully solid hat layer: ignore it
+      } catch (e) { /* tainted canvas: trust the size */ }
+    }
+    SKIN_INFO.set(src, { tok: tok, info: info });
+    return info;
+  }
+  function isSkinTexture(img) { return !!skinInfoOf(img); }
+
+  /* ------------------------------------------------------------------ skins: default ORIGINAL characters (painted here, not Mojang art) */
+  var DEFAULT_SKINS = {};
+  function paintSkin(o) {
+    var C = mk(64, 64), c = C.getContext('2d'), R = rng(o.seed || 5);
+    var P = function (x, y, w, h, col, amt) {
+      for (var j = 0; j < h; j++) for (var i = 0; i < w; i++) { c.fillStyle = shade(col, (R() - 0.5) * (amt == null ? 0.14 : amt)); c.fillRect(x + i, y + j, 1, 1); }
+    };
+    var D = function (x, y, col) { c.fillStyle = col; c.fillRect(x, y, 1, 1); };
+    var faces = function (u, v, w, h, d, fn) {
+      var Q = { top: [u + d, v, w, d], bottom: [u + d + w, v, w, d], right: [u, v + d, d, h], front: [u + d, v + d, w, h], left: [u + d + w, v + d, d, h], back: [u + 2 * d + w, v + d, w, h] };
+      for (var k in Q) fn(k, Q[k][0], Q[k][1], Q[k][2], Q[k][3]);
+    };
+    var sk = o.skin, skD = shade(o.skin, -0.12), hr = o.hair, hrL = shade(o.hair, 0.22);
+    // head
+    faces(0, 0, 8, 8, 8, function (f, x, y, w, h) {
+      if (f === 'top') { P(x, y, w, h, hr, 0.2); return; }
+      if (f === 'bottom') { P(x, y, w, h, sk, 0.05); return; }
+      if (f === 'back') { P(x, y, w, h, hr, 0.2); P(x, y + 7, w, 1, shade(hr, -0.15), 0.1); return; }
+      P(x, y, w, h, sk, 0.05);
+      if (f === 'right' || f === 'left') { P(x, y, w, 3, hr, 0.2); var bx = f === 'right' ? x : x + 5; P(bx, y + 3, 3, 2, hr, 0.2); P(f === 'right' ? x : x + 7, y + 5, 1, 1, hr); D(f === 'right' ? x + 5 : x + 2, y + 4, skD); return; }
+      // front: fringe swoop + face
+      P(x, y, 8, 2, hr, 0.2); P(x, y + 2, 1, 2, hr, 0.2); P(x + 7, y + 2, 1, 1, hr, 0.2); P(x + 5, y + 2, 2, 1, hr, 0.2); D(x + 3, y + 1, hrL); D(x + 4, y + 1, hrL); D(x + 6, y + 0, hrL);
+      if (o.mask) { P(x, y + 5, 8, 3, o.mask, 0.1); D(x + 2, y + 6, shade(o.mask, 0.25)); D(x + 5, y + 6, shade(o.mask, 0.25)); }
+      if (o.shock) {
+        D(x + 1, y + 2, shade(hr, 0.1)); D(x + 2, y + 2, shade(hr, 0.1)); D(x + 5, y + 2, shade(hr, 0.1)); D(x + 6, y + 2, shade(hr, 0.1)); // raised brows
+        P(x + 1, y + 3, 2, 2, '#ffffff', 0); P(x + 5, y + 3, 2, 2, '#ffffff', 0); D(x + 2, y + 4, o.eye); D(x + 5, y + 4, o.eye);
+        if (!o.mask) { P(x + 3, y + 5, 2, 3, '#3a0d10', 0); D(x + 3, y + 7, '#c2363c'); D(x + 4, y + 7, '#c2363c'); D(x + 2, y + 5, skD); D(x + 5, y + 5, skD); }
+      } else {
+        if (o.angry) { D(x + 1, y + 2, hr); D(x + 2, y + 3, hr); D(x + 6, y + 2, hr); D(x + 5, y + 3, hr); }
+        D(x + 1, y + 4, '#ffffff'); D(x + 2, y + 4, o.eye); D(x + 5, y + 4, o.eye); D(x + 6, y + 4, '#ffffff');
+        D(x + 2, y + 3, shade(hr, 0.05)); D(x + 5, y + 3, shade(hr, 0.05));
+        if (!o.mask) { D(x + 3, y + 5, skD); D(x + 4, y + 5, skD); D(x + 2, y + 6, '#8a3f37'); D(x + 3, y + 6, '#a94b3f'); D(x + 4, y + 6, '#a94b3f'); D(x + 5, y + 6, '#8a3f37'); }
+      }
+    });
+    // body (hoodie)
+    var top = o.top, topD = shade(o.top, -0.2), trim = o.trim;
+    faces(16, 16, 8, 12, 4, function (f, x, y, w, h) {
+      P(x, y, w, h, f === 'top' || f === 'bottom' ? topD : top, 0.1);
+      if (f === 'front') {
+        P(x + 3, y, 2, 1, sk, 0.05);
+        D(x + 2, y + 1, '#f4f4f4'); D(x + 2, y + 2, '#f4f4f4'); D(x + 2, y + 3, '#dcdcdc'); D(x + 5, y + 1, '#f4f4f4'); D(x + 5, y + 2, '#f4f4f4'); D(x + 5, y + 3, '#dcdcdc');
+        P(x + 1, y + 7, 6, 3, topD, 0.08); P(x + 1, y + 7, 6, 1, shade(top, -0.3), 0.05);
+        if (trim) { P(x + 3, y + 4, 2, 2, trim, 0.05); }
+        P(x, y + 11, 8, 1, topD, 0.06);
+      }
+      if (f === 'back') { P(x + 1, y, 6, 3, topD, 0.08); }
+    });
+    // arms: sleeve + cuff + hand
+    var arm = function (u, v) {
+      faces(u, v, 4, 12, 4, function (f, x, y, w, h) {
+        if (f === 'top') { P(x, y, w, h, top, 0.1); return; }
+        if (f === 'bottom') { P(x, y, w, h, sk, 0.05); return; }
+        P(x, y, w, h, top, 0.1); P(x, y + 8, w, 1, trim || topD, 0.06); P(x, y + 9, w, 3, sk, 0.05);
+        if (o.glove) P(x, y + 9, w, 3, o.glove, 0.08);
+      });
+    };
+    arm(40, 16); arm(32, 48);
+    var leg = function (u, v) {
+      faces(u, v, 4, 12, 4, function (f, x, y, w, h) {
+        if (f === 'top') { P(x, y, w, h, o.pants, 0.1); return; }
+        if (f === 'bottom') { P(x, y, w, h, '#2b2b2b', 0.1); return; }
+        P(x, y, w, h, o.pants, 0.12); P(x, y + 9, w, 3, o.shoe, 0.06); P(x, y + 11, w, 1, shade(o.shoe, -0.25), 0.04);
+        if (o.shoeStripe) P(x, y + 10, w, 1, o.shoeStripe, 0.05);
+      });
+    };
+    leg(0, 16); leg(16, 48);
+    // overlay: fluffy hair on the hat layer, hood rim on the jacket layer
+    faces(32, 0, 8, 8, 8, function (f, x, y, w, h) {
+      if (f === 'front') { for (var i = 0; i < 8; i++) if (R() < 0.75) D(x + i, y, R() < 0.3 ? hrL : hr); D(x + 7, y + 1, hr); D(x, y + 1, hr); }
+      if (f === 'top') { for (var j = 0; j < 8; j++) for (var k = 0; k < 8; k++) if (R() < 0.35) D(x + k, y + j, R() < 0.5 ? hrL : hr); }
+      if (f === 'right' || f === 'left') { for (var q = 0; q < 8; q++) if (R() < 0.6) D(x + q, y, hr); }
+      if (f === 'back') { for (var b = 0; b < 8; b++) { D(x + b, y, hr); if (R() < 0.6) D(x + b, y + 1, hr); } }
+    });
+    faces(16, 32, 8, 12, 4, function (f, x, y, w, h) {
+      if (f === 'back') { P(x, y, w, 4, topD, 0.1); P(x + 1, y + 4, w - 2, 1, topD, 0.1); }
+      if (f === 'front') { D(x, y, topD); D(x + 1, y, topD); D(x + 6, y, topD); D(x + 7, y, topD); }
+      if (f === 'top') { P(x, y, w, h, topD, 0.1); }
+    });
+    return C;
+  }
+  var SKIN_LOOKS = {
+    hero: { seed: 11, skin: '#e2a67c', hair: '#3a2417', eye: '#2c6e9e', top: '#ff7417', trim: '#ffd23f', pants: '#2b3140', shoe: '#f5f5f5', shoeStripe: '#e8322a' },
+    rival: { seed: 23, skin: '#9a6440', hair: '#121212', eye: '#c0282e', top: '#c81d2b', trim: '#1b1b1b', pants: '#191a1f', shoe: '#e8322a', mask: '#1d1d22', angry: true },
+    buddy: { seed: 31, skin: '#f0c3a0', hair: '#d9a03a', eye: '#2f8a3c', top: '#2f6fe0', trim: '#ffffff', pants: '#3b3b46', shoe: '#ffffff' }
+  };
+  function defaultSkinInfo(variant, shock) {
+    var look = SKIN_LOOKS[variant] ? variant : 'hero', key = look + (shock ? '!' : '');
+    if (DEFAULT_SKINS[key]) return DEFAULT_SKINS[key];
+    var o = assign({}, SKIN_LOOKS[look], { shock: !!shock });
+    return (DEFAULT_SKINS[key] = { tex: paintSkin(o), legacy: false, slim: false, hat: true, shades: {}, tok: 'def-' + key });
+  }
+
+  /* ------------------------------------------------------------------ skins: model + poses */
+  var PITCH = 13;
+  function skinParts(slim, legacy, hat) {
+    var aw = slim ? 3 : 4;
+    return [
+      { n: 'rleg', box: [-4, 0, -2, 4, 12, 4], uv: [0, 16], ov: legacy ? null : [0, 32], inf: 0.25, piv: [-2, 12, 0], bias: -1.2 },
+      { n: 'lleg', box: [0, 0, -2, 4, 12, 4], uv: legacy ? [0, 16] : [16, 48], ov: legacy ? null : [0, 48], mirror: legacy, inf: 0.25, piv: [2, 12, 0], bias: -1.2 },
+      { n: 'body', box: [-4, 12, -2, 8, 12, 4], uv: [16, 16], ov: legacy ? null : [16, 32], inf: 0.25, piv: [0, 12, 0], bias: 0 },
+      { n: 'rarm', box: [-4 - aw, 12, -2, aw, 12, 4], uv: [40, 16], ov: legacy ? null : [40, 32], inf: 0.25, piv: [-4 - aw / 2, 22, 0], bias: 0.3 },
+      { n: 'larm', box: [4, 12, -2, aw, 12, 4], uv: legacy ? [40, 16] : [32, 48], ov: legacy ? null : [48, 48], mirror: legacy, inf: 0.25, piv: [4 + aw / 2, 22, 0], bias: 0.3 },
+      { n: 'head', box: [-4, 24, -4, 8, 8, 8], uv: [0, 0], ov: hat ? [32, 0] : null, inf: 0.5, piv: [0, 24, 0], bias: 2.5 }
+    ];
+  }
+  /* k = +1 for the left arm/leg (screen-right when facing the viewer), -1 for the right one */
+  function limb(k, out, fwd, twist) { return m3(rotY(-k * (twist || 0)), m3(rotZ(k * (out || 0)), rotX(-(fwd || 0)))); }
+  var POSES = {
+    stand: function (s) { return { yaw: 24, head: rotY(-s * 10), rarm: limb(-1, 5, s > 0 ? 9 : -7), larm: limb(1, 5, s > 0 ? -7 : 9), rleg: rotX(s > 0 ? -5 : 4), lleg: rotX(s > 0 ? 4 : -5) }; },
+    shock: function (s) { return { yaw: 20, head: m3(rotY(-s * 12), rotX(-8)), rarm: limb(-1, s > 0 ? 152 : 140, 0, 24), larm: limb(1, s > 0 ? 140 : 152, 0, 24), rleg: rotZ(-7), lleg: rotZ(7) }; },
+    point: function (s) {
+      var lead = limb(s, 84, 0, 42), back = limb(-s, 14, 12, 0);
+      return { yaw: 24, head: rotY(-s * 4), rarm: s > 0 ? back : lead, larm: s > 0 ? lead : back, rleg: rotZ(-4), lleg: rotZ(4) };
+    },
+    run: function (s) {
+      return { yaw: 34, head: rotY(-s * 16), rarm: limb(-1, 6, 58), larm: limb(1, 6, -48), rleg: rotX(42), lleg: rotX(-46) };
+    }
+  };
+  var MODEL_CACHE = {};
+  function skinModel(pose, facing, slim, legacy, hat) {
+    pose = POSES[pose] ? pose : 'stand';
+    var s = facing === 'right' ? 1 : -1;
+    var key = [pose, s, slim ? 1 : 0, legacy ? 1 : 0, hat ? 1 : 0].join('|');
+    if (MODEL_CACHE[key]) return MODEL_CACHE[key];
+    var pr = POSES[pose](s), cam = m3(rotX(PITCH), rotY(pr.yaw * s));
+    var Lt = vnorm([s * 0.5, 0.8, 0.75]);
+    var parts = [], minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9, hand = null;
+    skinParts(slim, legacy, hat).forEach(function (pt) {
+      var R = pr[pt.n] || I3, M = m3(cam, R), piv = pt.piv;
+      var tf = function (p) { var q = mv(R, [p[0] - piv[0], p[1] - piv[1], p[2] - piv[2]]); return mv(cam, [q[0] + piv[0], q[1] + piv[1], q[2] + piv[2]]); };
+      var layersOf = [{ inf: 0, uv: pt.uv, ov: false, mirror: !!pt.mirror }];
+      if (pt.ov) layersOf.push({ inf: pt.inf, uv: pt.ov, ov: true, mirror: false });
+      var faces = [];
+      layersOf.forEach(function (ly) {
+        boxFaces(pt.box, ly.inf, ly.uv, ly.mirror).forEach(function (f) {
+          var corners = [f.p, vadd(f.p, f.U), vadd(f.p, f.V), vadd(vadd(f.p, f.U), f.V)].map(tf);
+          corners.forEach(function (q) { minx = Math.min(minx, q[0]); maxx = Math.max(maxx, q[0]); miny = Math.min(miny, -q[1]); maxy = Math.max(maxy, -q[1]); });
+          var n = mv(M, f.n); if (n[2] <= 0.02) return;
+          var p = corners[0], pu = corners[1], pv = corners[2];
+          var b = 0.56 + 0.5 * Math.max(0, vdot(n, Lt)) + (f.f === 'top' ? 0.04 : 0);
+          faces.push({ p: [p[0], -p[1]], U: [pu[0] - p[0], -(pu[1] - p[1])], V: [pv[0] - p[0], -(pv[1] - p[1])], r: f.r, b: b, ov: ly.ov });
+        });
+      });
+      var bx = pt.box, ctr = tf([bx[0] + bx[3] / 2, bx[1] + bx[4] / 2, bx[2] + bx[5] / 2]);
+      parts.push({ n: pt.n, z: ctr[2] + pt.bias, faces: faces });
+      if ((s > 0 && pt.n === 'larm') || (s < 0 && pt.n === 'rarm')) { var hp = tf([bx[0] + bx[3] / 2, bx[1] + 1, 0]); hand = [hp[0], -hp[1]]; }
+    });
+    parts.sort(function (a, b) { return a.z - b.z; });
+    return (MODEL_CACHE[key] = { parts: parts, minx: minx, miny: miny, bw: maxx - minx, bh: maxy - miny, hand: hand });
+  }
+  /* draw the model so its bounding box spans [x, x+bw*k] x [y, y+bh*k] */
+  function drawSkinModel(c, info, model, k, x, y) {
+    var ox = x - model.minx * k, oy = y - model.miny * k;
+    smooth(c, false);
+    for (var i = 0; i < model.parts.length; i++) {
+      var fs = model.parts[i].faces;
+      for (var j = 0; j < fs.length; j++) {
+        var f = fs[j];
+        if (f.ov && !info.hat && f.r[1] < 16 && f.r[0] >= 32) continue;
+        drawFace(c, shadedCopy(info.shades, info.tex, f.b, true), f.r, f.p, f.U, f.V, k, ox, oy, f.ov ? 0.01 : 0.045);
+      }
+    }
+    c.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  /* ------------------------------------------------------------------ skin layer */
+  var PIC_ALPHA = new WeakMap();
+  function hasAlpha(src) {
+    var tok = tokenOf(src), hit = PIC_ALPHA.get(src); if (hit && hit.tok === tok) return hit.a;
+    var a = false, n = natSize(src);
+    try {
+      var C = mk(48, 48), c = C.getContext('2d'); c.drawImage(src, 0, 0, 48, 48);
+      var d = c.getImageData(0, 0, 48, 48).data, clear = 0;
+      for (var i = 0; i < 48; i++) { [[i, 0], [i, 47], [0, i], [47, i]].forEach(function (p) { if (d[(p[1] * 48 + p[0]) * 4 + 3] < 200) clear++; }); }
+      a = clear > 24; free(C);
+    } catch (e) { a = !!(n && /png|gif|webp/i.test(String(src.src || ''))); }
+    PIC_ALPHA.set(src, { tok: tok, a: a });
+    return a;
+  }
+  function skinSpec(L, src) {
+    var h = clamp(num(L.h, 520), 24, 3000), n = natSize(src);
+    var info = n ? skinInfoOf(src) : defaultSkinInfo(str(L.variant, 'hero'), L.pose === 'shock');
+    if (n && !info) {
+      var cut = hasAlpha(src), a = n.w / n.h;
+      if (!cut) a = (a > 0.8 && a < 1.25) ? 1 : clamp(a, 0.72, 1.4);
+      return { kind: cut ? 'cut' : (a === 1 ? 'circle' : 'rounded'), w: h * a, h: h, src: src, n: n };
+    }
+    var model = skinModel(L.pose, L.facing, info.slim, info.legacy, info.hat);
+    return { kind: 'model', w: h * model.bw / model.bh, h: h, info: info, model: model };
+  }
+  function renderSkin(L, src, s) {
+    var sp = skinSpec(L, src), w = sp.w, h = sp.h;
+    var ol = obj(L.outline), ow = clamp(num(ol.width, 0), 0, 60), oc = str(ol.color, '#ffffff');
+    var gl = obj(L.glow), glow = { size: clamp(num(gl.size, 0), 0, 120), color: str(gl.color, '#ffffff') };
+    var sh = shadowOf(L.shadow);
+    var who = sp.kind === 'model' ? sp.info.tok : tokenOf(src);
+    var tail = [who, sp.kind, str(L.pose), str(L.facing), (w / h).toFixed(4), ow, oc, glow.size, glow.color, sh.on ? [sh.blur, sh.dx, sh.dy, sh.color].join(',') : '', s.toFixed(3)].join('|');
+    var hit = lookup(L, 'K|' + h.toFixed(2) + '|' + tail, 'Kq|' + quantPx(h * s).toFixed(2) + '|' + tail); if (hit) return hit;
+    var key = storeKey;
+    var pad = fxPad(ow, glow.size, sh), dw = w + 2 * pad, dh = h + 2 * pad;
+    var es = safeScale(s, dw, dh), cw = Math.ceil(dw * es), ch = Math.ceil(dh * es);
+    var I = mk(cw, ch), c = I.getContext('2d'), sil = null;
+    if (sp.kind === 'model') {
+      drawSkinModel(c, sp.info, sp.model, h * es / sp.model.bh, pad * es, pad * es);
+      if (ow > 0) sil = dilate(I, ow * es, oc, false);
+    } else {
+      c.setTransform(es, 0, 0, es, pad * es, pad * es); smooth(c, true);
+      if (L.flipX) { c.translate(w, 0); c.scale(-1, 1); }
+      if (sp.kind === 'cut') { c.drawImage(src, 0, 0, w, h); if (ow > 0) sil = dilate(I, ow * es, oc, false); }
+      else {
+        var shp = sp.kind === 'circle' ? 'circle' : 'rounded';
+        c.save(); shapePath(c, shp, 0, 0, w, h, 0); c.clip(); coverDraw(c, src, sp.n, 0.5, 0.4, 1, 0, 0, w, h); c.restore();
+        if (ow > 0) { sil = mk(cw, ch); var x = sil.getContext('2d'); x.setTransform(es, 0, 0, es, pad * es, pad * es); x.fillStyle = oc; shapePath(x, shp, 0, 0, w, h, ow); x.fill(); }
+      }
+    }
+    var out = finishFx(I, sil, glow, sh, es);
+    return cset(key, { canvas: out, ax: (pad + w / 2) * es, ay: (pad + h / 2) * es, m: s / es, w0: h });
+  }
+  /* small character for set-pieces (feet anchor) */
+  function charSprite(variant, pose, facing, hPx) {
+    var key = 'CH|' + variant + '|' + pose + '|' + facing + '|' + Math.round(hPx), hit = cget(key); if (hit) return hit;
+    var info = defaultSkinInfo(variant, pose === 'shock'), model = skinModel(pose, facing, false, false, true);
+    var k = hPx / model.bh, pad = 4, C = mk(model.bw * k + pad * 2, model.bh * k + pad * 2), c = C.getContext('2d');
+    drawSkinModel(c, info, model, k, pad, pad);
+    return cset(key, { canvas: C, fx: pad - model.minx * k, fy: pad - model.miny * k, k: k, hand: model.hand });
+  }
+  function renderSkinPreview(ctx, img, pose, x, y, h) {
+    var L = { id: 'skin-preview', type: 'skin', imageId: null, pose: pose || 'stand', facing: 'right', h: h || 200, outline: { width: 0 }, shadow: { blur: Math.max(4, (h || 200) * 0.06), color: 'rgba(0,0,0,0.35)', dx: 0, dy: (h || 200) * 0.025 } };
+    var e = renderSkin(L, img && natSize(img) ? img : null, 1);
+    var m = (e.m || 1) * (e.w0 ? L.h / e.w0 : 1);
+    ctx.save(); smooth(ctx, true); ctx.drawImage(e.canvas, x - e.ax * m, y - e.ay * m, e.canvas.width * m, e.canvas.height * m); ctx.restore();
+    return { w: skinSpec(L, img && natSize(img) ? img : null).w, h: L.h };
+  }
+
   /* ------------------------------------------------------------------ boxes + hit test */
   function layerBox(design, L, images) {
     images = images || {};
@@ -1360,6 +1672,7 @@
     else if (t === 'image') { var src = L.imageId ? images[L.imageId] : null; var fr = imageFrame(L, natSize(src) ? src : null); w = fr.w; h = fr.h; }
     else if (t === 'sticker') { var sd = stickerDims(L); w = sd.w; h = sd.h; }
     else if (t === 'emoji') { var sz = clamp(num(L.size, 120), 8, 1200); w = sz * 1.08; h = sz * 1.08; }
+    else if (t === 'skin') { var ks = skinSpec(L, L.imageId ? images[L.imageId] : null); w = ks.w; h = ks.h; }
     return { x: num(L.x, W / 2), y: num(L.y, H / 2), w: w, h: h, rotation: num(L.rotation, 0) };
   }
   function hitTest(design, images, px, py) {
@@ -1438,6 +1751,7 @@
         else if (L.type === 'image') { e = renderImage(L, L.imageId ? images[L.imageId] : null, s, ph, info); cur = clamp(num(L.w, 400), 8, 6000); }
         else if (L.type === 'sticker') { e = renderSticker(L, s); cur = clamp(num(L.w, 200), 8, 6000); }
         else if (L.type === 'emoji') { e = renderEmoji(L, s); cur = clamp(num(L.size, 120), 8, 1200); }
+        else if (L.type === 'skin') { e = renderSkin(L, L.imageId ? images[L.imageId] : null, s); cur = clamp(num(L.h, 520), 24, 3000); }
         drawCached(ctx, e, L, s, cur);
       } catch (err) { if (window.console) console.warn('ThumbRender layer failed', L && L.id, err); }
     }
