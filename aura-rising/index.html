@@ -692,8 +692,8 @@ const CH_COLORS = { 1: ['#3fa2ff', '#1c3f9e'], 2: ['#ff3fb4', '#3a1580'], 3: ['#
    save + settings
    ============================================================ */
 const SAVE_KEY = 'aura-rising.save.v1', SET_KEY = 'aura-rising.settings.v1';
-const save = store.get(SAVE_KEY, { reached: 1, current: 1, cp: 0, powers: [], best: {}, cleared: [], completed: false, started: false, grimoires: [], equipped: null });
-if (!Array.isArray(save.grimoires)) save.grimoires = [];
+const save = store.get(SAVE_KEY, { reached: 1, current: 1, cp: 0, powers: [], best: {}, cleared: [], completed: false, started: false, grimoires: undefined, equipped: null });
+if (!Array.isArray(save.grimoires) && !(save.reached > 1 || (save.cleared || []).length || save.completed)) save.grimoires = []; // fresh save
 const settings = store.get(SET_KEY, { music: 70, sfx: 90, sens: 100, quality: 'auto', muted: false, invertY: false, rotateOk: false, difficulty: 'normal' });
 if (settings.difficulty !== 'hard') settings.difficulty = 'normal';
 const persist = () => store.set(SAVE_KEY, save);
@@ -707,19 +707,29 @@ function powersFor(n, fromCheckpoint) {
 
 /* ---------- grimoires (the game's getState().grimoires is the source of truth; this table is only a fallback) ---------- */
 const GRIM_INFO = {
-  crimson: { name: 'Crimson Pages', color: '#ff4a3d', desc: 'Ren\'s own fire grimoire: homing blades of flame.', icon: 'C' },
-  gale: { name: 'Gale Grimoire', color: '#3fe0c0', desc: 'Wind slashes that pierce through every enemy in a line.', icon: 'G' },
-  shadow: { name: 'Shadow Grimoire', color: '#c2183a', desc: 'Shadow clones fight beside you for a few seconds.', icon: 'S' },
-  thorn: { name: 'Thorn Grimoire', color: '#5fa040', desc: 'Thorn roots burst up and trap enemies in place.', icon: 'T' },
-  void: { name: 'Void Grimoire', color: '#f5c542', desc: 'Void orbs that pull enemies in, then implode.', icon: 'V' }
+  crimson: { name: 'Crimson Pages', color: '#ff5a2a', desc: 'Ren\'s own fire grimoire. Five homing blades of fire seek out enemies.', icon: 'C' },
+  gale: { name: 'Gale Grimoire', color: '#5cf2c8', desc: 'Three wide wind slashes that pierce through every enemy in their path.', icon: 'G', from: 'kaze' },
+  shadow: { name: 'Shadow Grimoire', color: '#9a5aff', desc: 'Summons two shadow clones of Ren that fight beside you for 6 seconds.', icon: 'S', from: 'twin' },
+  thorn: { name: 'Thorn Grimoire', color: '#6ad04a', desc: 'Old roots burst from the ground and trap nearby enemies in place.', icon: 'T', from: 'warden' },
+  void: { name: 'Void Grimoire', color: '#c86aff', desc: 'A void orb that drags enemies in, then bursts with crushing force.', icon: 'V', from: 'null' }
 };
+// a save from before the grimoire update has no collection: hand over what the bosses it already beat would have dropped
+if (save.grimoires === undefined || !Array.isArray(save.grimoires)) {
+  const beat = c => (save.cleared || []).includes(c.id) || (save.reached | 0) > c.id || (save.completed && c.id === LAST);
+  save.grimoires = [];
+  for (const c of CHAPTERS) {
+    if (c.power && c.power.id === 'grimoire' && (beat(c) || (save.powers || []).includes('grimoire'))) save.grimoires.push('crimson');
+    const d = Object.keys(GRIM_INFO).find(k => c.boss && GRIM_INFO[k].from === c.boss.id); if (d && beat(c)) save.grimoires.push(d);
+  }
+  save.equipped = save.grimoires.length ? save.grimoires[save.grimoires.length - 1] : null; persist();
+}
 const cssColor = (c, d = '#7b5cff') => typeof c === 'number' && isFinite(c) ? '#' + (c >>> 0).toString(16).padStart(6, '0').slice(-6) : (typeof c === 'string' && c ? c : d);
 function grimInfo(g) {
   if (!g) return null; if (typeof g === 'string') g = { id: g };
   const f = GRIM_INFO[g.id] || {}, name = g.name || f.name || (String(g.id || 'Mystery').replace(/^./, m => m.toUpperCase()) + ' Grimoire');
   return { id: g.id, name, color: cssColor(g.color, f.color), desc: g.desc || f.desc || '', icon: g.icon || f.icon || name.charAt(0) };
 }
-function ownedGrimoires(st) { const list = st && Array.isArray(st.grimoires) ? st.grimoires : save.grimoires; return list.map(grimInfo).filter(g => g && g.id); }
+function ownedGrimoires(st) { const list = st && Array.isArray(st.grimoires) && mode === 'game' ? st.grimoires : save.grimoires; return list.map(grimInfo).filter(g => g && g.id); }
 function rememberGrimoire(id) { if (id && !save.grimoires.includes(id)) { save.grimoires.push(id); return true; } return false; }
 const BOOK_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M3 4c3-1 6-1 8 1v15c-2-2-5-2-8-1zM21 4c-3-1-6-1-8 1v15c2-2 5-2 8-1z"/></svg>';
 const glyphOf = g => { const ic = String(g.icon || ''); return ic && ic.length <= 3 ? ic : g.name.charAt(0); };
@@ -1251,10 +1261,11 @@ on('ult', u => { showCard({ kind: 'ult', label: 'ULTIMATE', title: (u && u.name)
 on('grimoireGet', g => {
   const gi = grimInfo(g && g.id ? g : { id: 'mystery' }); if (rememberGrimoire(gi.id)) persist();
   const nm = /grimoire|pages/i.test(gi.name) ? gi.name : gi.name + ' Grimoire';
-  showCard({ kind: 'grim', label: 'GRIMOIRE ACQUIRED', title: 'You took the ' + nm + '!', sub: (gi.desc ? gi.desc + ' ' : '') + 'Equip it from Pause > Grimoires.', color: gi.color, dur: 2000 });
-  grimKey = '';
+  showCard({ kind: 'grim', label: 'GRIMOIRE ACQUIRED', title: 'You took the ' + nm + '!', sub: (gi.desc ? gi.desc + ' ' : '') + 'Now on your POWER button!', color: gi.color, dur: 2000 });
+  grimKey = ''; lastGrimGet = { id: gi.id, t: performance.now() };
 });
-on('equip', e => { if (!e || !e.id) return; save.equipped = e.id; rememberGrimoire(e.id); persist(); grimKey = ''; const gi = grimInfo(e); toast(gi.name.toUpperCase()); });
+let lastGrimGet = null;
+on('equip', e => { if (!e || !e.id) return; save.equipped = e.id; rememberGrimoire(e.id); persist(); grimKey = ''; const gi = grimInfo(e); if (!(lastGrimGet && lastGrimGet.id === e.id && performance.now() - lastGrimGet.t < 3000)) toast(gi.name.toUpperCase()); });
 on('hit', h => { h = h || {}; Audio.sfx(h.heavy ? 'heavy' : 'hit'); const c = h.combo | 0; if (c && c % 10 === 0) Audio.sfx('combo'); });
 on('hurt', h => { Audio.sfx('hurt'); const v = $('#fx .vig'); v.classList.add('on'); setTimeout(() => v.classList.remove('on'), 140); if (navigator.vibrate) try { navigator.vibrate(30); } catch (e) {} });
 on('enemyDown', () => Audio.sfx('enemyDown'));
@@ -1321,7 +1332,7 @@ let grimKey = '';
 function syncGrimUI(st, force) {
   st = st || {};
   // keep the save in step with the game's collection (covers grimoires the game grants without an event, e.g. Crimson Pages)
-  if (Array.isArray(st.grimoires)) { let ch = false; for (const g of st.grimoires) if (g && g.id && rememberGrimoire(g.id)) ch = true; if (st.equipped !== undefined && st.equipped !== save.equipped && mode === 'game') { save.equipped = st.equipped; ch = true; } if (ch) persist(); }
+  if (Array.isArray(st.grimoires) && mode === 'game') { let ch = false; for (const g of st.grimoires) if (g && g.id && rememberGrimoire(g.id)) ch = true; if (st.equipped !== undefined && st.equipped !== save.equipped && mode === 'game') { save.equipped = st.equipped; ch = true; } if (ch) persist(); }
   const list = ownedGrimoires(st), eq = st.equipped !== undefined ? st.equipped : save.equipped;
   const key = list.map(g => g.id).join(',') + '|' + eq + '|' + (mode === 'game');
   if (key === grimKey && !force) return; grimKey = key;
