@@ -721,28 +721,165 @@ export function createGame(canvas, opts = {}) {
 
   // ---------- screen overlay (speed lines, tint, flash) ----------
   const overlay = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
-    uniforms: { t: { value: 0 }, speed: { value: 0 }, tint: { value: new THREE.Color(0x6a3cff) }, tintAmt: { value: 0 }, white: { value: 0 }, aspect: { value: 1 } },
+    uniforms: { t: { value: 0 }, speed: { value: 0 }, tint: { value: new THREE.Color(0x6a3cff) }, tintAmt: { value: 0 }, white: { value: 0 }, aspect: { value: 1 }, black: { value: 0 }, ringR: { value: -1 }, ringCol: { value: new THREE.Color(0x8a5cff) }, vig: { value: 0 } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0);} ',
-    fragmentShader: `varying vec2 vUv; uniform float t,speed,tintAmt,white,aspect; uniform vec3 tint; float h(float x){return fract(sin(x*91.7)*43758.5);}
+    fragmentShader: `varying vec2 vUv; uniform float t,speed,tintAmt,white,aspect,black,ringR,vig; uniform vec3 tint,ringCol; float h(float x){return fract(sin(x*91.7)*43758.5);}
       void main(){ vec2 p=(vUv-0.5)*vec2(aspect,1.0); float r=length(p); float a=atan(p.y,p.x); float id=floor(a*48.0/3.14159); float l=step(0.72,h(id+floor(t*14.0)))*smoothstep(0.28,0.75,r);
-      vec4 c=vec4(1.0,1.0,1.0,l*speed*0.8); c.rgb=mix(c.rgb,tint,0.0); c=mix(c, vec4(tint, 0.55), tintAmt*(0.6+0.4*smoothstep(0.2,0.9,r))); c=mix(c,vec4(1.0),white); gl_FragColor=c; }`,
+      vec4 c=vec4(1.0,1.0,1.0,l*speed*0.8); c.rgb=mix(c.rgb,tint,0.0); c=mix(c, vec4(tint, 0.55), tintAmt*(0.6+0.4*smoothstep(0.2,0.9,r))); c=mix(c,vec4(1.0),white);
+      float vg=vig*smoothstep(0.25,0.95,r); c=vec4(mix(c.rgb,vec3(0.0),vg),max(c.a,vg)); c=mix(c,vec4(0.0,0.0,0.0,1.0),black);
+      if(ringR>0.0){ float d=r-ringR; float ra=smoothstep(0.035,0.0,abs(d))+0.55*smoothstep(0.22,0.0,abs(d))*step(d,0.0)+0.25*smoothstep(0.5,0.0,-d)*step(d,0.0)*(1.0-smoothstep(0.0,1.2,ringR));
+        float fl=0.75+0.25*sin(a*24.0+t*20.0); ra*=fl; c.rgb=mix(c.rgb,mix(ringCol*1.4,vec3(1.0),smoothstep(0.03,0.0,abs(d))),clamp(ra,0.0,1.0)); c.a=max(c.a,clamp(ra,0.0,1.0)); }
+      gl_FragColor=c; }`,
     transparent: true, depthTest: false, depthWrite: false,
   }));
   overlay.frustumCulled = false; overlay.renderOrder = 999; scene.add(overlay);
   const OV = overlay.material.uniforms;
 
-  // ---------- domain dome ----------
+  // ---------- domain: INFINITE SANCTUM (a starry void sea under an eclipse, ringed by giant gates and rune halos) ----------
+  // Everything here is built once on first use and reused; tinted by the equipped grimoire's colour.
+  const NOISE_GLSL = `float h(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
+    float n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
+    float fbm(vec2 p){return n2(p)*0.55+n2(p*2.1+3.7)*0.3+n2(p*4.3+1.3)*0.15;}`;
   const domeMat = new THREE.ShaderMaterial({
-    uniforms: { t: { value: 0 }, op: { value: 0 } },
+    uniforms: { t: { value: 0 }, op: { value: 0 }, crack: { value: 0 }, tint: { value: new THREE.Color(0x8a5cff) }, sunDir: { value: new THREE.Vector3(0, 0.4, -1).normalize() } },
     vertexShader: 'varying vec3 vP; void main(){ vP=normalize(position); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);} ',
-    fragmentShader: `varying vec3 vP; uniform float t,op; float h(vec2 p){return fract(sin(dot(p,vec2(12.9,78.2)))*43758.5);}
-      void main(){ float lat=asin(vP.y), lon=atan(vP.z,vP.x); vec3 base=mix(vec3(0.05,0.02,0.18),vec3(0.35,0.1,0.7),smoothstep(-0.2,0.8,vP.y));
-      float rings=smoothstep(0.92,1.0,abs(sin(lat*14.0 - t*1.5))); float spokes=smoothstep(0.96,1.0,abs(sin(lon*12.0 + t*0.6)))*smoothstep(0.0,0.5,vP.y);
-      vec2 g=floor(vec2(lon*40.0,lat*40.0)); float st=step(0.985,h(g))*(0.6+0.4*sin(t*4.0+h(g)*20.0));
-      vec3 c=base + vec3(0.7,0.6,1.0)*rings*0.8 + vec3(1.0,0.85,1.0)*spokes*0.6 + vec3(1.0)*st; gl_FragColor=vec4(c, op);} `,
+    fragmentShader: `varying vec3 vP; uniform float t,op,crack; uniform vec3 tint,sunDir; ${NOISE_GLSL}
+      vec2 vor(vec2 p){ vec2 i=floor(p),f=fract(p); float a=8.0,b=8.0; for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){ vec2 g=vec2(float(x),float(y)); vec2 o=vec2(h(i+g),h(i+g+17.0)); float d=length(g+o-f); if(d<a){b=a;a=d;}else if(d<b)b=d; } return vec2(a,b); }
+      void main(){ vec3 d=normalize(vP); float lat=asin(clamp(d.y,-1.0,1.0)), lon=atan(d.z,d.x);
+        float neb=fbm(vec2(lon*2.2+t*0.015,lat*3.0)); float neb2=fbm(vec2(lon*5.0-t*0.02,lat*6.0)+4.0);
+        vec3 c=vec3(0.012,0.004,0.03)+tint*0.32*smoothstep(0.45,0.95,neb)*(0.4+0.6*neb2)+vec3(0.10,0.03,0.18)*smoothstep(0.5,0.9,neb2)*0.5;
+        vec2 sg=vec2(lon*70.0,lat*70.0); vec2 gi=floor(sg); float st=step(0.986,h(gi))*smoothstep(0.45,0.05,length(fract(sg)-0.5))*(0.55+0.45*sin(t*3.0+h(gi+3.0)*40.0));
+        vec2 sg2=vec2(lon*22.0,lat*22.0); vec2 gi2=floor(sg2); float st2=step(0.975,h(gi2+9.0))*smoothstep(0.3,0.0,length(fract(sg2)-0.5));
+        c+=vec3(0.9,0.92,1.0)*(st*1.1+st2*1.4);
+        float ang=acos(clamp(dot(d,normalize(sunDir)),-1.0,1.0));
+        float disc=smoothstep(0.162,0.155,ang); float cor=smoothstep(0.55,0.16,ang); float rays=0.6+0.4*n2(vec2(atan(d.y-sunDir.y,d.x-sunDir.x)*6.0,t*0.4));
+        c+=(tint*1.4+vec3(0.35,0.25,0.3))*cor*cor*rays*1.3; c+=vec3(1.0,0.95,0.9)*smoothstep(0.014,0.0,abs(ang-0.158))*2.0; c*=1.0-disc;
+        c+=tint*0.55*smoothstep(0.22,0.0,abs(d.y+0.02));
+        if(crack>0.0){ vec2 v=vor(vec2(lon*4.0,lat*6.0)); float e=smoothstep(0.08,0.0,v.y-v.x); c+=(vec3(1.0)+tint)*e*min(1.0,crack*3.0)*1.6; c*=1.0-0.5*crack; }
+        gl_FragColor=vec4(c,op);} `,
     side: THREE.BackSide, transparent: true, depthWrite: false, fog: false,
   });
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 24), domeMat); dome.visible = false; dome.renderOrder = -1; scene.add(dome);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 24), domeMat); dome.visible = false; dome.renderOrder = -1; dome.frustumCulled = false; scene.add(dome);
+  // seeded original rune glyphs (kanji-like strokes, made up)
+  function runeGlyph(x, cx, cy, s, seed) {
+    let k = seed * 9301 + 49297; const r = () => ((k = (k * 9301 + 49297) % 233280) / 233280);
+    x.lineCap = 'round'; x.lineJoin = 'round'; const n = 3 + Math.floor(r() * 3);
+    for (let i = 0; i < n; i++) {
+      const kind = r(); x.lineWidth = s * (0.09 + r() * 0.05); x.beginPath();
+      if (kind < 0.35) { const y = cy + (r() - 0.5) * s * 0.8; x.moveTo(cx - s * (0.2 + r() * 0.25), y); x.lineTo(cx + s * (0.2 + r() * 0.25), y + (r() - 0.5) * s * 0.1); }
+      else if (kind < 0.65) { const xx = cx + (r() - 0.5) * s * 0.7; x.moveTo(xx, cy - s * (0.25 + r() * 0.2)); x.lineTo(xx + (r() - 0.5) * s * 0.1, cy + s * (0.25 + r() * 0.2)); }
+      else if (kind < 0.85) { x.moveTo(cx + (r() - 0.5) * s * 0.6, cy - s * 0.4); x.quadraticCurveTo(cx, cy, cx + (r() - 0.5) * s * 0.8, cy + s * 0.42); }
+      else { x.arc(cx + (r() - 0.5) * s * 0.4, cy + (r() - 0.5) * s * 0.4, s * (0.08 + r() * 0.1), 0, TAU); }
+      x.stroke();
+    }
+  }
+  let DW = null; // the domain world, built lazily
+  function sigilTex() {
+    return onceTex('sigil', 512, 512, (x) => {
+      x.translate(256, 256); x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.shadowColor = '#fff'; x.shadowBlur = 8;
+      for (const [r, w] of [[246, 6], [226, 3], [168, 4], [150, 2], [70, 3]]) { x.lineWidth = w; x.beginPath(); x.arc(0, 0, r, 0, TAU); x.stroke(); }
+      for (let i = 0; i < 72; i++) { const a = i / 72 * TAU, l = i % 6 ? 8 : 18; x.lineWidth = 2; x.beginPath(); x.moveTo(Math.cos(a) * 226, Math.sin(a) * 226); x.lineTo(Math.cos(a) * (226 - l), Math.sin(a) * (226 - l)); x.stroke(); }
+      for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; x.save(); x.rotate(a); runeGlyph(x, 0, -197, 30, i + 3); x.restore(); }
+      x.lineWidth = 3; x.beginPath(); for (let i = 0; i <= 7; i++) { const a = (i * 3 / 7) * TAU - Math.PI / 2; const px = Math.cos(a) * 150, py = Math.sin(a) * 150; i ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); // 7-point star
+      x.lineWidth = 4; x.beginPath(); x.ellipse(0, 0, 54, 26, 0, 0, TAU); x.stroke(); x.beginPath(); x.arc(0, 0, 14, 0, TAU); x.fill();
+    }, false);
+  }
+  function runeStripTex() {
+    return onceTex('runestrip', 1024, 128, (x, w, h) => {
+      x.strokeStyle = '#fff'; x.shadowColor = '#fff'; x.shadowBlur = 6; x.lineWidth = 3;
+      x.beginPath(); x.moveTo(0, 10); x.lineTo(w, 10); x.moveTo(0, h - 10); x.lineTo(w, h - 10); x.stroke();
+      for (let i = 0; i < 12; i++) runeGlyph(x, (i + 0.5) * w / 12, h / 2, 70, i * 7 + 1);
+    }, true);
+  }
+  const titleCache = new Map();
+  function brushTitleTex(tint) {
+    const key = new THREE.Color(tint).getHexString() + (document.fonts && document.fonts.check && document.fonts.check('80px Bangers') ? 'b' : '');
+    if (titleCache.has(key)) return titleCache.get(key);
+    const [c, x] = cvs(1024, 256); const col = '#' + new THREE.Color(tint).getHexString();
+    let k = 7; const r = () => ((k = (k * 9301 + 49297) % 233280) / 233280);
+    // ink swash behind the name
+    x.save(); x.translate(512, 158); x.rotate(-0.025);
+    for (let i = 0; i < 26; i++) { x.globalAlpha = 0.07 + r() * 0.07; x.fillStyle = i % 3 ? col : '#120418'; x.beginPath(); x.ellipse((r() - 0.5) * 50, (r() - 0.5) * 16, 440 + r() * 50, 52 + r() * 18, 0, 0, TAU); x.fill(); }
+    for (let i = 0; i < 90; i++) { x.globalAlpha = 0.25 + r() * 0.5; x.strokeStyle = r() < 0.75 ? col : '#ffffff'; x.lineWidth = 1 + r() * 4; const y = (r() - 0.5) * 100, x0 = -470 + r() * 80; x.beginPath(); x.moveTo(x0, y); x.bezierCurveTo(x0 + 300, y + (r() - 0.5) * 10, 200, y + (r() - 0.5) * 14, 480 - r() * 160, y + (r() - 0.5) * 12); x.stroke(); }
+    x.restore(); x.globalAlpha = 1;
+    // small subtitle
+    x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '700 30px "Russo One", "Arial Black", sans-serif'; x.fillStyle = '#ffffff'; x.shadowColor = col; x.shadowBlur = 12;
+    x.textAlign = 'right'; x.fillText('D O M A I N   E X P A N S I O N', 990, 30); x.shadowBlur = 0; x.fillRect(560, 28, 40, 3);
+    // the name, slanted brush lettering
+    const FONT = (n) => `${n}px Bangers, Impact, "Arial Black", sans-serif`, fit = (txt, n, w) => { x.font = FONT(n); const mw = x.measureText(txt).width; if (mw > w) { n = Math.floor(n * w / mw); x.font = FONT(n); } return n; };
+    const ink = (txt, px, py, n, lw) => { x.save(); x.setTransform(1, 0, -0.16, 1, 0.16 * py, 0); x.lineJoin = 'round'; x.font = FONT(n);
+      x.lineWidth = lw; x.strokeStyle = '#0a0410'; x.strokeText(txt, px, py); x.lineWidth = lw * 0.35; x.strokeStyle = col; x.strokeText(txt, px, py);
+      const g = x.createLinearGradient(0, py - n * 0.45, 0, py + n * 0.45); g.addColorStop(0, '#ffffff'); g.addColorStop(0.6, '#fff4f0'); g.addColorStop(1, '#ffd0c8'); x.fillStyle = g; x.fillText(txt, px, py); x.restore(); };
+    x.textAlign = 'left'; const n1 = fit('DOMAIN:', 58, 400); ink('DOMAIN:', 60, 74, n1, 12);
+    x.textAlign = 'center'; const n2 = fit('INFINITE SANCTUM', 150, 940); ink('INFINITE SANCTUM', 520, 168, n2, 20);
+    // dry-brush texture: gaps and speckles eaten out of the strokes, ink drops at the ends
+    x.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 26; i++) { x.globalAlpha = 0.5 + r() * 0.5; x.fillRect(r() * 1024, 102 + r() * 110, 30 + r() * 160, 1 + r() * 2.5); }
+    for (let i = 0; i < 380; i++) { x.globalAlpha = 1; x.beginPath(); x.arc(r() * 1024, 92 + r() * 130, r() * 2.2, 0, TAU); x.fill(); }
+    x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
+    for (let i = 0; i < 30; i++) { x.fillStyle = r() < 0.5 ? col : '#ffffff'; x.beginPath(); const sd = r() < 0.5 ? -1 : 1; x.arc(512 + sd * (440 + r() * 70), 158 + (r() - 0.5) * 110, 1 + r() * 5, 0, TAU); x.fill(); }
+    const t = ctex(c); titleCache.set(key, t); return t;
+  }
+  // screen-space brush title (bottom third; drawn in the 3D pass, so it is part of the cinematic)
+  const titleQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+    uniforms: { map: { value: null }, reveal: { value: 0 }, op: { value: 0 }, size: { value: new THREE.Vector2(0.9, 0.28) }, center: { value: new THREE.Vector2(0, -0.66) } },
+    vertexShader: 'varying vec2 vUv; uniform vec2 size,center; void main(){ vUv=uv; gl_Position=vec4(center+position.xy*size,0.0,1.0);} ',
+    fragmentShader: `varying vec2 vUv; uniform sampler2D map; uniform float reveal,op; ${NOISE_GLSL}
+      void main(){ vec4 c=texture2D(map,vUv); float edge=reveal*1.25-0.12+(n2(vec2(vUv.y*9.0,reveal*3.0))-0.5)*0.12; float m=smoothstep(edge+0.04,edge-0.02,vUv.x);
+        float glow=smoothstep(0.08,0.0,abs(vUv.x-edge))*step(0.02,c.a)*(1.0-step(1.0,reveal)); gl_FragColor=vec4(c.rgb+vec3(glow),c.a*m*op);} `,
+    transparent: true, depthTest: false, depthWrite: false,
+  }));
+  titleQuad.frustumCulled = false; titleQuad.renderOrder = 1000; titleQuad.visible = false; scene.add(titleQuad);
+  function buildDomainWorld() {
+    const g = new THREE.Group(); g.visible = false; scene.add(g);
+    const tint = new THREE.Color(0x8a5cff);
+    const floorMat = new THREE.ShaderMaterial({
+      uniforms: { t: { value: 0 }, op: { value: 1 }, unfold: { value: 0 }, tint: { value: tint } },
+      vertexShader: 'varying vec2 vXY; void main(){ vXY=position.xy; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);} ',
+      fragmentShader: `varying vec2 vXY; uniform float t,op,unfold; uniform vec3 tint; ${NOISE_GLSL}
+        void main(){ float r=length(vXY); if(r>unfold) discard; float a=atan(vXY.y,vXY.x);
+          vec3 c=vec3(0.008,0.004,0.025)+tint*0.05*fbm(vXY*0.08+t*0.03);
+          vec2 g=floor(vXY*1.6); c+=vec3(0.8,0.85,1.0)*step(0.988,h(g))*(0.35+0.65*sin(t*2.0+h(g+2.0)*30.0))*smoothstep(0.4,0.0,length(fract(vXY*1.6)-0.5));
+          float rings=smoothstep(0.09,0.0,abs(r-7.0))+smoothstep(0.05,0.0,abs(r-7.8))+smoothstep(0.12,0.0,abs(r-21.5))+smoothstep(0.06,0.0,abs(r-23.0));
+          float ticks=step(0.55,fract(a*36.0/6.2832+t*0.04))*smoothstep(0.35,0.0,abs(r-7.4))+step(0.7,fract(a*96.0/6.2832-t*0.02))*smoothstep(0.5,0.0,abs(r-22.25));
+          float spokes=smoothstep(0.012,0.0,abs(fract(a*8.0/6.2832+0.5)-0.5)/max(r,1.0)*6.0)*smoothstep(7.8,9.0,r)*smoothstep(21.5,20.0,r)*0.35;
+          float rip=smoothstep(0.06,0.0,abs(fract(r*0.07-t*0.45)-0.5)-0.44)*smoothstep(40.0,4.0,r)*0.5;
+          c+=tint*(rings*1.6+ticks*0.9+spokes+rip);
+          c+=(tint+vec3(0.6))*smoothstep(2.0,0.0,unfold-r)*step(unfold,58.0)*1.5;
+          c=mix(c,vec3(0.01,0.0,0.02),smoothstep(28.0,58.0,r)*0.7);
+          gl_FragColor=vec4(c,op);} `,
+      transparent: true, depthWrite: true, fog: false,
+    });
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(58, 64), floorMat); floor.rotation.x = -Math.PI / 2; floor.renderOrder = -1; g.add(floor);
+    // giant gates: two pillars, a doubled lintel with upswept ends, a tie-beam, a rune plaque, crowned by a halo ring (original design)
+    const B = (w, h, d, x, y, z, rz = 0) => [new THREE.BoxGeometry(w, h, d), xf([x, y, z], [0, 0, rz])];
+    const body = mergeGeos([B(1.0, 11, 1.0, -3.8, 5.5, 0), B(1.0, 11, 1.0, 3.8, 5.5, 0), B(11.4, 0.8, 1.4, 0, 11.2, 0), B(1.6, 0.6, 1.4, -5.9, 11.45, 0, 0.22), B(1.6, 0.6, 1.4, 5.9, 11.45, 0, -0.22), B(9.4, 0.55, 0.8, 0, 9.4, 0), B(1.5, 1.9, 0.4, 0, 10.3, 0), B(1.5, 0.5, 1.5, -3.8, 0.25, 0), B(1.5, 0.5, 1.5, 3.8, 0.25, 0)]);
+    const glow = mergeGeos([B(11.0, 0.14, 1.46, 0, 10.75, 0), B(1.1, 1.5, 0.46, 0, 10.3, 0), B(1.06, 0.18, 1.06, -3.8, 2.2, 0), B(1.06, 0.18, 1.06, 3.8, 2.2, 0), [new THREE.TorusGeometry(1.5, 0.16, 6, 28), xf([0, 13.6, 0])], [new THREE.TorusGeometry(0.9, 0.08, 6, 20), xf([0, 13.6, 0])]]);
+    const NG = 8, bodyM = new THREE.InstancedMesh(body, new THREE.MeshToonMaterial({ color: 0x1a0d24, gradientMap: GRAD, emissive: 0x12061e }), NG), glowM = new THREE.InstancedMesh(glow, new THREE.MeshBasicMaterial({ color: tint, fog: false }), NG);
+    bodyM.frustumCulled = glowM.frustumCulled = false; g.add(bodyM, glowM);
+    // rune halos circling high above, and the sigil under Ren
+    const strip = runeStripTex(); strip.repeat.set(-4, 1); // seen from inside: mirror so the runes read the right way
+    const haloMat = new THREE.MeshBasicMaterial({ map: strip, color: tint, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+    const halo1 = new THREE.Mesh(new THREE.CylinderGeometry(30, 30, 3.2, 64, 1, true), haloMat), halo2 = new THREE.Mesh(new THREE.CylinderGeometry(19, 19, 2.2, 48, 1, true), haloMat);
+    halo1.position.y = 16; halo2.position.y = 22; g.add(halo1, halo2);
+    const sigMat = new THREE.MeshBasicMaterial({ map: sigilTex(), color: tint, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+    const sigil = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), sigMat); sigil.rotation.x = -Math.PI / 2; sigil.position.y = 0.06; g.add(sigil);
+    // seal FX: a vertical sigil behind Ren and a glow at his hands (used before the world exists, so kept outside the group)
+    const sealSig = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), sigMat.clone()); sealSig.visible = false; scene.add(sealSig);
+    const sealGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, fog: false })); sealGlow.visible = false; scene.add(sealGlow);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), s1 = new THREE.Vector3(1, 1, 1);
+    DW = { g, tint, floorMat, floor, bodyM, glowM, NG, halo1, halo2, haloMat, sigil, sigMat, sealSig, sealGlow,
+      setGates(rise, sink, cx, cy, cz) {
+        for (let i = 0; i < NG; i++) {
+          const a = i / NG * TAU + Math.PI / NG, r = 25, k = sm((rise - i * 0.05) / 0.55);
+          v.set(cx + Math.cos(a) * r, cy - 16 * (1 - k) - 16 * sink * sink + Math.sin(rise * 2 + i) * 0.0, cz + Math.sin(a) * r);
+          q.setFromAxisAngle(_up, -a + Math.PI / 2); m4.compose(v, q, s1); bodyM.setMatrixAt(i, m4); glowM.setMatrixAt(i, m4);
+        }
+        bodyM.instanceMatrix.needsUpdate = true; glowM.instanceMatrix.needsUpdate = true;
+      } };
+    return DW;
+  }
+  const _up = new THREE.Vector3(0, 1, 0);
 
   // ---------- world state ----------
   let level = null; // { group, plats, blockers, gates, theme, ... }
@@ -790,7 +927,7 @@ export function createGame(canvas, opts = {}) {
 
   // ---------- level building ----------
   function clearLevel() {
-    for (const e of enemies) scene.remove(e.rig.root); enemies = [];
+    for (const e of enemies) { scene.remove(e.rig.root); if (e.shadow) scene.remove(e.shadow); if (e.rig.trail) scene.remove(e.rig.trail.m); } enemies = [];
     for (const p of projectiles) scene.remove(p.mesh); projectiles = [];
     for (const p of pickups) scene.remove(p.mesh); pickups = [];
     for (const n of npcs) scene.remove(n.root); npcs = [];
@@ -801,6 +938,7 @@ export function createGame(canvas, opts = {}) {
     }
     if (sky) { scene.remove(sky); sky.geometry.dispose(); sky.material.dispose(); sky = null; }
     level = null; lockTarget = null; state.boss = null; state.objective = null; triggers = [];
+    if (ultSeq) endUlt(); else if (DW) domainShow(false);
     dome.visible = false; domainT = 0; OV.tintAmt.value = 0;
   }
   function applyTheme(th) {
@@ -1260,69 +1398,258 @@ export function createGame(canvas, opts = {}) {
     const sh = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({ map: glowTex, color: 0x000000, transparent: true, opacity: 0.45, depthWrite: false })); sh.rotation.x = -Math.PI / 2; scene.add(sh); f.shadow = sh; sh.scale.setScalar(1.2 * (rig.cfg.scale || 1));
     return f;
   }
-  function removeFighter(f) { scene.remove(f.rig.root); scene.remove(f.shadow); }
+  function removeFighter(f) { scene.remove(f.rig.root); scene.remove(f.shadow); if (f.rig.trail) { scene.remove(f.rig.trail.m); f.rig.trail.geo.dispose(); f.rig.trail = null; } }
   function syncFighter(f, dt) {
-    f.rig.root.position.copy(f.pos); f.rig.root.rotation.y = f.yaw;
+    const rg = f.rig; f.rig.root.position.copy(f.pos);
+    // visual yaw follows the logical yaw through a fast critically-damped chase: no single-frame snaps / jitter
+    if (rg.visYaw === undefined || !(dt > 0)) rg.visYaw = f.yaw; else rg.visYaw += angDiff(rg.visYaw, f.yaw) * (1 - Math.exp(-24 * dt));
+    rg.root.rotation.y = rg.visYaw; rg.grounded = f.grounded;
     const g = groundAt(f.pos.x, f.pos.z, f.pos.y); f.shadow.position.set(f.pos.x, (g > -1e9 ? g : f.pos.y - 50) + 0.04, f.pos.z);
     const dx = f.pos.x - f.lastPos.x, dz = f.pos.z - f.lastPos.z;
-    if (dt > 0) { f.rig.speed = Math.hypot(dx, dz) / dt; f.rig.fwdSpeed = (dx * Math.sin(f.yaw) + dz * Math.cos(f.yaw)) / dt; f.rig.vy = f.vel.y; }
+    if (dt > 0) { const sp = Math.hypot(dx, dz) / dt; f.rig.speed = sp > 40 ? f.rig.speed || 0 : sp; f.rig.fwdSpeed = sp > 40 ? 0 : (dx * Math.sin(f.yaw) + dz * Math.cos(f.yaw)) / dt; f.rig.sideSpeed = sp > 40 ? 0 : (dx * Math.cos(f.yaw) - dz * Math.sin(f.yaw)) / dt; f.rig.vy = f.vel.y; }
     f.lastPos.copy(f.pos);
   }
 
   // ---------- animation ----------
+  // Every frame a target pose is built procedurally (FK angles + foot IK targets), the legs are solved with 2-bone IK
+  // (feet stay planted on the ground, no sliding or sinking), then the result is cross-faded from the pose the rig showed
+  // when its animation changed, so states blend without pops. Idle / walk / run are one layer blended by smoothed speed.
   function kf(u, a, b, c, w = 0.3, s = 0.5, r = 0.75) { const k1 = sm(u / w), k2 = sm((u - w) / (s - w)), k3 = sm((u - r) / (1 - r)); return lerp(lerp(lerp(a, b, k1), c, k2), a, k3); }
+  const ebk = (x) => { x = clamp(x, 0, 1); return 1 + 2.6 * (x - 1) ** 3 + 1.6 * (x - 1) ** 2; }; // ease-out-back: fast with a little overshoot
+  // swing curve: rest -> anticipation (0..a) -> strike (a..s, overshoot) -> follow-through hold -> rest (r..1)
+  function swg(u, rest, ant, hit, a = 0.24, s = 0.42, r = 0.72) { const k1 = sm(u / a), k2 = u < a ? 0 : ebk((u - a) / (s - a)), k3 = sm((u - r) / (1 - r)); return lerp(lerp(lerp(rest, ant, k1), hit, k2), rest, k3); }
+  const wrapA = (a) => { a %= TAU; if (a > Math.PI) a -= TAU; else if (a < -Math.PI) a += TAU; return a; };
+  const FADE = { loco: 0.2, air: 0.13, flip: 0.05, atk1: 0.05, atk2: 0.05, atk3: 0.06, launch: 0.06, dodge: 0.05, step: 0.05, dash: 0.06, cast: 0.08, hurt: 0.035, down: 0.14, launched: 0.07, power: 0.2, burst: 0.06, victory: 0.25, sign: 0.1, seal: 0.1, point: 0.2, talk: 0.25, claw: 0.1, slam: 0.12, slash: 0.1, cast2: 0.12, raise: 0.15, kneel: 0.22, float: 0.3 };
+  const WIND_TAIL = { claw: 0.45, slash: 0.45, slam: 0.55, raise: 0.5, cast2: 0.55, dash: 0.35 };
+  // which limb draws a slash trail, and when (fraction of the animation)
+  const TRAIL_SPEC = { atk1: ['haR', 'elR', 0.18, 0.62], atk2: ['haL', 'elL', 0.18, 0.62], atk3: ['ftR', 'knR', 0.16, 0.7], launch: ['haR', 'elR', 0.28, 0.66] };
+  const WIND_TRAIL = { slash: 'haR', claw: 'haR', slam: 'haR' };
+  const L1 = 0.43, LMAX = 0.858, ANK = 0.04; // thigh = shin length, max reach, ankle height when standing
+  function initAnim(rig) {
+    rig.F = new Float32Array(JN.length * 3 + 3); rig.FT = [[0, ANK, 0, 0, 0], [0, ANK, 0, 0, 0]];
+    rig.spdS = 0; rig.fwdS = 0; rig.sideS = 0; rig.vyS = 0; rig.ph = rand(0, 1); rig.sq = 0; rig.sqV = 0; rig.landT = 9; rig.landK = 0; rig.wasGr = true; rig.lastVy = 0;
+    rig.grp = null; rig.seenN = -1; rig.playN = rig.playN || 0; rig.fadeT = 1; rig.fadeD = 0.1; rig.hurtSide = 1;
+    let i = 0; for (const n of JN) { const r = rig.J[n].rotation; rig.F[i++] = r.x; rig.F[i++] = r.y; rig.F[i++] = r.z; }
+    rig.F[i++] = rig.J.hips.position.y; rig.F[i++] = 0; rig.F[i++] = 1;
+  }
+  const _tv1 = new THREE.Vector3(), _tv2 = new THREE.Vector3(), _tv3 = new THREE.Vector3();
   function animate(rig, dt) {
     rig.t += dt; rig.animT += dt; const T = rig.T, t = rig.t, J = rig.J;
+    if (!rig.F) initAnim(rig);
     for (const n of JN) { T[n][0] = 0; T[n][1] = 0; T[n][2] = 0; }
-    let hy = 0, blend = rig.blend, spin = 0, flip = 0, pivY = 1;
-    const A = rig.anim, u = clamp(rig.animT / (rig.animDur || 1), 0, 1);
+    const A = rig.anim, dur = rig.animDur || 1, at = rig.animT, u = clamp(at / dur, 0, 1), FT = rig.FT;
     const S = (n, x, y, z) => { const a = T[n]; a[0] = x; a[1] = y; a[2] = z; };
     const add = (n, x, y, z) => { const a = T[n]; a[0] += x; a[1] += y; a[2] += z; };
-    const b = Math.sin(t * 2.2);
-    // base stance
-    if (rig.fight) { S('shL', -0.55, 0, 0.3); S('elL', -1.75, 0, 0); S('shR', -0.4, 0, -0.3); S('elR', -1.65, 0, 0); S('hipL', -0.2, 0, 0.08); S('knL', 0.3, 0, 0); S('hipR', 0.12, 0, -0.08); S('knR', 0.25, 0, 0); S('chest', 0.03 * b, 0.25, 0); S('head', 0, -0.2, 0); hy = -0.04 + 0.01 * b; }
-    else { S('shL', 0, 0, 0.12 + 0.02 * b); S('shR', 0, 0, -0.12 - 0.02 * b); S('elL', -0.2, 0, 0); S('elR', -0.2, 0, 0); S('chest', 0.03 * b, 0, 0); }
-    if (rig.hunch) { add('spine', rig.hunch, 0, 0); add('head', -rig.hunch, 0, 0); add('shL', -0.4, 0, 0.1); add('shR', -0.4, 0, -0.1); }
-    if (A === 'run' || (A === 'idle' && rig.speed > 0.5)) {
-      const amp = clamp(rig.speed / 7, 0.25, 1); rig.ph = (rig.ph || 0) + dt * (5 + rig.speed * 1.3); const p = rig.ph;
-      S('hipL', -Math.sin(p) * 0.95 * amp, 0, 0.03); S('hipR', Math.sin(p) * 0.95 * amp, 0, -0.03);
-      S('knL', 0.25 + Math.max(0, Math.cos(p)) * 1.4 * amp, 0, 0); S('knR', 0.25 + Math.max(0, -Math.cos(p)) * 1.4 * amp, 0, 0);
-      S('shL', Math.sin(p) * 0.9 * amp, 0, 0.15); S('shR', -Math.sin(p) * 0.9 * amp, 0, -0.15); S('elL', -1.3, 0, 0); S('elR', -1.3, 0, 0);
-      S('spine', 0.22 * amp + (rig.hunch || 0), 0, 0); S('chest', 0, Math.sin(p) * 0.22 * amp, 0); S('head', -0.1, -Math.sin(p) * 0.15 * amp, 0);
-      hy = -0.03 + Math.abs(Math.cos(p)) * 0.07 * amp;
+    const foot = (i, x, y, z, toe = 0) => { const f = FT[i]; f[0] = x; f[1] = y; f[2] = z; f[3] = toe; f[4] = 1; };
+    const noIK = () => { FT[0][4] = FT[1][4] = 0; };
+    let hy = 0, spin = 0, flip = 0, pivY = 1, glint = 0;
+    const sc = rig.cfg.scale || 1, bw = rig.cfg.bulk || 1, fx = 0.105 * bw;
+    // smoothed kinematics (speed from position deltas is noisy)
+    if (dt > 0) {
+      const ks = 1 - Math.exp(-10 * dt);
+      rig.spdS += (rig.speed - rig.spdS) * ks; rig.fwdS += (rig.fwdSpeed - rig.fwdS) * ks; rig.sideS += ((rig.sideSpeed || 0) - rig.sideS) * ks; rig.vyS += (rig.vy - rig.vyS) * (1 - Math.exp(-14 * dt));
+      // landing squash + crouch, take-off crouch -> stretch (a damped spring on the model's scale)
+      const gr = rig.grounded !== false;
+      if (gr && !rig.wasGr && rig.lastVy < -3) { const imp = clamp(-rig.lastVy / 15, 0.2, 1); rig.sqV -= 3.2 * imp; rig.landT = 0; rig.landK = imp; }
+      if (!gr && rig.wasGr && rig.vy > 4) { rig.sq = -0.09; rig.sqV = 3.6; }
+      rig.wasGr = gr; rig.lastVy = rig.vy;
+      rig.sqV += (-240 * rig.sq - 15 * rig.sqV) * dt; rig.sq = clamp(rig.sq + rig.sqV * dt, -0.2, 0.2); rig.landT += dt;
     }
+    const breath = Math.sin(t * 2.1), br2 = Math.sin(t * 2.1 - 0.7);
+    // ---- base stance (every pose starts from it) ----
+    if (rig.fight) {
+      S('shL', -0.5 + 0.03 * br2, 0.1, 0.32); S('elL', -1.8, 0, 0); S('shR', -0.32 + 0.03 * br2, -0.1, -0.3); S('elR', -1.6, 0, 0);
+      S('spine', 0.06, 0.12, 0); S('chest', 0.03 + 0.025 * breath, 0.16, 0); S('head', -0.04 - 0.015 * breath, -0.26, 0);
+      S('hipL', 0, 0.1, 0); S('hipR', 0, -0.28, 0);
+      hy = -0.075 + 0.006 * breath; foot(0, fx + 0.03, ANK, 0.13); foot(1, -fx - 0.03, ANK, -0.12);
+    } else {
+      S('shL', 0.02 * br2, 0, 0.1 + 0.02 * breath); S('shR', 0.02 * br2, 0, -0.1 - 0.02 * breath); S('elL', -0.22, 0, 0); S('elR', -0.22, 0, 0);
+      S('chest', 0.02 + 0.03 * breath, 0, 0); S('head', -0.02 * breath, 0, 0); S('hipL', 0, 0.06, 0); S('hipR', 0, -0.06, 0);
+      hy = -0.012 + 0.004 * breath; foot(0, fx, ANK, 0.02); foot(1, -fx, ANK, -0.02);
+    }
+    if (rig.hunch) { add('spine', rig.hunch, 0, 0); add('head', -rig.hunch, 0, 0); add('shL', -0.4, 0, 0.1); add('shR', -0.4, 0, -0.1); }
+    // ---- locomotion layer: walk -> run, feet follow a stance/swing path matched to the ground speed ----
+    const LO = A === 'idle' || A === 'run';
+    const mv = rig.spdS / sc, mW = LO ? sm((mv - 0.25) / 1.3) : 0;
+    if (LO && dt > 0) rig.ph = (rig.ph + dt * (1.4 + 0.28 * Math.min(mv, 10))) % 1;
+    if (mW > 0.001) {
+      const runW = sm((mv - 2.2) / 3.4), f = 1.4 + 0.28 * Math.min(mv, 10), beta = lerp(0.6, 0.36, runW), half = beta * (mv / f) * 0.5;
+      const vf = rig.fwdS / sc, vs = rig.sideS / sc, vl = Math.hypot(vf, vs) || 1, dz = vf / vl, dx = vs / vl, lift = lerp(0.09, 0.22, runW);
+      for (let i = 0; i < 2; i++) {
+        const c = (rig.ph + i * 0.5) % 1; let s, y = 0, toe = 0;
+        if (c < beta) { s = half * (1 - 2 * c / beta); if (c > beta * 0.7) toe = 0.5 * runW * sm((c / beta - 0.7) / 0.3); }
+        else { const q = (c - beta) / (1 - beta); s = half * (2 * sm(q) - 1); y = lift * Math.sin(Math.PI * q) * (1 - 0.35 * q); toe = lerp(0.5 * runW, 0, sm(q / 0.7)) + 0.15 * Math.sin(Math.PI * q); }
+        const f0 = FT[i], sd = i ? -1 : 1;
+        foot(i, lerp(f0[0], sd * fx * 0.85 + dx * s, mW), lerp(f0[1], ANK + y, mW), lerp(f0[2], dz * s, mW), lerp(f0[3], toe, mW));
+      }
+      const M = (n, x, y, z) => { const a = T[n]; a[0] = lerp(a[0], x, mW); a[1] = lerp(a[1], y, mW); a[2] = lerp(a[2], z, mW); };
+      const cL = Math.cos(TAU * rig.ph); // +1: left foot forward
+      const arm = lerp(0.38, 0.95, runW), lean = (0.06 + 0.3 * runW) * clamp(dz, -0.3, 1);
+      M('shL', arm * cL - 0.1 * runW, 0, 0.12 + 0.06 * runW); M('shR', -arm * cL - 0.1 * runW, 0, -0.12 - 0.06 * runW);
+      M('elL', lerp(-0.35, -1.45, runW) - 0.3 * runW * Math.max(0, -cL), 0, 0); M('elR', lerp(-0.35, -1.45, runW) - 0.3 * runW * Math.max(0, cL), 0, 0);
+      M('spine', lean, 0, 0); M('chest', 0.04 * runW, 0.24 * runW * cL + 0.05 * cL, 0); M('head', -lean * 0.75, -(0.24 * runW + 0.05) * cL * 0.8, 0);
+      M('hipL', 0, 0.04, 0); M('hipR', 0, -0.04, 0);
+      const bob = (0.012 + 0.03 * runW) * Math.cos(2 * TAU * (rig.ph - beta / 2));
+      hy = lerp(hy, -0.03 - 0.07 * runW - bob, mW);
+    }
+    // ---- actions ----
+    const hc = (cy, sy) => -(cy + sy) * 0.9; // head counter-twist so he keeps looking at the target
     switch (A) {
-      case 'air': S('hipL', -0.9, 0, 0.1); S('knL', 1.4, 0, 0); S('hipR', -0.15, 0, -0.1); S('knR', rig.vy < 0 ? 0.4 : 0.8, 0, 0); S('shL', -0.5, 0, 0.7); S('shR', -0.3, 0, -0.7); S('elL', -0.8, 0, 0); S('elR', -0.8, 0, 0); S('spine', 0.1, 0, 0); break;
-      case 'flip': S('hipL', -1.4, 0, 0); S('knL', 2.0, 0, 0); S('hipR', -1.4, 0, 0); S('knR', 2.0, 0, 0); S('shL', -1, 0, 0.3); S('shR', -1, 0, -0.3); S('elL', -1.5, 0, 0); S('elR', -1.5, 0, 0); flip = u * TAU; break;
-      case 'atk1': blend = 30; S('shR', kf(u, -0.4, 0.3, -1.55), 0, kf(u, -0.3, -0.45, -0.05)); S('elR', kf(u, -1.65, -2.2, -0.05), 0, 0); S('chest', 0, kf(u, 0.2, -0.35, 0.6), 0); S('spine', kf(u, 0.05, 0, 0.22), 0, 0); S('hipL', -0.55, 0, 0.1); S('knL', 0.5, 0, 0); S('hipR', 0.35, 0, -0.1); S('knR', 0.2, 0, 0); break;
-      case 'atk2': blend = 30; S('shL', kf(u, -0.5, 0.3, -1.55), 0, kf(u, 0.3, 0.45, 0.05)); S('elL', kf(u, -1.7, -2.2, -0.05), 0, 0); S('chest', 0, kf(u, 0.2, 0.45, -0.6), 0); S('spine', kf(u, 0.05, 0, 0.22), 0, 0); S('hipR', -0.55, 0, -0.1); S('knR', 0.5, 0, 0); S('hipL', 0.35, 0, 0.1); break;
-      case 'atk3': blend = 30; spin = sm((u - 0.1) / 0.5) * TAU; S('hipR', kf(u, -0.2, 0.2, -1.5, 0.2, 0.4, 0.8), 0, kf(u, 0, 0, -0.9, 0.2, 0.4, 0.8)); S('knR', kf(u, 0.4, 1.4, 0.05, 0.2, 0.4, 0.8), 0, 0); S('spine', 0, 0, kf(u, 0, 0, 0.45, 0.2, 0.4, 0.8)); S('shL', -0.3, 0, 1.1); S('shR', -0.3, 0, -1.1); S('elL', -0.5, 0, 0); S('elR', -0.5, 0, 0); break;
-      case 'launch': blend = 30; hy = kf(u, 0, -0.22, 0.12, 0.3, 0.45); S('shR', kf(u, -0.3, 0.4, -2.95, 0.3, 0.45), 0, -0.15); S('elR', kf(u, -1.6, -2.1, -0.3, 0.3, 0.45), 0, 0); S('chest', kf(u, 0.1, 0.45, -0.35, 0.3, 0.45), kf(u, 0, -0.4, 0.3, 0.3, 0.45), 0); S('hipL', kf(u, -0.2, -1.0, -0.2, 0.3, 0.45), 0, 0.1); S('knL', kf(u, 0.3, 1.3, 0.1, 0.3, 0.45), 0, 0); S('hipR', kf(u, 0.1, -0.5, 0.4, 0.3, 0.45), 0, -0.1); S('knR', kf(u, 0.3, 1.2, 0.3, 0.3, 0.45), 0, 0); break;
-      case 'dodge': blend = 26; flip = sm(u / 0.9) * TAU; hy = -0.3 * Math.sin(u * Math.PI); S('hipL', -1.3, 0, 0); S('knL', 1.9, 0, 0); S('hipR', -1.3, 0, 0); S('knR', 1.9, 0, 0); S('shL', -1.2, 0, 0.2); S('shR', -1.2, 0, -0.2); S('elL', -1.6, 0, 0); S('elR', -1.6, 0, 0); S('spine', 0.6, 0, 0); break;
-      case 'dash': blend = 30; S('spine', 0.75, 0, 0); S('head', -0.6, 0, 0); S('shL', 1.1, 0, 0.35); S('shR', 1.1, 0, -0.35); S('elL', -0.2, 0, 0); S('elR', -0.2, 0, 0); S('hipL', 0.5, 0, 0); S('knL', 0.7, 0, 0); S('hipR', -0.3, 0, 0); S('knR', 1.0, 0, 0); hy = -0.12; break;
-      case 'cast': blend = 24; S('shL', -1.45, 0, 0.1); S('elL', -0.15, 0, 0); S('shR', -0.6, 0, -0.5); S('elR', -1.4, 0, 0); S('chest', 0, -0.3, 0); S('hipL', -0.4, 0, 0.1); S('knL', 0.4, 0, 0); S('hipR', 0.3, 0, -0.1); break;
-      case 'hurt': blend = 30; S('chest', kf(u, 0, -0.5, -0.2, 0.15, 0.3, 0.6), 0, 0); S('head', -0.4, 0, 0); S('shL', -0.3, 0, 0.9); S('shR', -0.3, 0, -0.9); S('elL', -0.6, 0, 0); S('elR', -0.6, 0, 0); S('spine', -0.2, 0, 0); S('knL', 0.4, 0, 0); S('knR', 0.4, 0, 0); hy = -0.06; break;
-      case 'down': blend = 12; flip = -1.45; pivY = 0.22; S('shL', -0.3, 0, 1.2); S('shR', -0.3, 0, -1.2); S('knL', 0.4, 0, 0); S('hipL', -0.3, 0, 0.1); break;
-      case 'launched': blend = 14; flip = -0.9 - Math.min(1, rig.animT) * 0.5; S('shL', -2.4, 0, 0.6); S('shR', -2.4, 0, -0.6); S('hipL', -0.5, 0, 0); S('knL', 0.8, 0, 0); S('knR', 0.5, 0, 0); break;
-      case 'power': blend = 10; S('hipL', -0.15, 0, 0.32); S('hipR', -0.15, 0, -0.32); S('knL', 0.3, 0, 0); S('knR', 0.3, 0, 0); S('shL', -0.2, 0, 0.55); S('shR', -0.2, 0, -0.55); S('elL', -0.9, 0, 0); S('elR', -0.9, 0, 0); S('chest', -0.22 + Math.sin(t * 40) * 0.01, 0, 0); S('head', -0.18, 0, 0); hy = -0.08; break;
-      case 'victory': blend = 10; S('shR', -2.95, 0, -0.15); S('elR', -0.2, 0, 0); S('shL', 0.25, 0, 0.5); S('elL', -1.5, 0, 0); S('hipL', 0, 0, 0.12); S('hipR', 0, 0, -0.12); S('head', -0.15, 0.15, 0); S('chest', -0.1, 0, 0); break;
-      case 'sign': blend = 14; S('shL', -1.1, 0, -0.45); S('elL', -1.25, 0, 0); S('shR', -1.1, 0, 0.45); S('elR', -1.25, 0, 0); S('head', 0.15, 0, 0); S('hipL', -0.1, 0, 0.3); S('hipR', -0.1, 0, -0.3); S('knL', 0.35, 0, 0); S('knR', 0.35, 0, 0); hy = -0.08; break;
+      case 'air': {
+        noIK(); const wr = sm((rig.vyS + 1) / 7); // 1 rising, 0 falling
+        S('hipL', lerp(-0.4, -1.05, wr), 0, 0.08); S('knL', lerp(0.5, 1.55, wr), 0, 0); S('ftL', lerp(0.25, 0.45, wr), 0, 0);
+        S('hipR', lerp(0.1, 0.3, wr), 0, -0.08); S('knR', lerp(0.35, 0.85, wr), 0, 0); S('ftR', 0.45, 0, 0);
+        S('shL', lerp(-0.7, 0.45, wr), 0, lerp(0.95, 0.3, wr)); S('shR', lerp(-0.6, 0.5, wr), 0, lerp(-0.95, -0.3, wr)); S('elL', -0.7, 0, 0); S('elR', -0.7, 0, 0);
+        S('spine', lerp(-0.04, 0.14, wr), 0, 0); S('head', lerp(0.12, -0.14, wr), 0, 0); hy = 0; break;
+      }
+      case 'flip': noIK(); { const k = Math.sin(Math.PI * u); S('hipL', -0.5 - 1.1 * k, 0, 0.05); S('knL', 0.6 + 1.5 * k, 0, 0); S('hipR', -0.4 - 1.1 * k, 0, -0.05); S('knR', 0.6 + 1.5 * k, 0, 0); S('shL', -0.4 - 0.8 * k, 0, 0.4); S('shR', -0.4 - 0.8 * k, 0, -0.4); S('elL', -1.5, 0, 0); S('elR', -1.5, 0, 0); S('spine', 0.5 * k, 0, 0); S('head', 0.3 * k, 0, 0); flip = (1 - (1 - u) ** 2) * TAU; } break;
+      case 'atk1': {
+        const cy = swg(u, 0.16, -0.5, 0.62), sy = swg(u, 0.12, -0.2, 0.3);
+        S('shR', swg(u, -0.32, 0.5, -1.62), swg(u, -0.1, 0.25, -0.2), swg(u, -0.3, -0.6, -0.08)); S('elR', swg(u, -1.6, -2.25, -0.06), 0, 0);
+        S('shL', swg(u, -0.5, -0.8, -0.35), 0.1, 0.38); S('elL', -1.95, 0, 0);
+        S('chest', 0.05, cy, 0); S('spine', swg(u, 0.06, 0.02, 0.22), sy, 0); S('head', -0.05, hc(cy, sy), 0);
+        hy = swg(u, -0.075, -0.11, -0.16); foot(0, fx + 0.03, ANK, swg(u, 0.13, 0.2, 0.34), 0); foot(1, -fx - 0.03, ANK, swg(u, -0.12, -0.16, -0.3), swg(u, 0, 0, 0.3)); break;
+      }
+      case 'atk2': {
+        const cy = swg(u, 0.16, 0.75, -0.5), sy = swg(u, 0.12, 0.32, -0.25);
+        S('shL', swg(u, -0.5, 0.5, -1.62), swg(u, 0.1, -0.25, 0.2), swg(u, 0.32, 0.6, 0.08)); S('elL', swg(u, -1.8, -2.25, -0.06), 0, 0);
+        S('shR', swg(u, -0.32, -0.7, -0.3), -0.1, -0.38); S('elR', -1.95, 0, 0);
+        S('chest', 0.05, cy, 0); S('spine', swg(u, 0.06, 0.02, 0.22), sy, 0); S('head', -0.05, hc(cy, sy), 0);
+        hy = swg(u, -0.075, -0.11, -0.16); foot(0, fx + 0.03, ANK, swg(u, 0.13, 0.08, 0.3), 0); foot(1, -fx - 0.03, ANK, swg(u, -0.12, -0.2, -0.28), swg(u, 0, 0.1, 0.3)); break;
+      }
+      case 'atk3': {
+        spin = ebk((u - 0.12) / 0.5) * TAU; FT[1][4] = 0;
+        S('hipR', swg(u, -0.1, 0.35, -1.55, 0.2, 0.42, 0.8), 0, swg(u, 0, 0, -0.95, 0.2, 0.42, 0.8)); S('knR', swg(u, 0.3, 1.5, 0.05, 0.2, 0.42, 0.8), 0, 0); S('ftR', 0.4, 0, 0);
+        S('spine', swg(u, 0.06, 0.2, 0.05, 0.2, 0.42, 0.8), 0, swg(u, 0, 0, 0.5, 0.2, 0.42, 0.8)); S('chest', 0, 0, swg(u, 0, 0, 0.15, 0.2, 0.42, 0.8));
+        S('shL', -0.3, 0, swg(u, 0.4, 0.9, 1.25)); S('shR', -0.3, 0, swg(u, -0.4, -0.9, -1.2)); S('elL', -0.5, 0, 0); S('elR', -0.5, 0, 0);
+        hy = swg(u, -0.075, -0.16, -0.05, 0.2, 0.42, 0.8); foot(0, fx * 0.3, ANK, 0.02, swg(u, 0, 0.1, 0.35)); break;
+      }
+      case 'launch': {
+        const a = 0.3, s = 0.45, cy = swg(u, 0.16, -0.45, 0.3, a, s, 0.78);
+        hy = swg(u, -0.075, -0.3, 0.06, a, s, 0.78);
+        S('shR', swg(u, -0.32, 0.5, -2.95, a, s, 0.78), 0, -0.15); S('elR', swg(u, -1.6, -2.3, -0.25, a, s, 0.78), 0, 0);
+        S('shL', swg(u, -0.5, -0.9, 0.5, a, s, 0.78), 0, 0.4); S('elL', -1.6, 0, 0);
+        S('chest', swg(u, 0.04, 0.45, -0.35, a, s, 0.78), cy, 0); S('spine', swg(u, 0.06, 0.35, -0.1, a, s, 0.78), 0, 0); S('head', swg(u, -0.04, -0.1, -0.35, a, s, 0.78), hc(cy, 0.1), 0);
+        foot(0, fx + 0.05, ANK, 0.16, swg(u, 0, 0, 0.55, a, s, 0.78)); foot(1, -fx - 0.05, ANK, -0.14, swg(u, 0, 0, 0.6, a, s, 0.78)); break;
+      }
+      case 'dodge': {
+        noIK(); const tk = Math.sin(Math.PI * clamp(u / 0.92, 0, 1)); flip = sm((u - 0.04) / 0.8) * TAU; pivY = 1 - 0.5 * tk; hy = -0.1 * tk;
+        S('spine', 0.2 + 0.8 * tk, 0, 0); S('chest', 0.3 * tk, 0, 0); S('head', 0.45 * tk, 0, 0);
+        S('hipL', -0.25 - 1.45 * tk, 0, 0.1); S('knL', 0.35 + 1.85 * tk, 0, 0); S('hipR', -0.15 - 1.35 * tk, 0, -0.1); S('knR', 0.45 + 1.75 * tk, 0, 0); S('ftL', 0.3 * tk, 0, 0); S('ftR', 0.3 * tk, 0, 0);
+        S('shL', -0.5 - 0.7 * tk, 0, 0.3); S('shR', -0.5 - 0.7 * tk, 0, -0.3); S('elL', -1.7, 0, 0); S('elR', -1.7, 0, 0); break;
+      }
+      case 'step': { // back-step: a low hop away, guard up
+        const k = Math.sin(Math.PI * u), e = sm(u / 0.3) * (1 - sm((u - 0.7) / 0.3));
+        S('spine', -0.12 * e, 0.1, 0); S('chest', -0.1 * e, 0.2, 0); S('head', 0.08 * e, -0.28, 0);
+        S('shL', -0.9, 0.1, 0.35); S('elL', -2.0, 0, 0); S('shR', -0.7, -0.1, -0.35); S('elR', -1.9, 0, 0);
+        hy = -0.08 - 0.08 * e; foot(0, fx + 0.04, ANK + 0.07 * k, 0.13 + 0.22 * e, 0.2 * k); foot(1, -fx - 0.04, ANK + 0.1 * k, -0.12 - 0.08 * e, 0.3 * k); break;
+      }
+      case 'dash':
+        if (rig.isPlayer || dur < 0.5) {
+          noIK(); S('spine', 0.8, 0, 0); S('head', -0.65, 0, 0); S('shL', 1.15, 0, 0.35); S('shR', 1.15, 0, -0.35); S('elL', -0.2, 0, 0); S('elR', -0.2, 0, 0);
+          S('hipL', 0.55, 0, 0.05); S('knL', 0.8, 0, 0); S('hipR', -0.35, 0, -0.05); S('knR', 1.1, 0, 0); S('ftL', 0.5, 0, 0); S('ftR', 0.3, 0, 0); hy = -0.14; break;
+        }
+      // falls through: a boss's gale dash wind-up is handled with the other wind-ups
+      case 'claw': case 'slash': case 'slam': case 'raise': case 'cast2': {
+        // boss / enemy wind-ups: a clear anticipation pose that is held (with a charge tremble and a growing glint)
+        // until the strike, then a fast strike with overshoot, a follow-through hold, and a recovery
+        const W = Math.max(0.2, dur - (WIND_TAIL[A] || 0.45)), sS = A === 'claw' ? 0.6 * W : W - 0.07, aT = Math.min(0.32, sS * 0.6);
+        const ka = sm(at / aT), ks = at < sS ? 0 : ebk((at - sS) / 0.1), kr = sm((at - sS - 0.3) / Math.max(0.15, dur - sS - 0.3));
+        const tr = at < sS ? Math.sin(t * 55) * 0.02 * ka : 0;
+        const V = (rest, ant, hit) => lerp(lerp(lerp(rest, ant, ka), hit, ks), rest, kr);
+        glint = at < sS ? ka * (0.35 + 0.65 * clamp(at / sS, 0, 1)) : 1 - sm((at - sS) / 0.18);
+        if (A === 'claw') {
+          S('shR', V(-0.3, -2.6, -0.45) + tr, 0, -0.2); S('elR', V(-0.5, -0.4, -0.1), 0, 0); S('shL', V(-0.3, -2.3, -0.6) + tr, 0, 0.25); S('elL', -0.45, 0, 0);
+          S('chest', V(0.03, -0.4, 0.55), V(0.16, 0.3, -0.2), 0); S('spine', V(0.06, -0.15, 0.3), 0, 0); S('head', V(-0.04, 0.2, -0.2), -0.2, 0);
+          hy = V(-0.075, -0.02, -0.16); foot(0, fx + 0.03, ANK, V(0.13, 0.08, 0.32)); foot(1, -fx - 0.03, ANK, -0.14, V(0, 0.2, 0.2));
+        } else if (A === 'slash') {
+          const cy = V(0.1, -1.1, 1.15) + tr;
+          S('shR', -1.45, 0, V(-0.3, -0.95, 0.25)); S('elR', V(-0.4, -0.15, -0.1), 0, 0); S('shL', V(-0.5, -0.2, -0.6), 0, 0.65); S('elL', -1.2, 0, 0);
+          S('chest', 0.05, cy, 0); S('spine', V(0.06, 0.15, 0.25), V(0.1, -0.35, 0.35), 0); S('head', 0, hc(cy, V(0.1, -0.35, 0.35)), 0);
+          hy = V(-0.075, -0.17, -0.13); foot(0, fx + 0.05, ANK, V(0.13, 0.2, 0.38)); foot(1, -fx - 0.05, ANK, V(-0.12, -0.25, -0.3), V(0, 0.3, 0.3));
+        } else if (A === 'slam') {
+          const up = V(-0.3, -2.95, -0.85) + tr;
+          S('shL', up, 0, 0.15); S('shR', up, 0, -0.15); S('elL', V(-0.3, -0.5, -0.2), 0, 0); S('elR', V(-0.3, -0.5, -0.2), 0, 0);
+          S('chest', V(0.03, -0.45, 0.75), 0, 0); S('spine', V(0.06, -0.15, 0.45), 0, 0); S('head', V(0, 0.3, -0.25), 0, 0);
+          hy = V(-0.05, 0.05, -0.3); foot(0, fx + 0.06, ANK, 0.15, V(0, 0.3, 0)); foot(1, -fx - 0.06, ANK, -0.15, V(0, 0.3, 0));
+        } else if (A === 'raise') {
+          S('shL', V(-0.4, 0.15, -2.85) + tr, 0, V(0.3, -0.5, 0.4)); S('shR', V(-0.4, 0.15, -2.85) + tr, 0, V(-0.3, 0.5, -0.4)); S('elL', V(-0.4, -1.6, -0.15), 0, 0); S('elR', V(-0.4, -1.6, -0.15), 0, 0);
+          S('chest', V(0.03, 0.35, -0.25), 0, 0); S('spine', V(0.06, 0.25, -0.1), 0, 0); S('head', V(0, 0.3, -0.45), 0, 0);
+          hy = V(-0.06, -0.2, 0.0); foot(0, fx + 0.09, ANK, 0.08); foot(1, -fx - 0.09, ANK, -0.08);
+        } else if (A === 'cast2') {
+          S('shL', V(-0.4, -0.3, -1.45), 0, V(0.2, 0.5, -0.15)); S('shR', V(-0.4, -0.3, -1.45), 0, V(-0.2, -0.5, 0.15)); S('elL', V(-0.6, -2.1, -0.08) + tr, 0, 0); S('elR', V(-0.6, -2.1, -0.08) + tr, 0, 0);
+          S('chest', V(0.03, -0.3, 0.2), 0, 0); S('spine', V(0.06, -0.1, 0.15), 0, 0); S('head', V(0, 0.15, -0.05), 0, 0);
+          hy = V(-0.06, -0.12, -0.14); foot(0, fx + 0.04, ANK, V(0.12, 0.1, 0.3)); foot(1, -fx - 0.04, ANK, -0.15);
+        } else { // dash wind-up: coiled sprinter crouch, then launches
+          S('spine', V(0.1, 0.55, 0.85), 0, 0); S('head', V(0, -0.45, -0.65), 0, 0); S('shL', V(-0.3, 0.9, 1.15), 0, 0.3); S('shR', V(-0.3, 0.9, 1.15), 0, -0.3); S('elL', -0.3, 0, 0); S('elR', -0.3, 0, 0);
+          hy = V(-0.06, -0.28, -0.14); foot(0, fx, ANK, V(0.12, 0.38, 0.3), V(0, 0, 0.3)); foot(1, -fx, ANK, V(-0.12, -0.4, -0.5), V(0, 0.4, 0.6));
+        }
+        break;
+      }
+      case 'cast': {
+        const cy = swg(u, 0.16, 0.4, -0.35, 0.2, 0.34, 0.75);
+        S('shL', swg(u, -0.5, -0.4, -1.5, 0.2, 0.34, 0.75), 0, swg(u, 0.32, 0.5, 0.08, 0.2, 0.34, 0.75)); S('elL', swg(u, -1.8, -2.0, -0.12, 0.2, 0.34, 0.75), 0, 0);
+        S('shR', -0.6, 0, -0.5); S('elR', -1.4, 0, 0); S('chest', 0.04, cy, 0); S('head', -0.05, hc(cy, 0.12), 0);
+        hy = swg(u, -0.075, -0.12, -0.15, 0.2, 0.34, 0.75); foot(0, fx + 0.04, ANK, swg(u, 0.13, 0.1, 0.32, 0.2, 0.34, 0.75)); foot(1, -fx - 0.04, ANK, -0.15); break;
+      }
+      case 'hurt': { // additive flinch on top of the stance: snap back, twist away, stumble, recover
+        const k = (u < 0.14 ? ebk(u / 0.14) : 1) * (1 - sm((u - 0.3) / 0.7)), hs = rig.hurtSide;
+        add('chest', -0.45 * k, 0.35 * hs * k, 0.14 * hs * k); add('spine', -0.22 * k, 0.1 * hs * k, 0); add('head', -0.45 * k, 0.25 * hs * k, -0.1 * hs * k);
+        add('shL', -0.5 * k, 0, 0.75 * k); add('shR', -0.5 * k, 0, -0.75 * k); add('elL', 1.0 * k, 0, 0); add('elR', 1.0 * k, 0, 0);
+        hy -= 0.1 * k; FT[0][2] -= 0.12 * k; FT[1][2] -= 0.08 * k; break;
+      }
+      case 'down': noIK(); flip = -1.45; pivY = 0.22; S('shL', -0.3, 0, 1.2); S('shR', -0.3, 0, -1.2); S('knL', 0.4, 0, 0); S('hipL', -0.3, 0, 0.1); break;
+      case 'launched': noIK(); flip = -0.9 - Math.min(1, rig.animT) * 0.5; S('shL', -2.4, 0, 0.6); S('shR', -2.4, 0, -0.6); S('hipL', -0.5, 0, 0); S('knL', 0.8, 0, 0); S('knR', 0.5, 0, 0); S('spine', -0.2, 0, 0); S('head', -0.4, 0, 0); break;
+      case 'power': {
+        const tr = Math.sin(t * 40) * 0.012;
+        S('shL', -0.2, 0, 0.55); S('shR', -0.2, 0, -0.55); S('elL', -0.95, 0, 0); S('elR', -0.95, 0, 0); S('chest', -0.22 + tr, 0, 0); S('spine', 0.05, 0, 0); S('head', -0.18, 0, 0);
+        hy = -0.17 + 0.01 * breath; foot(0, fx + 0.15, ANK, 0.05); foot(1, -fx - 0.15, ANK, -0.05); S('hipL', 0, 0.3, 0); S('hipR', 0, -0.3, 0); break;
+      }
+      case 'burst': { // Aura Burst: curl up, then explode open
+        const k = sm(u / 0.32), o = u < 0.42 ? 0 : ebk((u - 0.42) / 0.12), tr = u < 0.42 ? Math.sin(t * 60) * 0.02 * k : 0;
+        S('shL', lerp(-0.9 * k, -2.3, o) + tr, 0, lerp(-0.5 * k, 1.3, o)); S('shR', lerp(-0.9 * k, -2.3, o) + tr, 0, lerp(0.5 * k, -1.3, o)); S('elL', lerp(-1.9 * k, -0.15, o), 0, 0); S('elR', lerp(-1.9 * k, -0.15, o), 0, 0);
+        S('spine', lerp(0.4 * k, -0.15, o), 0, 0); S('chest', lerp(0.3 * k, -0.35, o), 0, 0); S('head', lerp(0.35 * k, -0.4, o), 0, 0);
+        hy = lerp(-0.08 - 0.18 * k, -0.08, o); foot(0, fx + 0.14, ANK, 0.06); foot(1, -fx - 0.14, ANK, -0.06); S('hipL', 0, 0.3, 0); S('hipR', 0, -0.3, 0); break;
+      }
+      case 'victory': S('shR', -2.95, 0, -0.15); S('elR', -0.2, 0, 0); S('shL', 0.25, 0, 0.5); S('elL', -1.5, 0, 0); S('head', -0.15, 0.15, 0); S('chest', -0.1, 0, 0); S('spine', 0, 0, 0); hy = -0.02; foot(0, fx + 0.04, ANK, 0.05); foot(1, -fx - 0.04, ANK, -0.05); break;
+      case 'sign': S('shL', -1.1, 0, -0.45); S('elL', -1.25, 0, 0); S('shR', -1.1, 0, 0.45); S('elR', -1.25, 0, 0); S('head', 0.15, 0, 0); S('spine', 0.05, 0, 0); S('chest', 0, 0, 0); hy = -0.12; foot(0, fx + 0.12, ANK, 0.04); foot(1, -fx - 0.12, ANK, -0.04); break;
+      case 'seal': { // the Sanctum Seal: right hand upright before the face, left hand flat beneath it, a cross of palms
+        const k = sm(at / 0.3), tr = Math.sin(t * 50) * 0.01 * k;
+        S('shR', lerp(-0.32, -0.62, k), lerp(-0.1, 0.32, k), lerp(-0.3, 0.38, k)); S('elR', lerp(-1.6, -2.05, k) + tr, 0, 0); S('haR', 0, lerp(0, -0.9, k), 0);
+        S('shL', lerp(-0.5, -0.5, k), lerp(0.1, -0.38, k), lerp(0.32, -0.3, k)); S('elL', lerp(-1.8, -1.62, k), 0, 0); S('haL', lerp(0, -0.3, k), lerp(0, 1.3, k), 0);
+        S('spine', 0.04, 0, 0); S('chest', lerp(0.03, -0.06, k), lerp(0.16, 0, k), 0); S('head', lerp(-0.04, 0.12, k), lerp(-0.26, 0, k), 0); S('neck', 0.04 * k, 0, 0);
+        hy = lerp(-0.075, -0.15, k) + 0.005 * breath; foot(0, fx + 0.12 * k, ANK, lerp(0.13, 0.06, k)); foot(1, -fx - 0.12 * k, ANK, lerp(-0.12, -0.06, k)); S('hipL', 0, 0.3 * k, 0); S('hipR', 0, -0.3 * k, 0); break;
+      }
       case 'point': S('shR', -1.55, 0, -0.05); S('elR', -0.05, 0, 0); break;
       case 'talk': S('shR', -0.45 + Math.sin(t * 3) * 0.12, 0, -0.2); S('elR', -1.1, 0, 0); S('head', Math.sin(t * 2.5) * 0.04, 0, 0); break;
-      case 'claw': blend = 26; S('shR', kf(u, -0.3, -2.6, -0.5), 0, -0.2); S('elR', kf(u, -0.5, -0.4, -0.1), 0, 0); S('chest', kf(u, 0, -0.35, 0.5), 0, 0); S('shL', kf(u, -0.3, -2.4, -0.6), 0, 0.2); S('elL', -0.4, 0, 0); break;
-      case 'slam': blend = 22; S('shL', kf(u, -0.3, -2.8, -0.9, 0.5, 0.62, 0.85), 0, 0.15); S('shR', kf(u, -0.3, -2.8, -0.9, 0.5, 0.62, 0.85), 0, -0.15); S('elL', -0.3, 0, 0); S('elR', -0.3, 0, 0); S('chest', kf(u, 0, -0.4, 0.7, 0.5, 0.62, 0.85), 0, 0); S('knL', kf(u, 0.2, 0.1, 0.9, 0.5, 0.62, 0.85), 0, 0); S('knR', kf(u, 0.2, 0.1, 0.9, 0.5, 0.62, 0.85), 0, 0); S('hipL', kf(u, 0, 0, -0.7, 0.5, 0.62, 0.85), 0, 0.1); S('hipR', kf(u, 0, 0, -0.7, 0.5, 0.62, 0.85), 0, -0.1); hy = kf(u, 0, 0.05, -0.25, 0.5, 0.62, 0.85); break;
-      case 'slash': blend = 26; S('shR', -1.45, 0, kf(u, -0.3, -0.9, 0.2, 0.5, 0.62, 0.85)); S('elR', -0.15, 0, 0); S('chest', 0, kf(u, 0, -1.0, 1.1, 0.5, 0.62, 0.85), 0); S('shL', -0.5, 0, 0.6); S('hipL', -0.5, 0, 0.15); S('knL', 0.5, 0, 0); S('hipR', 0.3, 0, -0.15); hy = -0.08; break;
-      case 'cast2': blend = 20; S('shL', -1.4, 0, -0.2); S('shR', -1.4, 0, 0.2); S('elL', -0.1, 0, 0); S('elR', -0.1, 0, 0); S('chest', kf(u, 0, -0.3, 0.2, 0.5, 0.6, 0.85), 0, 0); break;
-      case 'raise': blend = 14; S('shL', -2.8, 0, 0.35); S('shR', -2.8, 0, -0.35); S('elL', -0.2, 0, 0); S('elR', -0.2, 0, 0); S('head', -0.4, 0, 0); S('chest', -0.2, 0, 0); break;
-      case 'kneel': blend = 12; S('hipL', -1.4, 0, 0.1); S('knL', 1.45, 0, 0); S('hipR', 0.2, 0, -0.1); S('knR', 1.8, 0, 0); S('spine', 0.5, 0, 0); S('head', 0.2, 0, 0); S('shL', -0.3, 0, 0.3); S('shR', -0.3, 0, -0.3); hy = -0.42; break;
-      case 'float': S('hipL', -0.2, 0, 0.05); S('hipR', -0.1, 0, -0.05); S('knL', 0.4, 0, 0); S('knR', 0.3, 0, 0); S('shL', -0.2, 0, 0.6 + b * 0.05); S('shR', -0.2, 0, -0.6 - b * 0.05); S('elL', -0.4, 0, 0); S('elR', -0.4, 0, 0); hy = 0.3 + b * 0.06; break;
+      case 'kneel': noIK(); S('hipL', -1.4, 0, 0.1); S('knL', 1.45, 0, 0); S('hipR', 0.2, 0, -0.1); S('knR', 1.8, 0, 0); S('spine', 0.5, 0, 0); S('head', 0.2, 0, 0); S('shL', -0.3, 0, 0.3); S('shR', -0.3, 0, -0.3); hy = -0.42; break;
+      case 'float': S('shL', -0.2, 0, 0.6 + breath * 0.05); S('shR', -0.2, 0, -0.6 - breath * 0.05); S('elL', -0.4, 0, 0); S('elR', -0.4, 0, 0); break; // grounded now: no hovering
     }
-    const k = 1 - Math.exp(-blend * dt);
-    for (const n of JN) { const r = J[n].rotation, a = T[n]; r.x += (a[0] - r.x) * k; r.y += (a[1] - r.y) * k; r.z += (a[2] - r.z) * k; }
-    J.hips.position.y += (0.94 + hy - J.hips.position.y) * k;
-    if (spin || A === 'atk3') rig.pivot.rotation.y = spin; else rig.pivot.rotation.y *= 1 - k;
-    if (flip && (A === 'dodge' || A === 'flip')) rig.pivot.rotation.x = flip; else rig.pivot.rotation.x += ((flip || 0) - rig.pivot.rotation.x) * k;
-    rig.pivot.position.y += (pivY - rig.pivot.position.y) * k;
+    // landing crouch: the hips dip and the planted legs absorb it (IK bends the knees)
+    if (rig.landT < 0.32 && FT[0][4]) hy -= 0.15 * rig.landK * Math.min(1, rig.landT / 0.04) * (1 - rig.landT / 0.32) ** 2;
+    // ---- 2-bone leg IK (sagittal plane + a hip roll for side offsets) ----
+    const hipY = 0.9 + hy;
+    for (let i = 0; i < 2; i++) {
+      const f = FT[i]; if (!f[4]) continue; const hn = i ? 'hipR' : 'hipL', kn = i ? 'knR' : 'knL', fn = i ? 'ftR' : 'ftL';
+      const dx = f[0] - (i ? -0.095 : 0.095) * bw, dy = Math.max(0.05, hipY - f[1]), dz = f[2];
+      const dv = Math.hypot(dy, dx), roll = Math.atan2(dx, dy), d = Math.min(Math.hypot(dz, dv), LMAX);
+      const k = Math.PI - Math.acos(clamp((2 * L1 * L1 - d * d) / (2 * L1 * L1), -1, 1)), phi = Math.atan2(dz, dv);
+      T[hn][0] = -(phi + k / 2); T[hn][2] = roll; T[kn][0] = k; T[kn][1] = 0; T[kn][2] = 0; T[fn][0] = phi - k / 2 + f[3]; T[fn][2] = -roll;
+    }
+    // ---- cross-fade from the pose shown when the animation (or a replay of it) started ----
+    const grp = (LO ? 'loco' : A) + (rig.fight ? 1 : 0), F = rig.F;
+    if (grp !== rig.grp || rig.playN !== rig.seenN) {
+      let i = 0; for (const n of JN) { const r = J[n].rotation; F[i++] = r.x; F[i++] = r.y; F[i++] = r.z; }
+      F[i++] = J.hips.position.y; F[i++] = wrapA(rig.pivot.rotation.x); F[i++] = rig.pivot.position.y;
+      rig.grp = grp; rig.seenN = rig.playN; rig.fadeT = 0; rig.fadeD = FADE[LO ? 'loco' : A] ?? 0.12;
+    }
+    rig.fadeT += dt; const x = clamp(rig.fadeT / rig.fadeD, 0, 1), w = rig.fadeD > 0.15 ? sm(x) : x * (2 - x);
+    let i = 0;
+    for (const n of JN) { const r = J[n].rotation, a = T[n]; r.x = lerp(F[i++], a[0], w); r.y = lerp(F[i++], a[1], w); r.z = lerp(F[i++], a[2], w); }
+    J.hips.position.y = lerp(F[i++], 0.94 + hy, w);
+    rig.pivot.rotation.x = lerp(F[i++], flip, w); rig.pivot.position.y = lerp(F[i++], pivY, w);
+    if (spin || A === 'atk3') rig.pivot.rotation.y = spin; else rig.pivot.rotation.y = wrapA(rig.pivot.rotation.y) * Math.exp(-16 * dt);
+    const sq = rig.sq; rig.model.scale.set(1 - sq * 0.5, 1 + sq, 1 - sq * 0.5);
     // tails
     const lift = clamp(rig.fwdSpeed * 0.13, -0.2, 1.3) + clamp(-rig.vy * 0.08, -0.3, 1.0);
     for (const tl of rig.tails) {
@@ -1333,8 +1660,9 @@ export function createGame(canvas, opts = {}) {
       });
     }
     if (rig.cape) {
-      const c = rig.cape, tgt = 0.1 + lift * 0.55 + Math.sin(t * 7 + 1) * 0.035 * (0.3 + Math.abs(lift)) + (A === 'dodge' || A === 'flip' ? 0.5 : 0);
-      c.v += (90 * (tgt - c.a) - 10 * c.v) * dt; c.a = clamp(c.a + c.v * dt, -0.25, 1.5); c.sway = Math.sin(t * 2.3) * 0.05 - J.chest.rotation.y * 0.12; bendCape(c);
+      const c = rig.cape, tgt = 0.1 + lift * 0.55 + Math.sin(t * 7 + 1) * 0.035 * (0.3 + Math.abs(lift)) + (A === 'dodge' || A === 'flip' ? 0.5 : 0) + (A === 'air' ? 0.25 : 0);
+      if (dt > 0) { c.v += (90 * (tgt - c.a) - 10 * c.v) * dt; c.a = clamp(c.a + c.v * dt, -0.25, 1.5); }
+      c.sway = Math.sin(t * 2.3) * 0.05 - J.chest.rotation.y * 0.12; bendCape(c);
     }
     // blink
     rig.blinkT -= dt;
@@ -1343,8 +1671,51 @@ export function createGame(canvas, opts = {}) {
       else { rig.emo = rig.baseEmo; rig.face.material.map = faceTexture(rig.cfg.face, rig.baseEmo); rig.blinkT = rand(2, 4.5); }
     }
     if (rig.halo) rig.halo.rotation.z += dt;
+    // wind-up glint on the striking hand (bosses / enemies), so attacks read before they land
+    if (glint > 0.01 && !rig.isPlayer) {
+      if (!rig.glint) { rig.glint = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff5a2a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, fog: false })); rig.glint.position.set(0, -0.08, 0.02); }
+      const hj = A === 'raise' || A === 'cast2' || A === 'dash' ? J.chest : J.haR; if (rig.glint.parent !== hj) hj.add(rig.glint);
+      rig.glint.visible = true; rig.glint.material.opacity = Math.min(1, glint * 1.2); rig.glint.scale.setScalar((0.35 + 0.9 * glint) * (1 + 0.15 * Math.sin(t * 30)));
+    } else if (rig.glint) rig.glint.visible = false;
+    // slash trails
+    const ts = TRAIL_SPEC[A] || (WIND_TRAIL[A] && glint > 0 && rig.animT > 0 ? [WIND_TRAIL[A], WIND_TRAIL[A] === 'haR' ? 'elR' : 'elL', -1, -1] : null);
+    let on = false;
+    if (ts) { if (ts[2] < 0) { const W = Math.max(0.2, dur - (WIND_TAIL[A] || 0.45)), sS = A === 'claw' ? 0.6 * W : W - 0.07; on = at > sS - 0.02 && at < sS + 0.22; } else on = u > ts[2] && u < ts[3]; }
+    if ((on || (rig.trail && rig.trail.live > 0)) && dt > 0) updateTrail(rig, on ? ts : null, dt);
   }
-  function play(rig, anim, dur) { rig.anim = anim; rig.animT = 0; rig.animDur = dur || 1; }
+  // ribbon trail behind a fist / foot: a small ring buffer of world-space samples, drawn additive with fading alpha
+  const TRAIL_N = 14;
+  function updateTrail(rig, ts, dt) {
+    let tr = rig.trail;
+    if (!tr) {
+      const geo = new THREE.BufferGeometry(), pos = new Float32Array(TRAIL_N * 6), al = new Float32Array(TRAIL_N * 2), idx = [];
+      for (let i = 0; i < TRAIL_N - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('a', new THREE.BufferAttribute(al, 1)); geo.setIndex(idx);
+      const mat = new THREE.ShaderMaterial({ uniforms: { col: { value: new THREE.Color(rig.isPlayer ? 0x9a8cff : 0xff6a4a) } },
+        vertexShader: 'attribute float a; varying float vA; void main(){ vA=a; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);} ',
+        fragmentShader: 'uniform vec3 col; varying float vA; void main(){ gl_FragColor=vec4(mix(col*1.3, vec3(1.0), vA*vA*0.7), vA*0.9);} ',
+        transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+      const m = new THREE.Mesh(geo, mat); m.frustumCulled = false; m.visible = false; m.renderOrder = 5; scene.add(m);
+      tr = rig.trail = { m, geo, pos, al, pts: [], live: 0 };
+    }
+    if (rig.isPlayer && rig.trailCol !== undefined) tr.m.material.uniforms.col.value.set(rig.trailCol);
+    if (ts) {
+      const h = rig.J[ts[0]].getWorldPosition(_tv1), e = rig.J[ts[1]].getWorldPosition(_tv2), d = _tv3.subVectors(h, e).normalize(), sc = rig.cfg.scale || 1;
+      const ix = h.x - d.x * 0.08 * sc, iy = h.y - d.y * 0.08 * sc, iz = h.z - d.z * 0.08 * sc, ox = h.x + d.x * 0.36 * sc, oy = h.y + d.y * 0.36 * sc, oz = h.z + d.z * 0.36 * sc;
+      const lp = tr.pts[0];
+      if (lp) for (let s = 1; s <= 2; s++) { const k = s / 3; tr.pts.unshift([lerp(lp[0], ix, k), lerp(lp[1], iy, k), lerp(lp[2], iz, k), lerp(lp[3], ox, k), lerp(lp[4], oy, k), lerp(lp[5], oz, k)]); }
+      tr.pts.unshift([ix, iy, iz, ox, oy, oz]); tr.live = 0.16;
+    } else { tr.live -= dt; tr.pts.splice(Math.max(1, tr.pts.length - 3)); }
+    if (tr.pts.length > TRAIL_N) tr.pts.length = TRAIL_N;
+    const n = tr.pts.length, fade = clamp(tr.live / 0.16, 0, 1);
+    for (let i = 0; i < TRAIL_N; i++) {
+      const p = tr.pts[Math.min(i, n - 1)] || [0, 0, 0, 0, 0, 0], a = i < n ? (1 - i / Math.max(1, n - 1)) * fade : 0;
+      tr.pos.set(p, i * 6); tr.al[i * 2] = a * 0.5; tr.al[i * 2 + 1] = a;
+    }
+    tr.geo.attributes.position.needsUpdate = true; tr.geo.attributes.a.needsUpdate = true; tr.m.visible = n > 1 && tr.live > 0;
+    if (tr.live <= 0) tr.pts.length = 0;
+  }
+  function play(rig, anim, dur) { rig.anim = anim; rig.animT = 0; rig.animDur = dur || 1; rig.playN = (rig.playN || 0) + 1; if (anim === 'hurt') rig.hurtSide = Math.random() < 0.5 ? -1 : 1; }
 
   // ---------- player ----------
   const COMBO = [
@@ -1356,7 +1727,7 @@ export function createGame(canvas, opts = {}) {
   function makePlayer() {
     const rig = makeRen();
     const p = makeFighter(rig, { hp: 100, maxHp: 100, aura: 0, combo: 0, comboWin: 0, cd: { dash: 0, power: 0, dodge: 0 }, jumps: 2, coyote: 0, safe: new THREE.Vector3(), book: null, bookT: 0 });
-    rig.fight = true;
+    rig.fight = true; rig.isPlayer = true;
     // grimoire book
     const book = new THREE.Group(); scene.add(book); book.visible = false;
     const cov = toon(0xb0142a, { em: 0x400010, ei: 1 }), pg = toon(0xfff4e0);
@@ -1441,6 +1812,7 @@ export function createGame(canvas, opts = {}) {
 
   function updatePlayer(dt) {
     const p = player, rig = p.rig; if (!p) return;
+    rig.trailCol = equipped && GRIM(equipped) ? GRIM(equipped).color : 0x9a8cff;
     for (const k in p.cd) p.cd[k] = Math.max(0, p.cd[k] - dt);
     for (const k in gcd) gcd[k] = Math.max(0, gcd[k] - dt); castLock = Math.max(0, castLock - dt);
     p.inv = Math.max(0, p.inv - dt); p.st += dt;
@@ -1460,9 +1832,11 @@ export function createGame(canvas, opts = {}) {
     if (playing) {
       if (pressed.ultimate && p.aura >= 100 && p.state !== 'ult') { startUlt(); }
       else if (pressed.dodge && p.cd.dodge <= 0 && p.state !== 'ult' && p.state !== 'dash') {
-        p.state = 'dodge'; p.st = 0; p.inv = 0.38; p.perfect = false; p.cd.dodge = 0.55; play(rig, 'dodge', 0.4);
+        // with a direction: a dodge roll that way; with no direction on the ground: a quick back-step, guard up
+        const back = wl <= 0.1 && p.grounded;
+        p.state = 'dodge'; p.st = 0; p.inv = 0.38; p.perfect = false; p.cd.dodge = 0.55; play(rig, back ? 'step' : 'dodge', back ? 0.36 : 0.4);
         if (wl > 0.1) p.yaw = Math.atan2(wx, wz);
-        p.dodgeDir = new THREE.Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw)); sfx('dodge');
+        p.dodgeDir = new THREE.Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw)).multiplyScalar(back ? -0.8 : 1); sfx('dodge');
       } else if (pressed.power && !busy) {
         // the equipped grimoire's spell; while it recharges (or with none equipped) Power is Aura Dash
         const hasD = powers.includes('dash');
@@ -1766,37 +2140,159 @@ export function createGame(canvas, opts = {}) {
     for (const e of enemies) if (e.ring && !e.ring.hit) { const d = Math.hypot(p.pos.x - e.pos.x, p.pos.z - e.pos.z), gap = d - e.ring.r; if (gap > -0.5 && gap < 3) { const fill = 1 - gap / 3; if (!best || fill > best.fill) best = { fill, ax: (p.pos.x - e.pos.x) / (d || 1), az: (p.pos.z - e.pos.z) / (d || 1), kind: 'ring' }; } }
     return best;
   }
+  // ---------- ultimates ----------
+  // Aura Burst (before the Domain is learned): ~0.9 s — curl up, close-up push, impact frames, shockwave + light pillar.
+  // Domain (chapter 4 power): a ~3.2 s cinematic that freezes the fight (input locked for that long only):
+  //   0.00 hand seal close-up -> 1.00 push-in to his eyes -> 1.25 cut to black + expanding shockwave ring
+  //   -> 1.70 the inner world unfolds (void sea, eclipse, gates rising, rune halos) + brush title -> 3.20 control back,
+  //   then the SURE HIT: every enemy inside is struck again and again for 4.5 s -> the domain shatters.
+  const ULT = { burstLock: 0.9, cine: 3.2, sure: 4.5, shatter: 0.7, radius: 26 };
+  let ultSeq = null, pillar = null, savedFog = null;
+  function grimTint() { const g = equipped && GRIM(equipped); return new THREE.Color(g ? g.color : 0x8a5cff); }
   function startUlt() {
-    const p = player; p.aura = 0; p.state = 'ult'; p.st = 0; p.inv = 99; lockTarget = lockTarget;
+    const p = player; p.aura = 0; p.state = 'ult'; p.st = 0; p.inv = 99;
     const isDomain = powers.includes('domain');
     const name = isDomain ? 'Domain: Infinite Sanctum' : 'Aura Burst';
     emit('ult', { name }); sfx(isDomain ? 'domain' : 'ult'); p.rig.aura.visible = true;
-    play(p.rig, isDomain ? 'sign' : 'power', 1);
-    ultSeq = { t: 0, domain: isDomain, fired: false, ticks: 0 };
-    setEmotion(p.rig, 'angry');
-  }
-  let ultSeq = null;
-  function updateUlt(dt) {
-    if (!ultSeq) return; const u = ultSeq, p = player; u.t += dt;
-    if (!u.domain) {
-      if (u.t > 0.6 && !u.fired) {
-        u.fired = true; impact = 3; cam.shake = 0.8; shockRing(p.pos, 10, 0xb48cff, 0.6); shockRing(p.pos, 6, 0xffffff, 0.4); burst(p.pos.x, p.pos.y + 1, p.pos.z, 60, 0x8a6cff, 14, 0.8, 0.5, 0); sfx('explosion');
-        for (const e of enemies) if (!e.dead && e.pos.distanceTo(p.pos) < 10) damageEnemy(e, e.boss ? 35 : 45, { heavy: true, kb: 10, launch: 9, color: 0xb48cff, ult: true });
+    play(p.rig, isDomain ? 'seal' : 'burst', isDomain ? 99 : 0.9);
+    ultSeq = { t: 0, domain: isDomain, fired: false, ticks: 0, phase: 'cine', yaw: p.yaw, c: p.pos.clone(), tint: grimTint(), black: false };
+    { // pick the camera side with the clearest view of Ren; turn him toward it when it's far off his front
+      let best = 0, bs = -1e9;
+      for (const a of [0.35, -0.35, 0.9, -0.9, 1.6, -1.6, 2.4, -2.4, Math.PI]) {
+        const Y = p.yaw + a; let clr = 9;
+        for (const e of enemies) { if (e.dead) continue; const ex = e.pos.x - p.pos.x, ez = e.pos.z - p.pos.z, al = ex * Math.sin(Y) + ez * Math.cos(Y), pr = Math.abs(ex * Math.cos(Y) - ez * Math.sin(Y)); if (al > -1 && al < 7.5) clr = Math.min(clr, pr - (e.radius || 0.5) * (e.rig.cfg.scale || 1)); }
+        const sc = Math.min(clr, 3) - Math.abs(a) * 0.35; if (sc > bs) { bs = sc; best = a; }
       }
-      if (u.t > 1.1) { endUlt(); }
-    } else {
-      // domain: cast 1.6s cinematic, then 5s active
-      if (u.t < 1.6) { OV.tintAmt.value = sm(u.t / 1.2) * 0.7; dome.visible = true; dome.position.copy(p.pos); dome.scale.setScalar(Math.max(0.1, sm((u.t - 0.4) / 1.0) * 34)); domeMat.uniforms.op.value = sm((u.t - 0.4) / 0.6); }
-      if (u.t >= 1.2 && !u.fired) { u.fired = true; impact = 4; cam.shake = 1; sfx('explosion'); OV.white.value = 0.8; }
-      if (u.t > 1.6) {
-        if (p.state === 'ult') { p.state = 'idle'; p.inv = 0; setEmotion(p.rig, 'determined'); }
-        OV.tintAmt.value = 0.35; domainT = 5 - (u.t - 1.6);
-        if (u.t - 1.6 > u.ticks * 0.9 && u.ticks < 6) { u.ticks++; for (const e of enemies) if (!e.dead && e.pos.distanceTo(dome.position) < 34) { damageEnemy(e, e.boss ? Math.round(e.maxHp * 0.025) : 30, { heavy: u.ticks === 6, kb: 1, color: 0xd8a0ff, ult: true }); const q = e.pos.clone(); q.y += 1; shockRing(e.pos, 3, 0xd8a0ff, 0.4); } }
-        if (u.t > 6.6) { endUlt(); }
-      }
+      if (Math.abs(best) > 1.0) { p.yaw += best; ultSeq.yaw = p.yaw; best = 0; }
+      ultSeq.camA = best; if (isDomain) p.rig.visYaw = p.yaw;
+    }
+    emit('cinematic', { on: true, kind: isDomain ? 'domain' : 'burst', dur: isDomain ? ULT.cine : ULT.burstLock });
+    setEmotion(p.rig, 'angry'); p.vel.set(0, p.vel.y, 0);
+    if (isDomain) {
+      const W = DW || buildDomainWorld(); W.tint.copy(ultSeq.tint); domeMat.uniforms.tint.value.copy(ultSeq.tint);
+      W.sealSig.material.color.copy(ultSeq.tint); W.haloMat.color.copy(ultSeq.tint).lerp(new THREE.Color(0xffffff), 0.25); W.sigMat.color.copy(ultSeq.tint); W.glowM.material.color.copy(ultSeq.tint).lerp(new THREE.Color(0xffffff), 0.3); W.sealGlow.material.color.copy(ultSeq.tint).lerp(new THREE.Color(0xffffff), 0.5);
+      titleQuad.material.uniforms.map.value = brushTitleTex(ultSeq.tint); OV.ringCol.value.copy(ultSeq.tint);
     }
   }
-  function endUlt() { const p = player; ultSeq = null; dome.visible = false; domainT = 0; OV.tintAmt.value = 0; if (p) { if (p.state === 'ult') p.state = 'idle'; p.inv = 0.5; p.rig.aura.visible = false; setEmotion(p.rig, 'determined'); } }
+  // the fight is frozen while a cinematic plays
+  function cineFreeze() { return !!(ultSeq && ultSeq.phase === 'cine' && ultSeq.domain); }
+  function domainShow(on) {
+    const u = ultSeq, W = DW; if (!W) return;
+    if (on) {
+      W.g.visible = true; W.g.position.set(0, 0, 0); W.floor.position.set(u.c.x, u.c.y + 0.03, u.c.z); W.sigil.position.set(u.c.x, u.c.y + 0.07, u.c.z);
+      W.halo1.position.set(u.c.x, u.c.y + 16, u.c.z); W.halo2.position.set(u.c.x, u.c.y + 22, u.c.z);
+      dome.visible = true; dome.position.copy(u.c); dome.scale.setScalar(70); domeMat.uniforms.op.value = 1; domeMat.uniforms.crack.value = 0;
+      const sy = u.yaw + (u.camA || 0); domeMat.uniforms.sunDir.value.set(-Math.sin(sy), 0.42, -Math.cos(sy)).normalize();
+      levelGroup.visible = false; if (sky) sky.visible = false;
+      if (scene.fog && !savedFog) { savedFog = [scene.fog.near, scene.fog.far]; scene.fog.near = 400; scene.fog.far = 900; }
+      W.setGates(0, 0, u.c.x, u.c.y, u.c.z);
+    } else {
+      W.g.visible = false; dome.visible = false; levelGroup.visible = true; if (sky) sky.visible = true;
+      if (savedFog && scene.fog) { scene.fog.near = savedFog[0]; scene.fog.far = savedFog[1]; } savedFog = null;
+      W.sealSig.visible = false; W.sealGlow.visible = false;
+    }
+  }
+  function updateUlt(dt) {
+    if (!ultSeq) return; const u = ultSeq, p = player; if (!p) { endUlt(); return; } u.t += dt; const t = u.t;
+    if (!u.domain) {
+      // ---- Aura Burst ----
+      if (t < 0.42) { OV.tintAmt.value = sm(t / 0.3) * 0.45; if (Math.random() < 0.9) { const a = rand(0, TAU), r = rand(1.5, 3); spawnP(PA, p.pos.x + Math.cos(a) * r, p.pos.y + rand(0.3, 2), p.pos.z + Math.sin(a) * r, -Math.cos(a) * r * 3, 0, -Math.sin(a) * r * 3, 0.3, 0.35, 0xb48cff); } }
+      if (t > 0.42 && !u.fired) {
+        u.fired = true; impact = 3; cam.shake = 0.9; OV.white.value = 0.9; OV.tintAmt.value = 0; shockRing(p.pos, 10, 0xb48cff, 0.6); shockRing(p.pos, 6, 0xffffff, 0.4); shockRing(p.pos, 13, 0x4fc3ff, 0.8);
+        burst(p.pos.x, p.pos.y + 1, p.pos.z, 50 * qMul, 0x8a6cff, 14, 0.8, 0.5, 0); sfx('explosion');
+        if (!pillar) { pillar = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 20, 1, true), new THREE.MeshBasicMaterial({ map: glowTex, color: 0xc8b0ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); scene.add(pillar); }
+        pillar.visible = true; pillar.position.copy(p.pos); pillar.userData.t = 0;
+        for (const e of enemies) if (!e.dead && e.pos.distanceTo(p.pos) < 10) damageEnemy(e, e.boss ? 35 : 45, { heavy: true, kb: 10, launch: 9, color: 0xb48cff, ult: true });
+      }
+      if (t >= ULT.burstLock) endUlt();
+      return;
+    }
+    // ---- Domain: Infinite Sanctum ----
+    const W = DW, c = u.c;
+    if (u.phase === 'cine' && t > 0.5 && t < 2.85 && pressed.ultimate) { u.t = 2.85; } // press ULT again to skip ahead
+    if (u.phase === 'cine') {
+      // seal: sigil behind him, glow gathering at his hands, particles drawn in
+      const sealOn = t < 1.32;
+      W.sealSig.visible = sealOn; W.sealGlow.visible = sealOn;
+      if (sealOn) {
+        const k = sm(t / 0.6), bx = c.x - Math.sin(u.yaw) * 0.55, bz = c.z - Math.cos(u.yaw) * 0.55;
+        W.sealSig.position.set(bx, c.y + 1.35, bz); W.sealSig.lookAt(camera.position); W.sealSig.rotateZ(t * 0.8); W.sealSig.scale.setScalar(0.2 + 2.6 * k); W.sealSig.material.opacity = 0.85 * k;
+        p.rig.J.haR.getWorldPosition(_tv1); p.rig.J.haL.getWorldPosition(_tv2); _tv1.add(_tv2).multiplyScalar(0.5);
+        W.sealGlow.position.copy(_tv1); W.sealGlow.scale.setScalar(0.12 + 0.22 * sm(t / 0.9) + 0.03 * Math.sin(t * 40)); W.sealGlow.material.opacity = 0.8 * (1 - sm((t - 0.9) / 0.25));
+        if (Math.random() < 0.8) { const a = rand(0, TAU), r = rand(0.8, 1.6); spawnP(PA, _tv1.x + Math.cos(a) * r, _tv1.y + rand(-0.6, 0.6), _tv1.z + Math.sin(a) * r, -Math.cos(a) * r * 2.5, 0, -Math.sin(a) * r * 2.5, 0.35, 0.18, u.tint.getHex()); }
+        OV.tintAmt.value = 0; OV.vig.value = sm(t / 0.8) * 0.75;
+      } else W.sealGlow.visible = false;
+      if (t > 0.95 && t < 1.25) { OV.vig.value = 0.75 + sm((t - 0.95) / 0.3) * 0.25; }
+      // cut to black with an expanding shockwave ring; the world swaps behind it
+      if (t >= 1.25 && !u.black) { u.black = true; sfx('explosion'); cam.shake = 0.6; domainShow(true); OV.vig.value = 0; }
+      if (t >= 1.25) {
+        const bt = t - 1.25; OV.black.value = bt < 0.45 ? 1 : Math.max(0, 1 - (bt - 0.45) / 0.35); OV.ringR.value = bt < 1.0 ? 0.02 + bt * 1.9 : -1;
+        const unf = sm((t - 1.6) / 1.1); W.floorMat.uniforms.unfold.value = 1 + unf * 57; W.setGates(Math.max(0, (t - 1.75) / 1.1), 0, c.x, c.y, c.z);
+        W.haloMat.opacity = sm((t - 2.1) / 0.6); W.sigMat.opacity = sm((t - 1.7) / 0.4); W.sigil.scale.setScalar(2 + 14 * sm((t - 1.7) / 0.9)); W.sigil.rotation.z = t * 0.25;
+        if (t > 1.7 && !u.wave) { u.wave = true; shockRing(c, 30, u.tint.getHex(), 1.0); shockRing(c, 14, 0xffffff, 0.6); impact = quality === 'low' ? 0 : 1; }
+        if (t > 2.05 && p.rig.anim === 'seal') { play(p.rig, 'victory', 99); setEmotion(p.rig, 'determined'); }
+      }
+      // brush title: wipes in at 1.95 s, holds, fades as control returns
+      if (t > 1.9) { titleQuad.visible = true; const tu = titleQuad.material.uniforms; tu.reveal.value = sm((t - 1.9) / 0.55); tu.op.value = 1 - sm((t - (ULT.cine + 0.2)) / 0.5); layoutTitle(); }
+      if (t >= ULT.cine) {
+        u.phase = 'sure'; u.st = 0; p.state = 'idle'; p.inv = 0.6; play(p.rig, 'idle'); setEmotion(p.rig, 'determined'); OV.black.value = 0; OV.ringR.value = -1;
+        emit('cinematic', { on: false, kind: 'domain' }); W.sealSig.visible = false; W.sealGlow.visible = false;
+      }
+    } else if (u.phase === 'sure') {
+      u.st += dt; domainT = ULT.sure - u.st; OV.tintAmt.value = 0;
+      const tu = titleQuad.material.uniforms; tu.op.value = Math.max(0, tu.op.value - dt * 2); if (tu.op.value <= 0) titleQuad.visible = false;
+      W.setGates(9, 0, c.x, c.y, c.z); W.sigil.rotation.z += dt * 0.25;
+      // SURE HIT: every enemy inside the domain is struck, again and again
+      const N = 15;
+      if (u.st > u.ticks * (ULT.sure / N) && u.ticks < N) {
+        u.ticks++; const last = u.ticks === N;
+        for (const e of enemies) {
+          if (e.dead || e.decoyHidden || Math.hypot(e.pos.x - c.x, e.pos.z - c.z) > ULT.radius) continue;
+          const wasI = e.iframe; e.iframe = 0; const wasS = e.state; if (wasS === 'evade' || wasS === 'guard') e.state = 'domainHit';
+          damageEnemy(e, e.boss ? Math.max(1, Math.round(e.maxHp * (last ? 0.04 : 0.008))) : (last ? 30 : 12), { heavy: last, kb: last ? 4 : 0.6, color: u.tint.getHex(), ult: true, from: c });
+          if (wasI > 0) e.iframe = wasI; if (e.state === 'domainHit') e.state = wasS;
+          const q = e.pos.clone(); q.y += 1.1 * (e.rig.cfg.scale || 1);
+          slashArc(q, rand(0, TAU), rand(-1.2, 1.2), 1.6 * (e.rig.cfg.scale || 1), u.ticks % 2 ? u.tint.getHex() : 0xffffff, u.ticks % 2 === 0);
+          if (last) shockRing(e.pos, 3.5, 0xffffff, 0.4);
+        }
+        if (last) { cam.shake = Math.max(cam.shake, 0.5); OV.white.value = 0.35; }
+      }
+      if (u.st >= ULT.sure || state.screen !== 'play') { u.phase = 'shatter'; u.st = 0; OV.white.value = 0.7; sfx('explosion'); cam.shake = 0.5; for (let i = 0; i < W.NG; i++) { const a = i / W.NG * TAU + Math.PI / W.NG; burst(c.x + Math.cos(a) * 25, c.y + 6, c.z + Math.sin(a) * 25, 14 * qMul, u.tint.getHex(), 9, 0.9, 0.6, -4); } }
+    } else {
+      u.st += dt; const k = u.st / ULT.shatter; domainT = 0;
+      domeMat.uniforms.crack.value = sm(k * 1.6); domeMat.uniforms.op.value = 1 - sm((k - 0.45) / 0.55); W.floorMat.uniforms.op.value = 1 - sm((k - 0.3) / 0.6);
+      W.haloMat.opacity = 1 - sm(k / 0.5); W.sigMat.opacity = 1 - sm(k / 0.4); W.setGates(9, sm(k), c.x, c.y, c.z); titleQuad.visible = false;
+      if (k > 0.5 && W.g.visible && !u.restored) { u.restored = true; levelGroup.visible = true; if (sky) sky.visible = true; }
+      if (k >= 1) endUlt();
+    }
+  }
+  function layoutTitle() {
+    // keep the brush title inside the bottom third and at most ~90% wide, whatever the aspect
+    const asp = W / H, tex = 1024 / 256; let wN = 0.86, hN = wN * asp / tex * 2 / 2; // NDC half-sizes
+    if (hN > 0.18) { hN = 0.18; wN = hN * tex / asp; }
+    const u = titleQuad.material.uniforms; u.size.value.set(wN, hN); u.center.value.set(0, -1 + 0.08 + hN);
+  }
+  function endUlt() {
+    const p = player, was = ultSeq; ultSeq = null; domainT = 0; OV.tintAmt.value = 0; OV.black.value = 0; OV.ringR.value = -1; OV.vig.value = 0; titleQuad.visible = false;
+    if (DW) { domainShow(false); DW.floorMat.uniforms.op.value = 1; DW.floorMat.uniforms.unfold.value = 0; } dome.visible = false; domeMat.uniforms.crack.value = 0;
+    if (was && was.phase === 'cine' && was.domain) emit('cinematic', { on: false, kind: 'domain' });
+    if (p) { if (p.state === 'ult') p.state = 'idle'; p.inv = Math.max(p.inv > 50 ? 0 : p.inv, 0.5); p.rig.aura.visible = false; setEmotion(p.rig, 'determined'); if (p.rig.anim === 'seal' || p.rig.anim === 'burst' || (p.rig.anim === 'victory' && was && was.domain)) play(p.rig, 'idle'); }
+  }
+  // camera shots for the ultimates; returns true when it drives the camera this frame
+  function ultCamera() {
+    const u = ultSeq, p = player; if (!u || !p) return false; const t = u.t, Y = u.yaw + (u.camA || 0) * 0.6, fx = Math.sin(Y), fz = Math.cos(Y), lx = Math.cos(Y), lz = -Math.sin(Y), c = u.c;
+    const at = (f, l, y, lf, ll, ly, fov) => { cam.pos.set(c.x + fx * f + lx * l, c.y + y, c.z + fz * f + lz * l); cam.look.set(c.x + fx * lf + lx * ll, c.y + ly, c.z + fz * lf + lz * ll); cam.fov = fov; };
+    if (!u.domain) {
+      if (t < 0.42) { const k = sm(t / 0.42); at(lerp(2.6, 2.0, k), lerp(-1.0, -0.8, k), lerp(0.85, 0.75, k), 0, 0, 1.1, lerp(42, 34, k)); return true; }
+      if (t < 0.85) { const k = sm((t - 0.42) / 0.43); at(lerp(-1.0, -2.6, k), lerp(-4.2, -5.0, k), lerp(1.3, 2.1, k), 0, 0, 1.0, 62); return true; }
+      return false;
+    }
+    if (u.phase !== 'cine') return false;
+    if (t < 1.0) { const k = sm(t / 1.0); at(lerp(1.75, 1.3, k), lerp(-0.62, -0.42, k), lerp(1.38, 1.46, k), 0.1, 0, lerp(1.32, 1.4, k), lerp(34, 27, k)); return true; }
+    if (t < 1.25) { const k = sm((t - 1.0) / 0.25); at(lerp(1.3, 0.85, k), lerp(-0.42, -0.08, k), lerp(1.46, 1.5, k), 0.1, -0.01, lerp(1.4, 1.48, k), lerp(27, 19, k)); return true; }
+    const k = sm((t - 1.6) / 1.6), a = lerp(0.5, 0.18, k) * (u.camA < 0 ? -1 : 1) + (u.camA || 0) * 0.4, d = lerp(4.6, 6.4, k);
+    cam.pos.set(c.x + Math.sin(Y + a) * d, c.y + lerp(0.5, 0.75, k), c.z + Math.cos(Y + a) * d); cam.look.set(c.x, c.y + lerp(1.3, 1.45, k), c.z); cam.fov = 52; return true;
+  }
 
   // ---------- enemies ----------
   let attackTokens = 0;
@@ -2471,7 +2967,7 @@ export function createGame(canvas, opts = {}) {
     } else if (cam.mode === 'shot' && cam.shot) shotCamera(dt);
     else if (cam.mode === 'orbit') { const t = clock * 0.18; cam.pos.set(cam.orbitC.x + Math.sin(t) * cam.orbitR, cam.orbitC.y + cam.orbitH + 0.3, cam.orbitC.z + Math.cos(t) * cam.orbitR); cam.look.copy(cam.orbitC).add(new THREE.Vector3(0, 0.15, 0)); cam.fov = 45; }
     // ult cinematic
-    if (ultSeq && ultSeq.t < (ultSeq.domain ? 1.6 : 0.7) && player) { const t = ultSeq.t; const r = player.rig; const yaw = player.yaw + 0.8 + t * 1.2; /* three-quarter shot, so the enemy he faces never blocks him */ cam.pos.set(player.pos.x + Math.sin(yaw) * 3.2, player.pos.y + 1.0 + t * 0.6, player.pos.z + Math.cos(yaw) * 3.2); cam.look.copy(player.pos).add(new THREE.Vector3(0, 1.3, 0)); cam.fov = 42; }
+    ultCamera();
     camera.position.copy(cam.pos); cam.shake = Math.max(0, cam.shake - dt * 1.6);
     if (cam.shake > 0) camera.position.add(tmpV.set(rand(-1, 1), rand(-1, 1), rand(-1, 1)).multiplyScalar(cam.shake * 0.25));
     camera.lookAt(cam.look); camera.fov = cam.fov; camera.updateProjectionMatrix();
@@ -2503,13 +2999,13 @@ export function createGame(canvas, opts = {}) {
     if (state.screen === 'bossIntro') { introTimer -= rawDt; if (introTimer <= 0) { setScreen('play'); bossActive = true; cam.mode = 'follow'; if (introBoss) { play(introBoss.rig, 'idle'); setEmotion(introBoss.rig, introBoss.def.emo); } setObjective('Defeat ' + (state.boss ? state.boss.name : 'the boss'), 0); } }
     if (player) updatePlayer(state.screen === 'play' || state.screen === 'scene' || state.screen === 'clear' || state.screen === 'dead' || state.screen === 'title' || state.screen === 'ending' || state.screen === 'bossIntro' ? dt : 0);
     updateUlt(rawDt);
-    const eDt = domainT > 0 ? dt * 0.25 : dt;
+    const frz = cineFreeze(), eDt = frz ? 0 : domainT > 0 ? dt * 0.25 : dt;
     enemyDirector(state.screen === 'play' ? eDt : 0);
     for (const e of enemies) if (!e.removed) updateEnemy(e, state.screen === 'play' || e.dead ? eDt : 0);
     enemies = enemies.filter((e) => !e.removed);
     if (state.boss) { const b = enemies.find((e) => e.boss); if (b) state.boss.hp = Math.max(0, Math.round(b.hp)); }
-    updateAllies(state.screen === 'play' ? dt : 0); updateSpells(state.screen === 'play' ? eDt : 0); updateDrop(rawDt);
-    for (const a of allies) animate(a.rig, state.screen === 'play' ? dt : 0);
+    updateAllies(state.screen === 'play' && !frz ? dt : 0); updateSpells(state.screen === 'play' ? eDt : 0); updateDrop(rawDt);
+    for (const a of allies) animate(a.rig, state.screen === 'play' && !frz ? dt : 0);
     for (const n of npcs) animate(n.rig, rawDt);
     for (const e of enemies) animate(e.rig, eDt || (e.dead ? rawDt : 0));
     if (player) animate(player.rig, dt || rawDt * 0.05);
@@ -2518,7 +3014,7 @@ export function createGame(canvas, opts = {}) {
     for (let i = pickups.length - 1; i >= 0; i--) { const pk = pickups[i]; pk.t += rawDt; if (!player) break; const tp = player.pos.clone(); tp.y += 1; const d = pk.mesh.position.distanceTo(tp); if (pk.t > 0.5) pk.mesh.position.lerp(tp, 1 - Math.exp(-(d < 4 ? 8 : 0.5) * rawDt)); if (d < 0.7 || pk.t > 8) { if (d < 0.7) { player.hp = Math.min(player.maxHp, player.hp + 8); sfx('heal'); } scene.remove(pk.mesh); pickups.splice(i, 1); } }
     // triggers
     if (state.screen === 'play') for (let i = 0; i < triggers.length; i++) { const t = triggers[i]; if (t.check()) { triggers.splice(i, 1); i--; t.fire && t.fire(); } }
-    updateBeacon();
+    updateBeacon(); if (ultSeq && ultSeq.phase === 'cine') { beacon.arrow.visible = false; beacon.g.visible = false; }
     // gates fade
     if (level) for (const g of level.gates) { if (g.open && g.m.visible) { g.fade -= rawDt * 1.5; g.m.material.opacity = Math.max(0, g.fade) * 0.45; g.m.scale.y = 4 * Math.max(0.01, g.fade); if (g.fade <= 0) g.m.visible = false; } else if (!g.open) g.m.material.opacity = 0.35 + Math.sin(clock * 4) * 0.12; }
     if (level) for (const s of level.spin) { s.rotation.y += rawDt * (s.userData.slow ? 0.1 : 1.2); if (s.userData.slow) s.rotation.z += rawDt * 0.05; }
@@ -2533,14 +3029,16 @@ export function createGame(canvas, opts = {}) {
     for (const a of arcs) if (a.mesh.visible) { a.t += rawDt; const u = a.t / a.life; a.mesh.material.uniforms.prog.value = Math.min(1.2, u * 2.2); a.mesh.material.uniforms.op.value = 1 - sm((u - 0.5) * 2); if (u >= 1) a.mesh.visible = false; }
     for (const f of flashes) if (f.s.visible) { f.t += rawDt; const u = f.t / f.life; f.s.scale.setScalar(f.size * (0.5 + u)); f.s.material.opacity = 1 - u; if (u >= 1) f.s.visible = false; }
     for (const r of rings) if (r.m.visible) { r.t += rawDt; const u = r.t / r.life; r.m.scale.setScalar(r.r * 2 * (0.2 + 0.8 * sm(u))); r.m.material.opacity = 1 - u; if (u >= 1) r.m.visible = false; }
-    for (const t of teles) if (t.active) { t.t += rawDt; t.m.material.uniforms.t.value = clock; if (t.t > t.dur + 0.1 && !enemies.some((e) => e.tele === t || (Array.isArray(e.tele) && e.tele.includes(t)))) { t.active = false; t.m.visible = false; } }
+    for (const t of teles) if (t.active) { t.t += frz ? 0 : rawDt; t.m.material.uniforms.t.value = clock; if (t.t > t.dur + 0.1 && !enemies.some((e) => e.tele === t || (Array.isArray(e.tele) && e.tele.includes(t)))) { t.active = false; t.m.visible = false; } }
     for (const n of nums) if (n.s.visible) { n.life -= rawDt; n.s.position.y += rawDt * 1.4; n.s.material.opacity = Math.min(1, n.life * 3); if (n.life <= 0) n.s.visible = false; }
     for (const m of auraMats) { m.uniforms.t.value = clock; }
-    OV.t.value = clock; OV.speed.value = Math.max(player && player.state === 'dash' ? 1 : (ultSeq ? 0.8 : 0), OV.speed.value - rawDt * 3);
+    OV.t.value = clock; OV.speed.value = Math.max(player && player.state === 'dash' ? 1 : (ultSeq && ultSeq.phase === 'cine' && ultSeq.t < 1.25 ? 0.8 : 0), OV.speed.value - rawDt * 3);
     OV.white.value = Math.max(0, OV.white.value - rawDt * 3);
     if (sky) sky.material.uniforms.t.value = clock;
     if (flashT > 0) { flashT -= rawDt; hemi.intensity = level ? level.theme.hemi[2] * 2.4 : 2; } else if (level) hemi.intensity = level.theme.hemi[2];
     domeMat.uniforms.t.value = clock;
+    if (DW && DW.g.visible) { DW.floorMat.uniforms.t.value = clock; DW.halo1.rotation.y += rawDt * 0.08; DW.halo2.rotation.y -= rawDt * 0.13; }
+    if (pillar && pillar.visible) { const k = (pillar.userData.t += rawDt) / 0.6; pillar.scale.set(lerp(0.4, 2.6, sm(k)), 30, lerp(0.4, 2.6, sm(k))); pillar.position.y = (player ? player.pos.y : 0) + 15; pillar.material.opacity = 1 - sm(k); if (k >= 1) pillar.visible = false; }
     if (level && level.id === 0 && player) { player.rig.aura.visible = true; if (Math.random() < 0.6) spawnP(PA, rand(-1, 1), rand(0, 2), rand(-1, 1), 0, rand(1, 3), 0, 0.8, 0.35, Math.random() < 0.5 ? 0x8a6cff : 0x4fc3ff); }
     for (const k in pressed) pressed[k] = false;
     updateCamera(rawDt);
@@ -2550,9 +3048,9 @@ export function createGame(canvas, opts = {}) {
     if (sky) sky.position.copy(camera.position);
     if (impact > 0) {
       const odd = impact % 2 === 0; const bg = scene.background; scene.background = new THREE.Color(odd ? 0xffffff : 0x000000); scene.overrideMaterial = odd ? blackMat : whiteMat;
-      const sv = sky ? sky.visible : false; if (sky) sky.visible = false; overlay.visible = false; dome.visible && (dome.userData.v = true); const dv = dome.visible; dome.visible = false;
+      const sv = sky ? sky.visible : false, tv = titleQuad.visible; if (sky) sky.visible = false; overlay.visible = false; titleQuad.visible = false; dome.visible && (dome.userData.v = true); const dv = dome.visible; dome.visible = false;
       renderer.render(scene, camera);
-      scene.overrideMaterial = null; scene.background = bg || null; if (sky) sky.visible = sv; overlay.visible = true; dome.visible = dv; impact--;
+      scene.overrideMaterial = null; scene.background = bg || null; if (sky) sky.visible = sv; overlay.visible = true; titleQuad.visible = tv; dome.visible = dv; impact--;
       return;
     }
     renderer.render(scene, camera);
@@ -2638,6 +3136,8 @@ export function createGame(canvas, opts = {}) {
       skip() { api.skipScene(); },
       view(p, l, fov = 40) { if (!p) { cam.mode = 'follow'; return; } cam.mode = 'fixed'; const o = player ? player.pos : new THREE.Vector3(); cam.pos.set(o.x + p[0], o.y + p[1], o.z + p[2]); cam.look.set(o.x + l[0], o.y + l[1], o.z + l[2]); cam.fov = fov; },
       pose(anim, emo, yaw) { if (!player) return; if (anim) play(player.rig, anim, 99); if (emo) setEmotion(player.rig, emo); if (yaw != null) player.yaw = yaw; },
+      step(dt = 1 / 30, n = 1) { for (let i = 0; i < n; i++) update(dt); render(); }, // test-only: deterministic frames while paused
+      ult() { return ultSeq ? { t: ultSeq.t, phase: ultSeq.phase, domain: ultSeq.domain } : null; },
       teleport(z) { if (player) { player.pos.z = z; player.pos.y = groundAt(0, z, 10); player.pos.x = 0; } },
     },
   };
