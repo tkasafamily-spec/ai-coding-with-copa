@@ -1909,6 +1909,8 @@ export function createGame(canvas, opts = {}) {
   function aimYaw(e) { return Math.atan2(player.pos.x - e.pos.x, player.pos.z - e.pos.z); }
   const fwdOf = (e, r) => e.pos.clone().add(new THREE.Vector3(Math.sin(e.yaw) * r, 0, Math.cos(e.yaw) * r));
   function bossHit(c, r, dmg) { const p = player; if (Math.hypot(p.pos.x - c.x, p.pos.z - c.z) < r && p.pos.y - level.arena.y < 1.2) return hurtPlayer(dmg, c); return false; }
+  // Hard's extra chain steps start after the chapter 1 tutorial boss
+  const chainX = () => (state.chapter >= 2 ? D().chain : 0);
   const CHAINED = ['combo', 'multiDash', 'quake', 'crossBeams', 'shadowStep', 'blink2'];
   function startBossAttack(e, a) {
     e.state = 'attack'; e.st = 0; e.atk = a; e.fired = 0; const rig = e.rig; e.yaw = aimYaw(e); sfx('telegraph');
@@ -1944,7 +1946,7 @@ export function createGame(canvas, opts = {}) {
   // multi-step attacks: each step has its own telegraph (setup), a hit (fire) and an active window (act)
   const CHAINS = {
     combo: {
-      n: (e) => (e.phase >= 2 ? 3 : 2) + D().chain, dur: 0.2, wind: (e, i) => (i ? Math.max(0.36, 0.5 - e.phase * 0.04) : e.wind),
+      n: (e) => (e.phase >= 2 ? 3 : 2) + chainX(), dur: 0.2, wind: (e, i) => (i ? Math.max(0.4, 0.52 - e.phase * 0.04) : e.wind),
       setup(e, i, W) { e.yaw = aimYaw(e); play(e.rig, B_melee(e), W + 0.35); const sc = e.rig.cfg.scale || 1; e.cR = 2.3 * Math.max(1, sc * 0.85); e.tele = telegraph('circle', fwdOf(e, 1.9 * sc).setY(level.arena.y), e.cR, 0, 0, W); },
       pre(e, i, t, W, dt) {
         // step in toward Ren during the first half of the wind-up; the red circle travels with the boss
@@ -1955,13 +1957,13 @@ export function createGame(canvas, opts = {}) {
       fire(e, i) { const sc = e.rig.cfg.scale || 1, c = fwdOf(e, 1.9 * sc); slashArc(c.clone().setY(e.pos.y + 1.2), e.yaw, i % 2 ? -0.5 : 0.5, 2 * sc, i === e.cN - 1 ? 0xff7a2a : 0xff3a5a, i % 2); bossHit(c, e.cR, i === e.cN - 1 ? 13 : 10); sfx('whoosh'); if (i === e.cN - 1) cam.shake = Math.max(cam.shake, 0.3); },
     },
     multiDash: {
-      n: (e) => 3 + D().chain, dur: 0.3, wind: (e, i) => (i ? 0.5 : e.wind), iframe: (e, i, fired) => fired,
+      n: (e) => 3 + chainX(), dur: 0.3, wind: (e, i) => (i ? 0.5 : e.wind), iframe: (e, i, fired) => fired,
       setup(e, i, W) { e.yaw = aimYaw(e); play(e.rig, 'dash', W + 0.3); e.dashLen = Math.min(14, Math.hypot(player.pos.x - e.pos.x, player.pos.z - e.pos.z) + 3); e.tele = telegraph('line', e.pos.clone().setY(level.arena.y), 2.2, e.dashLen, e.yaw, W); },
       fire(e) { e.dashFrom = e.pos.clone(); e.hitP = false; sfx('dash'); },
       act(e, i, t) { const k = clamp(t / 0.22, 0, 1), np = e.dashFrom.clone().add(new THREE.Vector3(Math.sin(e.yaw) * e.dashLen * k, 0, Math.cos(e.yaw) * e.dashLen * k)); if (!blocked(np.x, np.z, e.pos.y)) { e.pos.x = np.x; e.pos.z = np.z; } spawnP(PA, e.pos.x, e.pos.y + 1, e.pos.z, 0, 0, 0, 0.4, 0.6, 0x7affe0); if (!e.hitP && player.pos.distanceTo(e.pos) < 1.6) e.hitP = hurtPlayer(13, e.pos) || true; },
     },
     quake: {
-      n: (e) => 3 + D().chain, dur: 0.25, wind: (e, i) => (i ? 0.6 : e.wind),
+      n: (e) => 3 + chainX(), dur: 0.25, wind: (e, i) => (i ? 0.6 : e.wind),
       setup(e, i, W) { e.yaw = aimYaw(e); play(e.rig, 'slam', W + 0.5); const off = player.pos.clone().sub(e.pos).setY(0); if (off.length() > 12) off.setLength(12); e.cPt = e.pos.clone().add(off).setY(level.arena.y); e.tele = telegraph('circle', e.cPt, 3, 0, 0, W); },
       fire(e) { const c = e.cPt; shockRing(c, 4, 0xffb020, 0.45); burst(c.x, c.y + 0.3, c.z, 30, 0xc8a070, 8, 0.6, 0.5); cam.shake = Math.max(cam.shake, 0.5); sfx('slam'); bossHit(c, 3, 15); },
     },
@@ -1981,7 +1983,7 @@ export function createGame(canvas, opts = {}) {
     },
     // vanish, reappear behind Ren, strike (twice for blink2 / Hard)
     shadowStep: {
-      n: (e) => 2 * (1 + D().chain), dur: 0.15, wind: (e, i) => (i % 2 ? 0.6 : e.wind), iframe: (e, i) => i % 2 === 0,
+      n: (e) => 2 * (1 + chainX()), dur: 0.15, wind: (e, i) => (i % 2 ? 0.6 : e.wind), iframe: (e, i) => i % 2 === 0,
       setup(e, i, W) { const col = e.def.id === 'twin' ? 0xff2a4a : 0xffd24a; if (i % 2 === 0) { play(e.rig, 'raise', W + 0.3); burst(e.pos.x, e.pos.y + 1, e.pos.z, 20, col, 4, 0.4, 0.4, 0); } else { e.yaw = aimYaw(e); play(e.rig, 'slash', W + 0.4); e.rig.animT = 0.1; e.tele = telegraph('circle', fwdOf(e, 1.5).setY(level.arena.y), 2.6, 0, 0, W); } },
       fire(e, i) {
         const col = e.def.id === 'twin' ? 0xff2a4a : 0xffd24a;
@@ -1990,7 +1992,7 @@ export function createGame(canvas, opts = {}) {
       },
     },
   };
-  CHAINS.blink2 = Object.assign({}, CHAINS.shadowStep, { n: (e) => 4 + 2 * D().chain });
+  CHAINS.blink2 = Object.assign({}, CHAINS.shadowStep, { n: (e) => 4 + 2 * chainX() });
   function chainStart(e, a) { const C = CHAINS[a]; e.cN = C.n(e); e.cI = 0; e.cT0 = e.st; e.cFired = false; e.cW = C.wind(e, 0); C.setup(e, 0, e.cW); }
   function chainUpdate(e, dt) {
     const C = CHAINS[e.atk], t = e.st - e.cT0;
