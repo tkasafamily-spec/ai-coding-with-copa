@@ -935,7 +935,7 @@ export function createGame(canvas, opts = {}) {
       x.lineWidth = lw; x.strokeStyle = '#0a0410'; x.strokeText(txt, px, py); x.lineWidth = lw * 0.35; x.strokeStyle = col; x.strokeText(txt, px, py);
       const g = x.createLinearGradient(0, py - n * 0.45, 0, py + n * 0.45); g.addColorStop(0, '#ffffff'); g.addColorStop(0.6, '#fff4f0'); g.addColorStop(1, '#ffd0c8'); x.fillStyle = g; x.fillText(txt, px, py); x.restore(); };
     x.textAlign = 'left'; const n1 = fit('DOMAIN:', 58, 400); ink('DOMAIN:', 60, 74, n1, 12);
-    x.textAlign = 'center'; const n2 = fit('INFINITE SANCTUM', 150, 940); ink('INFINITE SANCTUM', 520, 168, n2, 20);
+    x.textAlign = 'center'; const n2 = fit('INFINITE SANCTUM', 168, 980); ink('INFINITE SANCTUM', 520, 168, n2, 20);
     // dry-brush texture: gaps and speckles eaten out of the strokes, ink drops at the ends
     x.globalCompositeOperation = 'destination-out';
     for (let i = 0; i < 26; i++) { x.globalAlpha = 0.5 + r() * 0.5; x.fillRect(r() * 1024, 102 + r() * 110, 30 + r() * 160, 1 + r() * 2.5); }
@@ -1998,7 +1998,7 @@ export function createGame(canvas, opts = {}) {
     dmgNumber(hp.clone().add(new THREE.Vector3(0, 0.6, 0)), dmg, o.heavy); flash(hp, o.heavy ? 2.4 : 1.4, o.color || 0xfff2a0);
     burst(hp.x, hp.y, hp.z, o.heavy ? 18 : 9, o.color || 0xffd27a, 7, 0.35, 0.2);
     hitStop = Math.max(hitStop, o.heavy ? 0.11 : 0.05); cam.shake = Math.max(cam.shake, o.heavy ? 0.35 : 0.14);
-    if (o.heavy && quality !== 'low') impact = 2;
+    if (o.heavy && quality !== 'low' && !o.noImpact) impact = 2;
     emit('hit', { damage: dmg, heavy: !!o.heavy, combo: state.combo });
     const dir = o.dir || new THREE.Vector3(e.pos.x - src.x, 0, e.pos.z - src.z).normalize();
     if (!e.boss && e.rootT > 0) { /* rooted in place: takes the hit without moving */ }
@@ -2575,14 +2575,14 @@ export function createGame(canvas, opts = {}) {
         if (t > 2.05 && p.rig.anim === 'seal') { play(p.rig, 'victory', 99); setEmotion(p.rig, 'determined'); }
       }
       // brush title: wipes in at 1.95 s, holds, fades as control returns
-      if (t > 1.9) { titleQuad.visible = true; const tu = titleQuad.material.uniforms; tu.reveal.value = sm((t - 1.9) / 0.55); tu.op.value = 1 - sm((t - (ULT.cine + 0.2)) / 0.5); layoutTitle(); }
+      if (t > 1.9) { titleQuad.visible = true; const tu = titleQuad.material.uniforms; tu.reveal.value = sm((t - 1.9) / 0.55); tu.op.value = 1 - sm((t - (ULT.cine - 0.1)) / 0.4); layoutTitle(); }
       if (t >= ULT.cine) {
         u.phase = 'sure'; u.st = 0; p.state = 'idle'; p.inv = 0.6; play(p.rig, 'idle'); setEmotion(p.rig, 'determined'); OV.black.value = 0; OV.ringR.value = -1;
         emit('cinematic', { on: false, kind: 'domain' }); W.sealSig.visible = false; W.sealGlow.visible = false;
       }
     } else if (u.phase === 'sure') {
       u.st += dt; domainT = ULT.sure - u.st; OV.tintAmt.value = 0;
-      const tu = titleQuad.material.uniforms; tu.op.value = Math.max(0, tu.op.value - dt * 2); if (tu.op.value <= 0) titleQuad.visible = false;
+      const tu = titleQuad.material.uniforms; tu.op.value = Math.max(0, tu.op.value - dt * 4); if (tu.op.value <= 0) titleQuad.visible = false;
       W.setGates(9, 0, c.x, c.y, c.z); W.sigil.rotation.z += dt * 0.25;
       // SURE HIT: every enemy inside the domain is struck, again and again
       const N = 15;
@@ -2591,15 +2591,15 @@ export function createGame(canvas, opts = {}) {
         for (const e of enemies) {
           if (e.dead || e.decoyHidden || Math.hypot(e.pos.x - c.x, e.pos.z - c.z) > ULT.radius) continue;
           const wasI = e.iframe; e.iframe = 0; const wasS = e.state; if (wasS === 'evade' || wasS === 'guard') e.state = 'domainHit';
-          damageEnemy(e, e.boss ? Math.max(1, Math.round(e.maxHp * (last ? 0.04 : 0.008))) : (last ? 30 : 12), { heavy: last, kb: last ? 4 : 0.6, color: u.tint.getHex(), ult: true, from: c });
+          damageEnemy(e, e.boss ? Math.max(1, Math.round(e.maxHp * (last ? 0.04 : 0.008))) : (last ? 30 : 12), { heavy: last, kb: last ? 4 : 0.6, color: u.tint.getHex(), ult: true, from: c, noImpact: true });
           if (wasI > 0) e.iframe = wasI; if (e.state === 'domainHit') e.state = wasS;
           const q = e.pos.clone(); q.y += 1.1 * (e.rig.cfg.scale || 1);
           slashArc(q, rand(0, TAU), rand(-1.2, 1.2), 1.6 * (e.rig.cfg.scale || 1), u.ticks % 2 ? u.tint.getHex() : 0xffffff, u.ticks % 2 === 0);
           if (last) shockRing(e.pos, 3.5, 0xffffff, 0.4);
         }
-        if (last) { cam.shake = Math.max(cam.shake, 0.5); OV.white.value = 0.35; }
+        if (last) { cam.shake = Math.max(cam.shake, 0.5); OV.white.value = 0.3; impact = quality === 'low' ? 0 : 1; } // 1 frame: black with white silhouettes
       }
-      if (u.st >= ULT.sure || state.screen !== 'play') { u.phase = 'shatter'; u.st = 0; OV.white.value = 0.7; sfx('explosion'); cam.shake = 0.5; for (let i = 0; i < W.NG; i++) { const a = i / W.NG * TAU + Math.PI / W.NG; burst(c.x + Math.cos(a) * 25, c.y + 6, c.z + Math.sin(a) * 25, 14 * qMul, u.tint.getHex(), 9, 0.9, 0.6, -4); } }
+      if (u.st >= ULT.sure || state.screen !== 'play') { u.phase = 'shatter'; u.st = 0; OV.white.value = 0.4; sfx('explosion'); cam.shake = 0.5; for (let i = 0; i < W.NG; i++) { const a = i / W.NG * TAU + Math.PI / W.NG; burst(c.x + Math.cos(a) * 25, c.y + 6, c.z + Math.sin(a) * 25, 14 * qMul, u.tint.getHex(), 9, 0.9, 0.6, -4); } }
     } else {
       u.st += dt; const k = u.st / ULT.shatter; domainT = 0;
       domeMat.uniforms.crack.value = sm(k * 1.6); domeMat.uniforms.op.value = 1 - sm((k - 0.45) / 0.55); W.floorMat.uniforms.op.value = 1 - sm((k - 0.3) / 0.6);
@@ -2610,9 +2610,10 @@ export function createGame(canvas, opts = {}) {
   }
   function layoutTitle() {
     // keep the brush title inside the bottom third and at most ~90% wide, whatever the aspect
-    const asp = W / H, tex = 1024 / 256; let wN = 0.86, hN = wN * asp / tex * 2 / 2; // NDC half-sizes
-    if (hN > 0.18) { hN = 0.18; wN = hN * tex / asp; }
-    const u = titleQuad.material.uniforms; u.size.value.set(wN, hN); u.center.value.set(0, -1 + 0.08 + hN);
+    // the name is ~88% of the texture width, so wN 0.64 makes it ~56% of the screen; capped in height so it stays in the bottom third, under Ren's feet
+    const asp = W / H, tex = 1024 / 256; let wN = asp < 1 ? 0.9 : 0.64, hN = wN * asp / tex; // NDC half-sizes
+    const hMax = asp > 1.8 ? 0.22 : 0.26; if (hN > hMax) { hN = hMax; wN = hN * tex / asp; } // wide phones: a bit smaller so the subtitle stays clear of Ren's feet
+    const u = titleQuad.material.uniforms; u.size.value.set(wN, hN); u.center.value.set(0, -1 + 0.04 + hN);
   }
   function endUlt() {
     const p = player, was = ultSeq; ultSeq = null; domainT = 0; OV.tintAmt.value = 0; OV.black.value = 0; OV.ringR.value = -1; OV.vig.value = 0; titleQuad.visible = false;
