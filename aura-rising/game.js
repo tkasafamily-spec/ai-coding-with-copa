@@ -1053,10 +1053,10 @@ export function createGame(canvas, opts = {}) {
 
   // ---------- level building ----------
   function clearLevel() {
-    for (const e of enemies) { scene.remove(e.rig.root); if (e.shadow) scene.remove(e.shadow); if (e.rig.trail) scene.remove(e.rig.trail.m); } enemies = [];
+    for (const e of enemies) { if (e.boss || e.p2fx || e.beam || e.beams) endBossAttackFx(e); if (e.ringMesh) scene.remove(e.ringMesh); scene.remove(e.rig.root); if (e.shadow) scene.remove(e.shadow); if (e.rig.trail) scene.remove(e.rig.trail.m); } enemies = []; // boss move fx live in the scene, not on the rig
     for (const p of projectiles) scene.remove(p.mesh); projectiles = [];
     for (const p of pickups) scene.remove(p.mesh); pickups = [];
-    for (const n of npcs) scene.remove(n.root); npcs = [];
+    for (const n of npcs) { scene.remove(n.root); dropTrail(n.rig); } npcs = [];
     for (const t of teles) { t.active = false; t.m.visible = false; }
     while (levelGroup.children.length) {
       const c = levelGroup.children.pop();
@@ -3151,7 +3151,8 @@ export function createGame(canvas, opts = {}) {
   const NAMES = { ren: 'Ren', kaze: 'Instructor Kaze', twin: 'The Masked Twin', warden: 'Thorn Warden', null: 'Sovereign Null', book: 'Grimoire', dune: 'Dune Tyrant Sabulo', frost: 'Frost Empress Fubuki', prism: 'The Prism Colossus', vael: 'Hollow Emperor Vael', elder: 'Elder Toma' };
   function actor(id) { if (id === 'ren') return player?.rig; const n = npcs.find((x) => x.id === id); if (n) return n.rig; const b = enemies.find((e) => e.boss && e.def.id === id); return b ? b.rig : null; }
   function spawnNpc(id, mk, x, z, yaw, y = 0) { const rig = mk(); rig.root.position.set(x, y, z); rig.root.rotation.y = yaw; scene.add(rig.root); const n = { id, rig, root: rig.root }; npcs.push(n); return n; }
-  function removeNpc(id) { const i = npcs.findIndex((n) => n.id === id); if (i >= 0) { scene.remove(npcs[i].root); npcs.splice(i, 1); } }
+  function dropTrail(rig) { if (rig && rig.trail) { scene.remove(rig.trail.m); rig.trail.geo.dispose(); rig.trail = null; } } // swing ribbons live in the scene
+  function removeNpc(id) { const i = npcs.findIndex((n) => n.id === id); if (i >= 0) { scene.remove(npcs[i].root); dropTrail(npcs[i].rig); npcs.splice(i, 1); } }
   function runScene(steps, then) {
     scene_ = { steps, i: -1, then, wait: 0, waitingLine: false };
     setScreen('scene'); if (player) { player.vel.set(0, 0, 0); player.state = 'idle'; player.rig.fight = false; }
@@ -3376,7 +3377,7 @@ export function createGame(canvas, opts = {}) {
   }
   let introTimer = 0, introBoss = null;
   function bossDefeated(b) {
-    bossActive = false; cancelTele(b); impact = 4; slowT = 1.2; cam.shake = 0.8; sfx('bossDown');
+    bossActive = false; endBossAttackFx(b); impact = 4; slowT = 1.2; cam.shake = 0.8; sfx('bossDown'); // also clears a move's sand pit / ice / beams / black sun
     burst(b.pos.x, b.pos.y + 1.5, b.pos.z, 80, 0xffd27a, 10, 1, 0.5, 0);
     for (const e of enemies) if (!e.boss && !e.dead) killEnemy(e);
     for (const pr of projectiles) pr.life = 0;

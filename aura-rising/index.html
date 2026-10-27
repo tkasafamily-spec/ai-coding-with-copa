@@ -260,6 +260,7 @@ input[type=range]::-moz-range-thumb{width:24px;height:24px;border:0;border-radiu
 /* ---------- touch controls ---------- */
 #touch{pointer-events:none}
 #touch.on{pointer-events:auto}
+#touch.cine .zone-l,#touch.cine .joy-base,#touch.cine .abtn:not([data-k="ult"]){opacity:0;pointer-events:none;transition:opacity .2s} /* domain cinematic: only ULT (skip) stays */
 #touch .zone-l{position:absolute;left:0;top:0;bottom:0;width:45%}
 .joy-base{position:absolute;width:150px;height:150px;margin:-75px 0 0 -75px;border-radius:50%;
   background:radial-gradient(circle,rgba(123,92,255,.18),rgba(11,8,32,.35) 70%);box-shadow:inset 0 0 0 3px rgba(255,255,255,.45),0 0 20px rgba(123,92,255,.4);
@@ -1271,7 +1272,11 @@ on('powerLearned', p => {
 });
 on('bossIntro', b => { b = b || {}; const st = getState(); const n = st.chapter || curChapter; showCard({ kind: 'boss', label: (n >= LAST ? 'FINAL BOSS' : 'CHAPTER ' + n + ' BOSS'), title: b.name || 'BOSS', sub: b.title || '', dur: 1700 }); });
 on('bossPhase', p => { const ph = p && p.phase; showCard({ kind: 'phase', label: 'WARNING', title: 'PHASE ' + (ph || 2), sub: 'It\'s getting serious!', dur: 1500 }); });
-on('ult', u => { showCard({ kind: 'ult', label: 'ULTIMATE', title: (u && u.name) || 'DOMAIN', dur: 1600 }); });
+let cineOn = false; // the domain cinematic is playing: HUD fades out, touch shows only ULT (press again to skip)
+let cineEnd = 0; // safety in game time (slow devices run the game slower than the wall clock): never leave the HUD hidden
+on('cinematic', c => { cineOn = !!(c && c.on && c.kind === 'domain'); if (cineOn) cineEnd = (getState().time || 0) + (c.dur || 3.2) + 1.5; });
+// the domain draws its own name in brush lettering inside the cinematic, so only Aura Burst gets the thin top band
+on('ult', u => { const nm = (u && u.name) || ''; if (/^domain/i.test(nm)) return; showCard({ kind: 'ult', label: 'ULTIMATE', title: nm || 'AURA BURST', dur: 1600 }); });
 on('grimoireGet', g => {
   const gi = grimInfo(g && g.id ? g : { id: 'mystery' }); if (rememberGrimoire(gi.id)) persist();
   const nm = /grimoire|pages/i.test(gi.name) ? gi.name : gi.name + ' Grimoire';
@@ -1362,10 +1367,12 @@ function updateHUD(st, dt) {
   syncGrimUI(st);
   const inPlay = mode === 'game' && !modal && (st.screen === 'play' || st.screen === 'bossIntro');
   $('#hud').hidden = !(mode === 'game' && !modal);
-  $('#hud').classList.toggle('off', !inPlay);
+  if (cineOn && (mode !== 'game' || (st.time || 0) > cineEnd || (st.time || 0) < cineEnd - 10)) cineOn = false;
+  $('#hud').classList.toggle('off', !inPlay || cineOn);
   const touchOn = inPlay && !paused;
   $('#touch').hidden = !(mode === 'game' && !modal && inPlay);
   $('#touch').classList.toggle('on', touchOn);
+  $('#touch').classList.toggle('cine', cineOn);
   if (hud.screen !== st.screen) { hud.screen = st.screen; layoutDialogue(); if (st.screen !== 'scene' && st.screen !== 'ending' && !curLine) show('#skipBtn', false); }
   if (!inPlay) return;
   // health
