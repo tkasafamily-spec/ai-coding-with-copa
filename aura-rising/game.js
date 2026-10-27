@@ -20,7 +20,7 @@ const sm = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 const THEMES = {
   1: { sky: [0x3f9bff, 0xbfe6ff, 0xfff4e6], fog: 0xd8ecff, fogNear: 70, fogFar: 340, sun: 0xffe7c4, sunI: 2.5, hemi: [0xd6ebff, 0x9a8466, 1.55], ground: ['#d9cbb2', '#c8b796', '#b9a684'], edge: 0xf3ead8, side: 0x9c8a70, wall: 0xf4f0e6, accent: 0xd8343f, music: 'academy', stars: 0, petals: 0xffb7d5 },
   2: { sky: [0x0b0626, 0x3a1460, 0xff4fa3], fog: 0x241040, sun: 0xb7a8ff, sunI: 1.6, hemi: [0x8a7cff, 0x301040, 1.6], ground: ['#4a4a5e', '#3f3f52', '#55556a'], edge: 0x2ef2ff, side: 0x2a2840, wall: 0x35335a, accent: 0xff3fb4, music: 'rooftops', stars: 1, petals: 0x7cf8ff },
-  3: { sky: [0x5a2a7a, 0xff7a4a, 0xffd27a], fog: 0xf0a070, fogNear: 55, fogFar: 300, sun: 0xffb070, sunI: 2.3, hemi: [0xffc8a0, 0x3a5a30, 1.4], ground: ['#7a9a5a', '#6a8a4e', '#8aa866'], edge: 0xc9b48a, side: 0x5a4632, wall: 0x6a7a5a, accent: 0xe8333f, music: 'forest', stars: 0, petals: 0xffe27a },
+  3: { sky: [0x5a2a7a, 0xff7a4a, 0xffd27a], fog: 0xf0a070, fogNear: 55, fogFar: 300, sun: 0xffb070, sunI: 2.3, hemi: [0xffc8a0, 0x3a5a30, 1.4], ground: ['#7f7764', '#9a917c', '#8a8270'], edge: 0xc9b48a, side: 0x5a4632, wall: 0x6a7a5a, accent: 0xe8333f, music: 'forest', stars: 0, petals: 0xffe27a },
   4: { sky: [0x101a3a, 0x3a3a7a, 0x8a7acc], fog: 0x3a3a6a, sun: 0xd8d0ff, sunI: 2.0, hemi: [0xb0b8ff, 0x302850, 1.6], ground: ['#8a90b8', '#7a80a8', '#9aa0c8'], edge: 0x7cf8ff, side: 0x4a4068, wall: 0x5a5a8a, accent: 0x7cf8ff, music: 'storm', stars: 0.4, petals: 0xaef0ff },
   0: { sky: [0x1a0a3a, 0x8a2a8a, 0xff9a5a], fog: 0x6a2a6a, sun: 0xffc0a0, sunI: 2.2, hemi: [0xc0a0ff, 0x402040, 1.5], ground: ['#4a3a6a', '#3e3060', '#56467a'], edge: 0xb48cff, side: 0x2a2040, wall: 0x3a2a5a, accent: 0xb48cff, music: 'title', stars: 0.6, petals: 0xffb7d5 },
 };
@@ -133,8 +133,7 @@ export function createGame(canvas, opts = {}) {
       let xx = -rand(10, 60);
       while (xx < S) {
         const w = rand(58, 124), col = cols[1 + ((ri + Math.round(xx / 60)) & 1)], k = rand(0.9, 1.08);
-        for (const off of [0, S]) {
-          const X = xx + off - (xx + w > S && off ? 0 : 0) - (off ? S : 0) * 0 + (off ? -S : 0);
+        for (const X of xx + w > S ? [xx, xx - S] : xx < 0 ? [xx, xx + S] : [xx]) {
           const g = x.createLinearGradient(0, y, 0, y + rh); g.addColorStop(0, sh(col, k * 1.06)); g.addColorStop(1, sh(col, k * 0.94));
           x.fillStyle = g; x.beginPath(); x.roundRect ? x.roundRect(X + 3, y + 3, w - 6, rh - 6, 7) : x.rect(X + 3, y + 3, w - 6, rh - 6); x.fill();
           x.fillStyle = 'rgba(255,255,255,0.12)'; x.fillRect(X + 6, y + 4, w - 14, 3);
@@ -1054,9 +1053,20 @@ export function createGame(canvas, opts = {}) {
     if (id === 1) {
       for (const z of [4, 18, 32, 86, 100, 114]) { propTree(-17, z, z > 70 ? 1 : 0, 1); propTree(17, z + 6, z > 70 ? 1 : 0, 1); }
       for (const z of [10, 26, 90, 108]) { propLantern(-10.5, z, z > 70 ? 1 : 0, 0xffd27a); propLantern(10.5, z, z > 70 ? 1 : 0, 0xffd27a); }
-      propBuilding(0, -22, 30, 9, 10, 1); propBuilding(-34, 60, 14, 8, 30, 1); propBuilding(34, 60, 14, 8, 30, 1); propBuilding(0, 182, 34, 12, 12, 1);
+      // academy grounds: worn centre path, grass borders, benches, training dummies, fountain, banners (all merged per material)
+      const B = lvBatch(), pm = decalMat(pathTex()), gm = decalMat(grassTex());
+      for (const [z0, z1, y] of [[-3.8, 39.6, 0], [40, 52, 0], [52, 63, 0.35], [63, 74.2, 0.7], [74, 119.6, 1], [120, 134, 1]]) floorStrip(B, pm, -3.2, 3.2, z0, z1, y);
+      for (const s of [-1, 1]) { floorStrip(B, gm, s > 0 ? 9.4 : -12, s > 0 ? 12 : -9.4, -3.8, 39.6, 0); floorStrip(B, gm, s > 0 ? 11.4 : -14, s > 0 ? 14 : -11.4, 75, 119.6, 1); }
+      courtyardProps(L, B, 0, -4, 40, 12); courtyardProps(L, B, 1, 74, 120, 14);
+      fountain(L, B, 0, -1.6, 0);
+      wallBanners(B, [-12.6, 12.6], 0, 3, 37, 8.5); wallBanners(B, [-14.6, 14.6], 1, 80, 116, 9);
+      // the academy itself: main hall with clock tower and spires, plus two wings and a rear hall
+      academyHall(B, 0, 200, 56, 13, 18, { towers: true, clock: true });
+      academyHall(B, -37, 60, 40, 9, 12, { ry: -Math.PI / 2 }); academyHall(B, 37, 60, 40, 9, 12, { ry: Math.PI / 2 });
+      academyHall(B, 0, -24, 32, 8, 10, { ry: Math.PI, towers: true });
+      B.flush();
       for (let a = 0; a < 8; a++) { const ang = a / 8 * TAU; part(levelGroup, G.cyl, toon(0xd8343f), [Math.sin(ang) * 21, 3, 152 + Math.cos(ang) * 21], [0.35, 6, 0.35], null, OUT_PROP); }
-      for (let i = 0; i < 6; i++) part(levelGroup, G.cone12, toon(0x8aa8d8), [rand(-200, 200), 0, rand(250, 320)], [rand(40, 80), rand(40, 70), 40], null, null);
+      mountainRing(0, 90, 360, 440, 34, 0x9fb6e2, 0xf6f9ff, 0xd8ecff);
     } else if (id === 2) {
       for (let i = 0; i < 26; i++) { const side = i % 2 ? 1 : -1; propBuilding(side * rand(30, 70), rand(-30, 220), rand(10, 20), rand(30, 70), rand(10, 20), 2); }
       neonSign(-11.8, 3, 20, Math.PI / 2, 'AURA', '#ff3fb4'); neonSign(11.8, 3.5, 30, -Math.PI / 2, 'NIGHT', '#2ef2ff'); neonSign(-13.8, 4, 96, Math.PI / 2, 'RAMEN', '#ffd23f'); neonSign(13.8, 4, 108, -Math.PI / 2, 'NEON', '#ff3fb4'); neonSign(0, 7, 175, Math.PI, 'SKYLINE', '#2ef2ff');
@@ -1066,6 +1076,10 @@ export function createGame(canvas, opts = {}) {
       for (const z of [12, 30, 82, 100, 116]) { propLantern(-10.5, z, z > 70 ? 1 : 0, 0xffa040); propLantern(10.5, z, z > 70 ? 1 : 0, 0xffa040); }
       for (const z of [20, 60, 95, 126]) propGateArch(0, z, z > 64 ? 1 : 0, 0xe8333f);
       propBuilding(0, 178, 16, 6, 8, 3);
+      const B = lvBatch(), gm = decalMat(grassTex()), pm = decalMat(pathTex());
+      for (const s of [-1, 1]) { floorStrip(B, gm, s > 0 ? 9 : -12, s > 0 ? 12 : -9, -3.8, 39.6, 0); floorStrip(B, gm, s > 0 ? 10.5 : -14, s > 0 ? 14 : -10.5, 75, 119.6, 1); }
+      for (const [z0, z1, y] of [[-3.8, 39.6, 0], [74, 119.6, 1]]) floorStrip(B, pm, -2.6, 2.6, z0, z1, y);
+      B.flush(); mountainRing(0, 90, 340, 420, 30, 0x8a5a7a, null, 0xf0a070);
     } else if (id === 4) {
       const gate = new THREE.Mesh(new THREE.TorusGeometry(22, 1.6, 12, 64), toon(0x8a80c8, { em: 0x7cf8ff, ei: 0.35 })); gate.position.set(0, 12, 182); levelGroup.add(gate); addOutline(gate, OUT_PROP); L.spin.push(gate); gate.userData.slow = true;
       const portal = new THREE.Mesh(new THREE.CircleGeometry(20.5, 48), new THREE.MeshBasicMaterial({ color: 0x2a1060, transparent: true, opacity: 0.7, side: THREE.DoubleSide })); portal.position.copy(gate.position); levelGroup.add(portal);
