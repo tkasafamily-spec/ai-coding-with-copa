@@ -50,3 +50,9 @@ Make YouTube thumbnails for cooking and Donut SMP videos, right on your iPad.
 On claude.ai it can also look at popular YouTube videos (through vidIQ) and ask Claude for ideas; everywhere else it uses its built-in ideas.
 
 Files: `thumb-pop/index.html` (the app), `thumb-render.js` (draws thumbnails), `thumb-ideas.js` (turns what you type into designs).
+
+# Aura Rising
+
+A 3D anime story action game for iPad and computer. Play Ren through 4 chapters: learn new powers, fight bosses, unlock the Domain ultimate. Touch controls on iPad, keyboard and mouse on a computer.
+
+Files: `aura-rising/index.html` (menus, story, controls, sound), `aura-rising/game.js` (the 3D game, uses three.js).
