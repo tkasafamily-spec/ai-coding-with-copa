@@ -158,6 +158,8 @@ button{font:inherit;color:inherit;-webkit-user-select:none;user-select:none;-web
 .chap[disabled]{filter:grayscale(1) brightness(.5);pointer-events:none}
 .chap[disabled]::after{content:"LOCKED";position:absolute;right:12px;bottom:10px;font-size:12px;letter-spacing:3px;opacity:.8}
 .chap.rush{grid-column:1 / -1;min-height:70px}
+@media (min-width:900px){ #chapPanel .panel{width:min(980px,100%)!important} .chapters{grid-template-columns:repeat(4,minmax(0,1fr))} }
+@media (max-height:560px){ .chap{min-height:82px;padding:10px 12px} .chap .nm{font-size:16px} .chap .rk{font-size:28px} .chapters{gap:10px} }
 
 /* settings */
 .set-row{display:grid;grid-template-columns:130px 1fr 46px;align-items:center;gap:12px;margin:10px 0;font-size:15px;letter-spacing:1px}
@@ -619,9 +621,11 @@ body:not(.touchy) .btns{--btn-scale:.72;opacity:.9}
 <div id="credits" class="layer panel-layer" data-testid="credits" hidden>
   <div class="roll" id="roll">
     <h3>THE END</h3>
-    <p>Ren's aura has risen. The Sky Gate is safe.</p>
+    <p>Ren's aura has risen. The Hollow Emperor has fallen, and the Hollows are gone.</p>
     <h4>STARRING</h4><p>Ren &mdash; First-year sorcerer</p>
-    <h4>WITH</h4><p>Instructor Kaze</p><p>The Masked Twin</p><p>The Thorn Warden</p><p>Sovereign Null</p>
+    <h4>WITH</h4><p>Instructor Kaze</p><p>Elder Toma</p>
+    <h4>AND THE RIVALS</h4><p>The Masked Twin</p><p>The Thorn Warden</p><p>Sovereign Null</p><p>Dune Tyrant Sabulo</p><p>Frost Empress Fubuki</p><p>The Prism Colossus</p><p>Hollow Emperor Vael</p>
+    <h4>GRIMOIRES COLLECTED</h4><p>Crimson &middot; Gale &middot; Shadow &middot; Thorn &middot; Void</p><p>Dune &middot; Frost &middot; Prism &middot; Eclipse</p>
     <h4>GAME DESIGN</h4><p>Made for one very cool player</p>
     <h4>ART, MUSIC &amp; CODE</h4><p>Built from scratch: shapes, shaders and synthesizers</p>
     <h4>SPECIAL THANKS</h4><p>You, for playing!</p>
@@ -712,7 +716,11 @@ const GRIM_INFO = {
   gale: { name: 'Gale Grimoire', color: '#5cf2c8', desc: 'Three wide wind slashes that pierce through every enemy in their path.', icon: 'G', from: 'kaze' },
   shadow: { name: 'Shadow Grimoire', color: '#9a5aff', desc: 'Summons two shadow clones of Ren that fight beside you for 6 seconds.', icon: 'S', from: 'twin' },
   thorn: { name: 'Thorn Grimoire', color: '#6ad04a', desc: 'Old roots burst from the ground and trap nearby enemies in place.', icon: 'T', from: 'warden' },
-  void: { name: 'Void Grimoire', color: '#c86aff', desc: 'A void orb that drags enemies in, then bursts with crushing force.', icon: 'V', from: 'null' }
+  void: { name: 'Void Grimoire', color: '#c86aff', desc: 'A void orb that drags enemies in, then bursts with crushing force.', icon: 'V', from: 'null' },
+  dune: { name: 'Dune Grimoire', color: '#e8a83a', desc: 'A roaring sandstorm rolls forward, sweeping enemies up and grinding them down.', icon: 'D', from: 'dune' },
+  frost: { name: 'Frost Grimoire', color: '#8fe8ff', desc: 'Ice pillars race out in three lines and freeze every enemy they touch solid.', icon: 'F', from: 'frost' },
+  prism: { name: 'Prism Grimoire', color: '#ff7ae0', desc: 'A beam of rainbow light that bounces from enemy to enemy, up to six times.', icon: 'P', from: 'prism' },
+  eclipse: { name: 'Eclipse Grimoire', color: '#ff3a6a', desc: 'A black sun rises over you and rains crescent blades on every enemy nearby.', icon: 'E', from: 'vael' }
 };
 // a save from before the grimoire update has no collection: hand over what the bosses it already beat would have dropped
 if (save.grimoires === undefined || !Array.isArray(save.grimoires)) {
@@ -828,6 +836,11 @@ const Audio = (() => {
     final:   { bpm: 144, root: 38, scale: 'harm', prog: [0, 5, 3, 4], taiko: 'x.x...x.x.x...x.', k: 'x...x...x...x...', s: '....x.......x..x', h: 'x.xxx.xxx.xxx.xx', bass: 'r.rrr.rrf.ffo.oo', strings: 'xxxxxxxxxxxxxxxx', lead: 'saw', leadR: 'x...x...x.x.x...', pad: 1, padCut: 1100, choir: 1, seed: 33 }
   };
   TRACKS.ending = Object.assign({}, TRACKS.title, { bpm: 80, seed: 9, lead: 'bell' });
+  // part 2 places
+  TRACKS.desert = Object.assign({}, TRACKS.forest, { bpm: 96, root: 52, scale: 'harm', taiko: 'x.....x...x.....', k: 'x.......x.......', arpInst: 'koto', lead: 'flute', leadR: 'x...x.x.....x...', seed: 41 });
+  TRACKS.frost = Object.assign({}, TRACKS.title, { bpm: 84, root: 57, scale: 'dorian', prog: [0, 5, 3, 4], arpInst: 'bell', lead: 'bell', leadR: 'x.....x.....x...', padCut: 1600, seed: 52 });
+  TRACKS.cavern = Object.assign({}, TRACKS.forest, { bpm: 92, root: 45, scale: 'minor', prog: [0, 6, 5, 4], arpInst: 'bell', lead: 'flute', shaker: '', padCut: 900, seed: 63 });
+  TRACKS.capital = Object.assign({}, TRACKS.storm, { bpm: 128, root: 41, scale: 'harm', prog: [0, 1, 5, 4], seed: 74 });
   const ALIAS = { menu: 'title', credits: 'ending', night: 'rooftops', city: 'rooftops', shrine: 'forest', sky: 'storm', bossrush: 'boss' };
 
   function rng(seed) { let s = seed >>> 0 || 1; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
@@ -1318,7 +1331,7 @@ function showClear(n, c, newBest) {
    ============================================================ */
 const hud = { hp: -1, maxHp: -1, aura: -1, obj: '', boss: '', bossHp: -1, phase: -1, combo: 0, lock: null, power: '', comboT: 0, screen: '' };
 function hudReset() { Object.assign(hud, { hp: -1, maxHp: -1, aura: -1, obj: '', boss: '', bossHp: -1, phase: -1, combo: 0, lock: null, power: '', screen: '' }); show('#objective', false); show('#boss', false); $('#combo').classList.remove('on'); }
-const BOSS_PHASES = { 1: 1, 2: 2, 3: 2, 4: 3 };
+const BOSS_PHASES = { 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3 };
 const POWER_ICONS = {
   dash: '<path d="M2 11h9V7l7 5-7 5v-4H2zM17 5h3v14h-3z"/>',
   book: '<path d="M3 4c3-1 6-1 8 1v15c-2-2-5-2-8-1zM21 4c-3-1-6-1-8 1v15c2-2 5-2 8-1z"/>',

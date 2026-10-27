@@ -7,6 +7,11 @@ export const CHAPTERS = [
   { id: 2, name: 'Neon Night', place: 'Neon Rooftops', power: { id: 'dash', name: 'Aura Dash', desc: 'Press POWER to burst forward as a streak of light, striking everything in your path.' }, boss: { id: 'twin', name: 'The Masked Twin', title: 'Two Faces, One Shadow' } },
   { id: 3, name: 'Crimson Pages', place: 'Forest Shrine', power: { id: 'grimoire', name: 'Grimoire: Crimson Pages', desc: 'A floating spellbook fires homing blades of fire. Press POWER to cast.' }, boss: { id: 'warden', name: 'Thorn Warden', title: 'Guardian of the Old Roots' } },
   { id: 4, name: 'Infinite Sanctum', place: 'Sky Gate', power: { id: 'domain', name: 'Domain: Infinite Sanctum', desc: 'When your aura is full, press ULTIMATE. Time slows and everything inside your Domain feels your power.' }, boss: { id: 'null', name: 'Sovereign Null', title: 'The Empty Crown' } },
+  // part 2: the road to the Hollow Capital. Each chapter's power is a passive upgrade (see PASSIVE in createGame).
+  { id: 5, name: 'Buried Kingdom', place: 'Desert Ruins', power: { id: 'focus', name: 'Grimoire Focus', desc: 'Every grimoire you own recharges 30% faster. Swap books (G) between casts to chain spells!' }, boss: { id: 'dune', name: 'Dune Tyrant Sabulo', title: 'King Beneath the Sand' } },
+  { id: 6, name: 'White Silence', place: 'Frozen Peak Village', power: { id: 'armor', name: 'Aura Armor', desc: 'Your aura flows around you like a coat. You take 20% less damage from every hit.' }, boss: { id: 'frost', name: 'Frost Empress Fubuki', title: 'The Endless Blizzard' } },
+  { id: 7, name: 'Heart of Light', place: 'Crystal Caverns', power: { id: 'overflow', name: 'Aura Overflow', desc: 'Your aura fills 35% faster, so your Domain is ready sooner.' }, boss: { id: 'prism', name: 'The Prism Colossus', title: 'Guardian of the Heart' } },
+  { id: 8, name: 'Kakusei', place: 'The Hollow Capital', power: { id: 'kakusei', name: 'Kakusei: Awakening', desc: 'Ren\'s true awakening. Every attack deals 25% more damage and your aura burns gold.' }, boss: { id: 'vael', name: 'Hollow Emperor Vael', title: 'The Last Darkness' } },
 ];
 
 // ---------- grimoires (data-driven: Part 2 adds an entry here + a SPELLS[kind] function for each new boss) ----------
@@ -17,6 +22,10 @@ export const GRIMOIRES = [
   { id: 'shadow', name: 'Shadow Grimoire', color: '#9a5aff', icon: 'mask', from: 'twin', desc: 'Summons two shadow clones of Ren that fight beside you for 6 seconds.', spell: { kind: 'shadow', cd: 10, dmg: 6, count: 2, life: 6 } },
   { id: 'thorn', name: 'Thorn Grimoire', color: '#6ad04a', icon: 'leaf', from: 'warden', desc: 'Old roots burst from the ground and trap nearby enemies in place.', spell: { kind: 'thorn', cd: 7, dmg: 10, radius: 10, root: 2.8, bossRoot: 1.4 } },
   { id: 'void', name: 'Void Grimoire', color: '#c86aff', icon: 'orb', from: 'null', desc: 'A void orb that drags enemies in, then bursts with crushing force.', spell: { kind: 'void', cd: 8, dmg: 28, tick: 3, pull: 8.5, radius: 5, hold: 1.6 } },
+  { id: 'dune', name: 'Dune Grimoire', color: '#e8a83a', icon: 'dune', from: 'dune', desc: 'A roaring sandstorm rolls forward, sweeping enemies up and grinding them down.', spell: { kind: 'dune', cd: 7, dmg: 4, tick: 0.22, speed: 8, life: 2.4, radius: 3.2, finish: 16 } },
+  { id: 'frost', name: 'Frost Grimoire', color: '#8fe8ff', icon: 'snow', from: 'frost', desc: 'Ice pillars race out in three lines and freeze every enemy they touch solid.', spell: { kind: 'frost', cd: 6.5, dmg: 15, lines: 3, steps: 7, gap: 1.9, freeze: 2.4, bossFreeze: 1.1 } },
+  { id: 'prism', name: 'Prism Grimoire', color: '#ff7ae0', icon: 'gem', from: 'prism', desc: 'A beam of rainbow light that bounces from enemy to enemy, up to six times.', spell: { kind: 'prism', cd: 4.5, dmg: 17, bounces: 6, range: 15, hop: 10 } },
+  { id: 'eclipse', name: 'Eclipse Grimoire', color: '#ff3a6a', icon: 'sun', from: 'vael', desc: 'A black sun rises over you and rains crescent blades on every enemy nearby.', spell: { kind: 'eclipse', cd: 12, dmg: 9, life: 3.2, rate: 0.16, range: 18 } },
 ];
 // difficulty multipliers (the old balance was roughly 'easy': all 1)
 export const DIFFICULTY = {
@@ -38,6 +47,10 @@ const THEMES = {
   2: { sky: [0x0b0626, 0x3a1460, 0xff4fa3], fog: 0x241040, sun: 0xb7a8ff, sunI: 1.6, hemi: [0x8a7cff, 0x301040, 1.6], ground: ['#4a4a5e', '#3f3f52', '#55556a'], edge: 0x2ef2ff, side: 0x2a2840, wall: 0x35335a, accent: 0xff3fb4, music: 'rooftops', stars: 1, petals: 0x7cf8ff },
   3: { sky: [0x5a2a7a, 0xff7a4a, 0xffd27a], fog: 0xf0a070, fogNear: 55, fogFar: 300, sun: 0xffb070, sunI: 2.3, hemi: [0xffc8a0, 0x3a5a30, 1.4], ground: ['#7f7764', '#9a917c', '#8a8270'], edge: 0xc9b48a, side: 0x5a4632, wall: 0x6a7a5a, accent: 0xe8333f, music: 'forest', stars: 0, petals: 0xffe27a },
   4: { sky: [0x101a3a, 0x3a3a7a, 0x8a7acc], fog: 0x3a3a6a, sun: 0xd8d0ff, sunI: 2.0, hemi: [0xb0b8ff, 0x302850, 1.6], ground: ['#8a90b8', '#7a80a8', '#9aa0c8'], edge: 0x7cf8ff, side: 0x4a4068, wall: 0x5a5a8a, accent: 0x7cf8ff, music: 'storm', stars: 0.4, petals: 0xaef0ff },
+  5: { rim: 0xd8b070, sky: [0x2a7ad8, 0x8cc8f0, 0xffe2a8], fog: 0xf2dcae, fogNear: 70, fogFar: 340, sun: 0xfff0c8, sunI: 2.8, hemi: [0xfff0d0, 0xa07848, 1.5], ground: ['#e2c48c', '#d6b27c', '#caa670'], edge: 0xf2dfae, side: 0xa8844e, wall: 0xd8b880, accent: 0xffb347, music: 'desert', stars: 0, petals: 0xf0d090 },
+  6: { rim: 0xc8d8ec, sky: [0x5a7ab8, 0xb8d0f0, 0xf2f7ff], fog: 0xdce8f8, fogNear: 50, fogFar: 260, sun: 0xf0f4ff, sunI: 2.2, hemi: [0xe0ecff, 0x7a8aa8, 1.6], ground: ['#e2eaf4', '#ccd8e6', '#bccadc'], edge: 0xffffff, side: 0x8a9ab8, wall: 0xc8d8ec, accent: 0x7fe8ff, music: 'frost', stars: 0, petals: 0xffffff },
+  7: { rim: 0x5a4a8a, sky: [0x05030f, 0x140a30, 0x2a1050], fog: 0x1c1240, fogNear: 34, fogFar: 200, sun: 0xd0b0ff, sunI: 1.5, hemi: [0xb090ff, 0x281450, 1.45], ground: ['#544a78', '#463e6a', '#5e5686'], edge: 0xc77dff, side: 0x2a2448, wall: 0x3a3060, accent: 0xc77dff, music: 'cavern', stars: 0, petals: 0xd0a8ff, glowEdge: 1 },
+  8: { rim: 0x3a2a40, sky: [0x0a0410, 0x3a0a2a, 0xff4a3a], fog: 0x2e0c1e, fogNear: 55, fogFar: 290, sun: 0xff9a7a, sunI: 1.9, hemi: [0xd8a0b8, 0x2a0a20, 1.55], ground: ['#4a3e52', '#3e3448', '#56485e'], edge: 0xff3355, side: 0x1a1220, wall: 0x2a2030, accent: 0xff3355, music: 'capital', stars: 0.5, petals: 0xff7a5a, glowEdge: 1 },
   0: { sky: [0x1a0a3a, 0x8a2a8a, 0xff9a5a], fog: 0x6a2a6a, sun: 0xffc0a0, sunI: 2.2, hemi: [0xc0a0ff, 0x402040, 1.5], ground: ['#4a3a6a', '#3e3060', '#56467a'], edge: 0xb48cff, side: 0x2a2040, wall: 0x3a2a5a, accent: 0xb48cff, music: 'title', stars: 0.6, petals: 0xffb7d5 },
 };
 
@@ -590,11 +603,122 @@ export function createGame(canvas, opts = {}) {
       },
     });
   }
+  // ---------- part 2 characters (chapters 5-8), all built with buildRig ----------
+  function makeSabulo() {
+    return buildRig({
+      face: { id: 'dune', type: 'mask', mask: '#f0c870', half: '#b8862e', glow: '#ff7a1a', lines: '#5a3010' }, scale: 1.45, bulk: 1.25, limb: 1.1, hemLen: 0.34, hemColor: 0xe0bc78, boots: true, trim: true, belt: 0x2a5aa8,
+      colors: { skin: 0x9a6a3a, top: 0xd8b070, bottom: 0x6a4a2a, shoe: 0x4a3018, hand: 0x9a6a3a, accent: 0x2fc8d8 },
+      hair(rig, J) {
+        // a tall striped headdress with a sun crest (original design)
+        const gold = toon(0xf2c14e, { em: 0x3a2800, ei: 1 }), blue = toon(0x2a5aa8);
+        hairCap(J, gold, 0.17, 0.02);
+        for (const sx of [-1, 1]) addTail(rig, J.head, [sx * 0.105, 0.07, -0.02], 3, 0.1, (jn, i) => part(jn, G.box, i % 2 ? blue : gold, [0, -0.05, 0], [0.07, 0.11, 0.11]), { base: 0.04, lift: 0.3 });
+        part(J.head, G.cone, gold, [0, 0.33, -0.03], [0.08, 0.18, 0.08]);
+        part(J.head, G.torus, gold, [0, 0.3, -0.05], [0.09, 0.09, 0.2]);
+        part(J.head, G.sphere, toon(0x2fc8d8, { em: 0x2fc8d8, ei: 0.9 }), [0, 0.21, 0.11], 0.026, null, null);
+      },
+      extra(rig, J) {
+        const gold = toon(0xf2c14e, { em: 0x3a2800, ei: 1 }), wood = toon(0x5a3a1a);
+        const staff = new THREE.Group(); J.haR.add(staff); staff.position.set(0, -0.04, 0.02);
+        part(staff, G.cyl, wood, [0, 0, 0.25], [0.028, 1.5, 0.028], [Math.PI / 2, 0, 0]);
+        part(staff, G.torus, gold, [0, 0, 1.0], [0.17, 0.17, 0.3]);
+        part(staff, G.sphere, toon(0xff9a2a, { em: 0xff7a1a, ei: 1 }), [0, 0, 1.0], 0.08, null, null);
+        for (const sx of [-1, 1]) part(J.chest, G.sphere, gold, [sx * 0.22, 0.27, 0], [0.11, 0.06, 0.1]);
+        addCape(rig, toon(0xb83a2a, { side: THREE.DoubleSide }), { len: 0.48 });
+        rig.aura = makeAura(0xffb347, 0xff6a1a); rig.model.add(rig.aura);
+      },
+    });
+  }
+  function makeFubuki() {
+    return buildRig({
+      face: { id: 'fubuki', eye: '#7fe8ff', eyeDark: '#1a4a7a', eyeLight: '#e8fcff', eyeH: 15, skin: '#f4f6ff', brow: '#c8d8f0' }, scale: 1.12, collar: 0xe8f4ff, trim: true, cuff: 0x7fe8ff, boots: true, hemLen: 0.3, hemColor: 0xe8f4ff,
+      colors: { skin: 0xf4f6ff, top: 0x3a6ab8, bottom: 0x1a2a4a, shoe: 0xdfe8f8, accent: 0x7fe8ff },
+      hair(rig, J) {
+        const h = toon(0xeaf6ff);
+        hairCap(J, h);
+        hairSpikes(J, h, [[0, 60, 0.12, 0.05], [-50, 44, 0.14, 0.05], [50, 44, 0.14, 0.05], [-30, 0, 0.09, 0.045, 1], [0, 0, 0.1, 0.045, 1], [30, 0, 0.09, 0.045, 1], [-84, 0, 0.2, 0.035, 2], [84, 0, 0.2, 0.035, 2]], 'fubuki');
+        for (const sx of [0.05, -0.05, 0]) addTail(rig, J.head, [sx, 0.08, -0.11], 5, 0.13, (jn, i) => part(jn, G.box, h, [0, -0.065, 0], [0.09 - i * 0.01, 0.14, 0.03]), { base: 0.15, lift: 0.9 });
+        const ice = toon(0xbff4ff, { em: 0x4ad8ff, ei: 0.8 });
+        for (let k = -2; k <= 2; k++) part(J.head, G.oct, ice, [k * 0.045, 0.25 - Math.abs(k) * 0.02, 0.03 - Math.abs(k) * 0.02], [0.02, 0.07 - Math.abs(k) * 0.012, 0.02]);
+      },
+      extra(rig, J) {
+        const ice = toon(0xbff4ff, { em: 0x4ad8ff, ei: 0.6 });
+        const sp = new THREE.Group(); J.haR.add(sp); sp.position.set(0, -0.04, 0.02);
+        part(sp, G.cyl, toon(0xdfe8f8), [0, 0, 0.3], [0.02, 1.3, 0.02], [Math.PI / 2, 0, 0]);
+        part(sp, G.oct, ice, [0, 0, 1.05], [0.06, 0.06, 0.28]);
+        for (const sx of [-1, 1]) part(J.chest, G.oct, ice, [sx * 0.22, 0.3, 0], [0.06, 0.12, 0.06], [0, 0, sx * 0.5]);
+        addCape(rig, toon(0xe8f4ff, { side: THREE.DoubleSide }), { len: 0.42 });
+        rig.aura = makeAura(0x7fe8ff, 0xffffff); rig.model.add(rig.aura);
+      },
+    });
+  }
+  function makeColossus() {
+    return buildRig({
+      face: { id: 'prism', type: 'mask', mask: '#6a5a9a', half: '#3a2a6a', glow: '#ff7ae0', lines: '#c77dff' }, scale: 2.25, bulk: 1.55, limb: 1.4, hem: false, boots: true,
+      colors: { skin: 0x5a4a8a, top: 0x4a3a7a, bottom: 0x3a2e62, shoe: 0x2a2048, hand: 0x7a6aaa, accent: 0xff7ae0 },
+      hair(rig, J) {
+        const cr = toon(0xd8a8ff, { em: 0x8a3aff, ei: 0.6 });
+        for (let k = 0; k < 5; k++) { const a = (k - 2) * 0.45; part(J.head, G.oct, cr, [Math.sin(a) * 0.08, 0.22 + Math.cos(a) * 0.04, -0.03], [0.035, 0.14 - Math.abs(k - 2) * 0.025, 0.035], [0, 0, -a * 0.8]); }
+      },
+      extra(rig, J) {
+        const cr = toon(0xff9af0, { em: 0xc83aff, ei: 0.7 }), cr2 = toon(0x9ff8ff, { em: 0x3ab8ff, ei: 0.7 });
+        // crystal growths on the back and shoulders, crystal fists and a glowing heart
+        for (let k = 0; k < 6; k++) { const sx = (k % 3 - 1) * 0.11, y = 0.12 + Math.floor(k / 3) * 0.12; part(J.chest, G.oct, k % 2 ? cr : cr2, [sx, y, -0.13], [0.05, 0.16, 0.05], [-0.7, 0, sx * 2]); }
+        for (const sx of [-1, 1]) part(J.chest, G.oct, cr, [sx * 0.24, 0.3, 0], [0.07, 0.15, 0.07], [0, 0, sx * 0.6]);
+        for (const h of ['haL', 'haR']) part(J[h], G.oct, cr2, [0, -0.06, 0], [0.1, 0.1, 0.1]);
+        part(J.chest, G.oct, toon(0xffffff, { em: 0xff7ae0, ei: 1 }), [0, 0.15, 0.11], [0.05, 0.07, 0.03], null, null);
+        rig.aura = makeAura(0xff7ae0, 0x9ff8ff); rig.model.add(rig.aura);
+      },
+    });
+  }
+  function makeVael(clone) {
+    return buildRig({
+      face: { id: 'vael', male: true, eye: '#ff3a5a', eyeDark: '#5a0010', eyeLight: '#ffc0c8', eyeH: 13.5, skin: '#dcd4e4', brow: '#120a18' }, headShape: REN_HEAD, scale: 1.24, shoulders: 1.16, flatChest: true, collar: 0x2a0a1a, lapel: 0x2a0a1a, trim: true, cuff: 0xffc24a, boots: true, hemLen: 0.32, hemColor: 0x140a1a, sole: 0xff3355, belt: 0xffc24a,
+      colors: { skin: 0xdcd4e4, top: 0x1a1222, bottom: 0x0e0a14, shoe: 0x241a2e, accent: 0xffc24a },
+      hair(rig, J) {
+        const blk = toon(0x0e0a14), gold = toon(0xffc24a, { em: 0x5a3000, ei: 1 });
+        hairCap(J, blk, 0.165, 0.03);
+        hairSpikes(J, blk, [[0, 56, 0.16, 0.06], [-46, 40, 0.19, 0.06], [46, 40, 0.19, 0.06], [-110, 24, 0.22, 0.06], [110, 24, 0.22, 0.06], [180, 18, 0.24, 0.06], [-150, -6, 0.22, 0.055], [150, -6, 0.22, 0.055], [-20, 0, 0.08, 0.04, 1], [20, 0, 0.08, 0.04, 1]], 'vael');
+        // a crown of black horns rimmed in gold
+        for (const sx of [-1, 1]) { part(J.head, G.cone, toon(0x1a1020), [sx * 0.085, 0.27, 0.0], [0.03, 0.2, 0.03], [-0.25, 0, -sx * 0.45]); part(J.head, G.cone, gold, [sx * 0.04, 0.27, 0.07], [0.018, 0.09, 0.018], [0.1, 0, -sx * 0.2]); }
+        part(J.head, G.torus, gold, [0, 0.19, 0], [0.12, 0.12, 0.12], [Math.PI / 2, 0, 0]);
+      },
+      extra(rig, J) {
+        // a black greatsword with a red edge, a torn crimson cape and a dark aura
+        const blade = new THREE.Group(); J.haR.add(blade); blade.position.set(0, -0.04, 0.02);
+        part(blade, G.box, toon(0x2a1a20), [0, 0, 0.07], [0.035, 0.04, 0.2]);
+        part(blade, G.box, toon(0x140a14, { em: 0x3a0010, ei: 0.5 }), [0, 0, 0.72], [0.025, 0.11, 1.15]);
+        part(blade, G.box, toon(0xff3355, { em: 0xff1a3a, ei: 1 }), [0, 0.06, 0.72], [0.012, 0.012, 1.1], null, null);
+        part(blade, G.box, toon(0xffc24a), [0, 0, 0.16], [0.05, 0.22, 0.04]);
+        addCape(rig, toon(0x8a0a24, { side: THREE.DoubleSide }), { len: 0.5 });
+        for (const sx of [-1, 1]) part(J.chest, G.cone, toon(0x241a2e), [sx * 0.24, 0.3, 0], [0.07, 0.14, 0.07], [0, 0, -sx * 0.9]);
+        rig.aura = makeAura(0xff3a6a, 0x2a0010); rig.model.add(rig.aura); rig.aura.visible = !!clone;
+      },
+    });
+  }
+  function makeElder() {
+    return buildRig({
+      face: { id: 'elder', male: true, eye: '#5a4a3a', eyeDark: '#2a1a10', eyeH: 12, skin: '#e8c8a8', brow: '#f4f4f0' }, scale: 0.95, hemLen: 0.42, hemColor: 0x7a3a2a, collar: 0xf0e8d8,
+      colors: { skin: 0xe8c8a8, top: 0x8a4a32, bottom: 0x4a3a30, shoe: 0x3a2a20, accent: 0xf2c14e },
+      hair(rig, J) {
+        const w = toon(0xf4f4f0);
+        hairCap(J, w, 0.11, 0.0);
+        part(J.head, G.cone, w, [0, -0.06, 0.095], [0.06, 0.15, 0.04], [Math.PI + 0.35, 0, 0]);
+        part(J.head, G.cone12, toon(0xd8c088), [0, 0.28, 0], [0.26, 0.1, 0.26]);
+      },
+      extra(rig, J) { part(J.haR, G.cyl, toon(0x6a4a2a), [0, -0.38, 0.06], [0.022, 1.0, 0.022]); },
+    });
+  }
   const ENEMY_DEFS = {
     construct: { hp: 26, speed: 2.6, dmg: 6, wind: 0.75, name: 'Training Construct', mk: () => buildRig({ face: { id: 'construct', type: 'mask', mask: '#f4e6c0', glow: '#2fd8c0', lines: '#d8343f' }, scale: 1.0, hem: false, colors: { skin: 0xc99a62, top: 0xb88a52, bottom: 0xa87a48, shoe: 0x7a5a3a, hand: 0xc99a62 }, extra(r, J) { part(J.chest, G.sphere, toon(0x2fd8c0, { em: 0x2fd8c0, ei: 1 }), [0, 0.14, 0.1], 0.035, null, null); part(J.head, G.box, toon(0x7a5a3a), [0, 0.24, 0], [0.18, 0.03, 0.18]); } }) },
     hollow: { hp: 34, speed: 3.8, dmg: 8, wind: 0.6, name: 'Hollow', mk: () => buildRig({ face: { id: 'hollow', type: 'mask', mask: '#f8f4ff', glow: '#b030ff', lines: '#8a1aff' }, hem: false, limb: 0.9, colors: { skin: 0x2a1840, top: 0x241436, bottom: 0x1a0e28, shoe: 0x1a0e28, hand: 0x3a2050 }, extra(r, J) { for (const h of ['haL', 'haR']) for (const a of [-0.4, 0, 0.4]) part(J[h], G.cone, toon(0xe8e0ff), [a * 0.05, -0.1, 0.02], [0.012, 0.1, 0.012], [Math.PI, 0, a]); addTail(r, J.hips, [0, -0.05, -0.1], 3, 0.18, (jn, i) => part(jn, G.sphere, toon(0x3a1a5a, { em: 0x6a1aaa, ei: 0.6 }), [0, -0.08, 0], [0.08 - i * 0.02, 0.12, 0.05]), { base: 0.8, lift: 0.6 }); r.hunch = 0.35; } }) },
     thornling: { hp: 34, speed: 3.4, dmg: 8, wind: 0.65, name: 'Thornling', mk: () => buildRig({ face: { id: 'thorn', type: 'mask', mask: '#5a8a3a', glow: '#ffb020', lines: '#2a4a1a' }, scale: 0.85, hem: false, colors: { skin: 0x4a7a32, top: 0x3a6a2a, bottom: 0x5a4632, shoe: 0x3a2a1a, hand: 0x4a7a32 }, extra(r, J) { part(J.head, G.cone12, toon(0x8ad04a), [0, 0.3, 0], [0.16, 0.22, 0.16]); for (let i = 0; i < 4; i++) part(J.chest, G.cone, toon(0xd8c070), [0, 0.05 + i * 0.07, -0.1], [0.025, 0.12, 0.025], [-1.2, 0, 0]); } }) },
     nullknight: { hp: 48, speed: 3.6, dmg: 10, wind: 0.6, name: 'Null Knight', mk: () => buildRig({ face: { id: 'nk', type: 'mask', mask: '#dfe3f0', half: '#c8cce0', glow: '#7cf8ff', lines: '#3a3a5a' }, boots: true, colors: { skin: 0xdfe3f0, top: 0xdfe3f0, bottom: 0x2a2a3a, shoe: 0xdfe3f0, hand: 0xdfe3f0, accent: 0x7cf8ff }, trim: true, extra(r, J) { part(J.haR, G.cyl, toon(0x3a3a5a), [0, -0.03, 0.2], [0.015, 0.9, 0.015], [Math.PI / 2, 0, 0]); part(J.haR, G.cone, toon(0x7cf8ff, { em: 0x7cf8ff, ei: 0.8 }), [0, -0.03, 0.72], [0.04, 0.2, 0.02], [Math.PI / 2, 0, 0]); part(J.head, G.cone, toon(0xdfe3f0), [0, 0.3, -0.02], [0.03, 0.14, 0.08]); } }) },
+    // part 2 enemies
+    scarab: { hp: 40, speed: 4.2, dmg: 9, wind: 0.55, name: 'Dust Scarab', mk: () => buildRig({ face: { id: 'scarab', type: 'mask', mask: '#f0c870', glow: '#2fd8c0', lines: '#7a4a10' }, scale: 0.9, hem: false, limb: 0.9, colors: { skin: 0x8a5a2a, top: 0xb8862e, bottom: 0x7a5420, shoe: 0x4a3018, hand: 0x8a5a2a }, extra(r, J) { const sh = toon(0x2a8a7a, { em: 0x0a3a3a, ei: 0.6 }); part(J.chest, G.sphere, sh, [0, 0.16, -0.1], [0.2, 0.18, 0.16]); for (const sx of [-1, 1]) part(J.head, G.cone, toon(0xf0c870), [sx * 0.07, 0.22, 0.04], [0.025, 0.14, 0.025], [0.5, 0, -sx * 0.5]); r.hunch = 0.3; } }) },
+    frostbrute: { hp: 72, speed: 2.9, dmg: 13, wind: 0.8, name: 'Frost Brute', mk: () => buildRig({ face: { id: 'fbrute', type: 'mask', mask: '#e8f4ff', glow: '#4ad8ff', lines: '#3a6ab8' }, scale: 1.3, bulk: 1.4, limb: 1.2, hem: false, colors: { skin: 0xdfe8f2, top: 0xeef4fa, bottom: 0x8a9ab8, shoe: 0x5a6a88, hand: 0x9ab0d0 }, extra(r, J) { const fur = toon(0xf4f8ff); for (const sx of [-1, 1]) { part(J.chest, G.sphere, fur, [sx * 0.2, 0.25, 0], [0.13, 0.1, 0.13]); part(J.head, G.cone, toon(0x9ab0d0), [sx * 0.1, 0.24, 0], [0.03, 0.16, 0.03], [0, 0, -sx * 0.6]); } const club = new THREE.Group(); J.haR.add(club); part(club, G.cyl, toon(0x6a5a4a), [0, 0, 0.25], [0.03, 0.6, 0.03], [Math.PI / 2, 0, 0]); part(club, G.oct, toon(0xbff4ff, { em: 0x4ad8ff, ei: 0.6 }), [0, 0, 0.6], [0.12, 0.12, 0.2]); r.hunch = 0.2; } }) },
+    shardling: { hp: 46, speed: 3.7, dmg: 10, wind: 0.6, name: 'Shardling', mk: () => buildRig({ face: { id: 'shard', type: 'mask', mask: '#d8c8ff', half: '#a888f0', glow: '#ff7ae0', lines: '#6a3ab8' }, hem: false, colors: { skin: 0x6a5a9a, top: 0x5a4a8a, bottom: 0x3a2e62, shoe: 0x2a2048, hand: 0x9a8ad0 }, extra(r, J) { const cr = toon(0xff9af0, { em: 0xc83aff, ei: 0.7 }); for (let k = 0; k < 3; k++) part(J.chest, G.oct, cr, [(k - 1) * 0.09, 0.2, -0.12], [0.04, 0.14, 0.04], [-0.6, 0, (k - 1) * 0.4]); part(J.head, G.oct, cr, [0, 0.27, 0], [0.04, 0.12, 0.04]); for (const h of ['haL', 'haR']) part(J[h], G.oct, toon(0x9ff8ff, { em: 0x3ab8ff, ei: 0.6 }), [0, -0.1, 0.03], [0.03, 0.12, 0.03], [Math.PI, 0, 0]); } }) },
+    hollowlord: { hp: 66, speed: 3.9, dmg: 12, wind: 0.55, name: 'Hollow Lord', mk: () => buildRig({ face: { id: 'hlord', type: 'mask', mask: '#1a1020', half: '#f4f0ff', glow: '#ff3a6a', lines: '#ffc24a' }, scale: 1.12, boots: true, trim: true, colors: { skin: 0x2a1840, top: 0x1a1022, bottom: 0x120a18, shoe: 0x241a2e, hand: 0x2a1840, accent: 0xffc24a }, extra(r, J) { for (const sx of [-1, 1]) part(J.head, G.cone, toon(0xf4f0ff), [sx * 0.09, 0.25, -0.02], [0.03, 0.2, 0.03], [-0.3, 0, -sx * 0.4]); part(J.haR, G.box, toon(0x1a1022, { em: 0xff3a6a, ei: 0.3 }), [0, -0.03, 0.45], [0.03, 0.06, 0.75]); addTail(r, J.chest, [0, 0.26, -0.1], 3, 0.2, (jn, i) => part(jn, G.box, toon(i % 2 ? 0x5a0a1a : 0x1a1022), [0, -0.1, 0], [0.3, 0.21, 0.02]), { base: 0.1, lift: 0.8 }); } }) },
   };
 
   // ---------- aura ----------
@@ -763,6 +887,8 @@ export function createGame(canvas, opts = {}) {
   let cam = { yaw: 0, pitch: 0.28, dist: 6, shake: 0, fov: 55, mode: 'follow', shot: null, pos: new THREE.Vector3(0, 3, -6), look: new THREE.Vector3() };
   let hitStop = 0, timeScale = 1, slowT = 0, impact = 0, god = false, lockTarget = null, domainT = 0, flashT = 0;
   let powers = [];
+  // part 2 passive powers (one per chapter 5-8): grimoire cooldowns, damage taken, aura gain, damage dealt
+  const PASSIVE = { cd: () => (powers.includes('focus') ? 0.7 : 1), taken: () => (powers.includes('armor') ? 0.8 : 1), aura: () => (powers.includes('overflow') ? 1.35 : 1), dmg: () => (powers.includes('kakusei') ? 1.25 : 1) };
   let scene_ = null; // running story scene
   let triggers = [];
   let qMul = quality === 'low' ? 0.5 : 1;
@@ -816,7 +942,7 @@ export function createGame(canvas, opts = {}) {
     const tex = L.tex.clone(); tex.needsUpdate = true; tex.repeat.set(w / 8, d / 8);
     const top = new THREE.Mesh(G.box, toon(0xffffff, { map: tex })); top.scale.set(w, 0.3, d); top.position.set((x0 + x1) / 2, y - 0.15, (z0 + z1) / 2); g.add(top);
     const side = new THREE.Mesh(G.box, toon(th.side)); side.scale.set(w - 0.1, depth, d - 0.1); side.position.set((x0 + x1) / 2, y - 0.3 - depth / 2, (z0 + z1) / 2); g.add(side);
-    const edge = new THREE.Mesh(G.box, toon(th.edge, L.id === 2 || L.id === 4 ? { em: th.edge, ei: 0.6 } : {})); edge.scale.set(w + 0.2, 0.12, d + 0.2); edge.position.set((x0 + x1) / 2, y - 0.27, (z0 + z1) / 2); g.add(edge);
+    const edge = new THREE.Mesh(G.box, toon(th.edge, L.id === 2 || L.id === 4 || th.glowEdge ? { em: th.edge, ei: 0.6 } : {})); edge.scale.set(w + 0.2, 0.12, d + 0.2); edge.position.set((x0 + x1) / 2, y - 0.27, (z0 + z1) / 2); g.add(edge);
     addOutline(top, OUT_PROP);
     L.plats.push({ type: 'rect', x0, x1, z0, z1, y });
   }
@@ -1033,6 +1159,10 @@ export function createGame(canvas, opts = {}) {
     2: { cols: [0x2a2842, 0x24223a, 0x30304a], rock: 0x3a3858, amp: 0, slope: 0 },
     3: { cols: [0x5f8a3a, 0x4f7a32, 0x7a7a3a], rock: 0x7a6a5a, amp: 13, slope: 0.05 },
     4: { cols: [0x6a6e98, 0x5a5e88, 0x7a7eaa], rock: 0x8a8cb8, amp: 16, slope: 0.07 },
+    5: { cols: [0xe8c88a, 0xdcb478, 0xf2d6a0], rock: 0xc8985e, amp: 14, slope: 0.05 },
+    6: { cols: [0xf2f6fc, 0xe0e8f4, 0xd2dcee], rock: 0xb0c0d8, amp: 18, slope: 0.09 },
+    7: { cols: [0x3e3660, 0x322c50, 0x4a4070], rock: 0x241e3a, amp: 12, slope: 0.13 },
+    8: { cols: [0x3a2e40, 0x30263a, 0x45384c], rock: 0x1e1622, amp: 10, slope: 0.045 },
   };
   function terrainNoise(x, z) { return Math.sin(x * 0.021 + 1.3) * Math.cos(z * 0.017 + 0.4) * 0.55 + Math.sin(x * 0.047 + z * 0.031 + 2.1) * 0.3 + Math.sin(z * 0.063 - x * 0.012) * 0.15; }
   function terrainH(L, x, z) {
@@ -1131,6 +1261,100 @@ export function createGame(canvas, opts = {}) {
     }
   }
 
+  // ---------- part 2 levels (chapters 5-8): same walkable route, new places. Everything stands on the terrain. ----------
+  function palm(B, x, z, y, mats) {
+    const [trunk, leaf] = mats, lean = rand(-0.25, 0.25), h = rand(5, 7.5);
+    for (let k = 0; k < 4; k++) B.add(trunk, CYL12, xf([x + Math.sin(lean) * k * h / 4, y + (k + 0.5) * h / 4, z], [0, 0, -lean], [0.22 - k * 0.03, h / 4 + 0.1, 0.22 - k * 0.03]));
+    const tx = x + Math.sin(lean) * h, ty = y + h;
+    for (let k = 0; k < 6; k++) { const a = k / 6 * TAU + x; B.add(leaf, G.box, xf([tx + Math.sin(a) * 1.2, ty - 0.35, z + Math.cos(a) * 1.2], [0.45, a, 0], [0.5, 0.08, 2.6])); }
+  }
+  function pine(B, x, z, y, mats, s = 1) {
+    const [trunk, green, snow] = mats;
+    B.add(trunk, CYL12, xf([x, y + 0.8 * s, z], null, [0.22 * s, 1.6 * s, 0.22 * s]));
+    for (let k = 0; k < 3; k++) { const r = (2.0 - k * 0.5) * s, cy = y + (1.8 + k * 1.3) * s; B.add(green, CONE8, xf([x, cy, z], null, [r, 2.2 * s, r])); if (snow) B.add(snow, CONE8, xf([x, cy + 0.55 * s, z], null, [r * 0.62, 1.1 * s, r * 0.62])); }
+  }
+  function hut(L, B, x, z, w, d, ry, mats) {
+    const [wall, roof, snow, win] = mats, y = terrainH(L, x, z) - 0.3, h = 3.2;
+    const m = (p, sc, r2) => { const c = Math.cos(ry), sn = Math.sin(ry); return xf([x + p[0] * c + p[2] * sn, y + p[1], z - p[0] * sn + p[2] * c], [r2 ? r2[0] : 0, ry + (r2 ? r2[1] : 0), 0], sc); };
+    B.add(wall, G.box, m([0, h / 2, 0], [w, h, d]));
+    B.add(roof, HIP, m([0, h + 1.2, 0], [w * 0.9, 2.4, d * 0.9]));
+    if (snow) B.add(snow, HIP, m([0, h + 1.75, 0], [w * 0.62, 1.4, d * 0.62]));
+    for (const sx of [-0.25, 0.25]) B.add(win, G.box, m([sx * w, h * 0.55, d / 2 + 0.02], [0.9, 0.9, 0.08]));
+    addSolid(L, x, z, Math.max(w, d) * 0.6, y, h);
+  }
+  function spire(B, x, z, y, w, h, mats) {
+    const [stone, roof, glow] = mats;
+    B.add(stone, G.box, xf([x, y + h / 2, z], null, [w, h, w]));
+    B.add(roof, CONE8, xf([x, y + h + w * 1.1, z], [0, Math.PI / 8, 0], [w * 0.78, w * 2.4, w * 0.78]));
+    for (let k = 1; k < h / 4; k++) for (const s of [-1, 1]) B.add(glow, G.box, xf([x + s * w * 0.2, y + k * 4, z - w / 2 - 0.02], null, [w * 0.14, 1.3, 0.1]));
+  }
+  function buildLevelP2(L, id) {
+    const B = lvBatch(), th = L.theme;
+    if (id === 5) {
+      // Desert Ruins: broken sandstone columns, obelisks, palms, and a great pyramid temple behind the arena
+      const sand = toon(0xe0bc80), sand2 = toon(0xc89a5a), dark = toon(0x8a6236), gold = toon(0xf2c14e, { em: 0x3a2800, ei: 1 }), trunk = toon(0x8a6a3a), leaf = toon(0x4a9a3a);
+      for (const z of [6, 20, 34, 84, 100, 114]) for (const sx of [-1, 1]) {
+        const y = z > 70 ? 1 : 0, x = sx * (z > 70 ? 12.2 : 10.4), h = (z * 7 + sx * 3) % 3 === 0 ? 4.2 : rand(1.4, 3.2);
+        B.add(sand, CYL12, xf([x, y + h / 2, z], null, [0.55, h, 0.55])); B.add(sand2, G.box, xf([x, y + 0.15, z], null, [1.4, 0.3, 1.4]));
+        if (h > 4) B.add(sand2, G.box, xf([x, y + h + 0.15, z], null, [1.4, 0.3, 1.4])); else B.add(sand, G.box, xf([x + sx * 1.2, y + 0.3, z + rand(-1, 1)], [0, rand(0, 3), Math.PI / 2], [0.5, 1.6, 0.5]));
+        addSolid(L, x, z, 0.8, y);
+      }
+      for (let i = 0; i < 10; i++) { const sx = i % 2 ? 1 : -1, x = sx * rand(19, 44), z = rand(-10, 200), y = terrainH(L, x, z) - 0.4, h = rand(7, 13); B.add(sand2, G.box, xf([x, y + h / 2, z], null, [1.4, h, 1.4])); B.add(gold, HIP, xf([x, y + h + 0.6, z], null, [1.9, 1.2, 1.9])); }
+      for (let i = 0; i < 16; i++) { const sx = i % 2 ? 1 : -1, x = sx * rand(17, 36), z = rand(-6, 190); palm(B, x, z, terrainH(L, x, z) - 0.2, [trunk, leaf]); }
+      for (let a = 0; a < 8; a++) { const ang = a / 8 * TAU + 0.2, x = Math.sin(ang) * 21.5, z = 152 + Math.cos(ang) * 21.5; if (Math.abs(x) < 15 && z < 152) continue; B.add(sand2, G.box, xf([x, 3.5, z], null, [1.2, 7, 1.2])); B.add(gold, HIP, xf([x, 7.5, z], null, [1.6, 1, 1.6])); }
+      const py = terrainH(L, 0, 228) - 3; B.add(sand, HIP, xf([0, py + 22, 228], null, [64, 44, 64])); B.add(gold, HIP, xf([0, py + 42, 228], null, [9, 6, 9]));
+      B.add(dark, G.box, xf([0, py + 7, 205], null, [10, 14, 3]));
+      for (const sx of [-1, 1]) { const x = sx * 78, y2 = terrainH(L, x, 170) - 3; B.add(sand2, HIP, xf([x, y2 + 13, 170], null, [36, 26, 36])); }
+      for (const z of [22, 60, 96, 128]) propGateArch(0, z, z > 64 ? 1 : 0, 0xd8a868);
+      for (const z of [12, 30, 88, 108]) { propLantern(-9.6, z, z > 70 ? 1 : 0, 0xffa040); propLantern(9.6, z, z > 70 ? 1 : 0, 0xffa040); }
+      B.flush(); terrainRocks(L, 26, 0xc8985e, 24);
+      mountainRing(0, 90, 360, 440, 30, 0xd8a868, null, 0xf2dcae);
+    } else if (id === 6) {
+      // Frozen Peak village: snowy huts with warm windows, snowy pines, lanterns, ice crystals around the arena, giant peaks
+      const trunk = toon(0x5a3a2a), green = toon(0x2f5a4a), snow = toon(0xf6faff), wall = toon(0x7a4a32), roof = toon(0x3a3a4a), win = toon(0xffd27a, { em: 0xffb040, ei: 1 }), ice = toon(0xbff4ff, { em: 0x4ad8ff, ei: 0.6 });
+      for (const [x, z, w, d, ry] of [[-19, 8, 7, 6, Math.PI / 2], [20, 22, 8, 6, -Math.PI / 2], [-20, 34, 6, 6, Math.PI / 2], [21, 84, 7, 6, -Math.PI / 2], [-21, 96, 8, 7, Math.PI / 2], [22, 110, 6, 6, -Math.PI / 2], [-22, 128, 7, 6, Math.PI / 2], [-30, 60, 9, 7, Math.PI / 2], [31, 52, 8, 6, -Math.PI / 2]]) hut(L, B, x, z, w, d, ry, [wall, roof, snow, win]);
+      for (let i = 0; i < 44; i++) { const sx = i % 2 ? 1 : -1, x = sx * rand(26, 70), z = rand(-20, 220); pine(B, x, z, terrainH(L, x, z) - 0.2, [trunk, green, snow], rand(0.9, 1.6)); }
+      for (let i = 0; i < 18; i++) { const sx = i % 2 ? 1 : -1, z = rand(-2, 132), x = sx * (z > 72 ? 13.4 : 11.6); B.add(snow, G.sphere, xf([x, (z > 72 ? 1 : 0) + 0.1, z], null, [rand(0.8, 1.5), rand(0.35, 0.6), rand(1, 2)])); }
+      for (let a = 0; a < 10; a++) { const ang = a / 10 * TAU, x = Math.sin(ang) * 22, z = 152 + Math.cos(ang) * 22; if (Math.abs(x) < 15 && z < 152) continue; crystalCluster(B, x, terrainH(L, x, z) - 0.2, z, 1.6, ice); }
+      for (const z of [20, 95]) propGateArch(0, z, z > 64 ? 1 : 0, 0x8a3a2a);
+      for (const z of [10, 28, 86, 104, 118]) { propLantern(-10.4, z, z > 70 ? 1 : 0, 0xffb060); propLantern(10.4, z, z > 70 ? 1 : 0, 0xffb060); }
+      B.flush(); terrainRocks(L, 20, 0x9aaac8, 26);
+      mountainRing(0, 90, 300, 400, 34, 0x8a9ac0, 0xffffff, 0xdce8f8);
+    } else if (id === 7) {
+      // Crystal Caverns: a vaulted rock ceiling (stalactites hang from it), glowing crystal clusters and the Heart of Light
+      const rock = new THREE.MeshToonMaterial({ color: 0x2a2244, gradientMap: GRAD, side: THREE.BackSide });
+      const roofM = new THREE.Mesh(new THREE.SphereGeometry(240, 40, 20, 0, TAU, 0, Math.PI / 2), rock); roofM.scale.set(1, 0.32, 1); roofM.position.set(0, -6, 90); levelGroup.add(roofM);
+      const roofY = (x, z) => { const d = Math.hypot(x, z - 90); return -6 + 0.32 * Math.sqrt(Math.max(0, 240 * 240 - d * d)); };
+      const stone = toon(0x3a3058), pink = toon(0xff9af0, { em: 0xc83aff, ei: 0.75 }), cyan = toon(0x9ff8ff, { em: 0x3ab8ff, ei: 0.75 });
+      for (let i = 0; i < 70; i++) { const x = rand(-110, 110), z = rand(-40, 230), l = rand(8, 26), ry = roofY(x, z); B.add(stone, CONE8, xf([x, ry - l / 2 + 2, z], [Math.PI, 0, 0], [rand(1.5, 4), l, rand(1.5, 4)])); }
+      for (let i = 0; i < 40; i++) { const sx = i % 2 ? 1 : -1, x = sx * rand(16, 60), z = rand(-10, 210), y = terrainH(L, x, z); crystalCluster(B, x, y - 0.3, z, rand(1.2, 3.2), i % 3 ? pink : cyan); if (i % 4 === 0) { const s2 = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: i % 3 ? 0xff7ae0 : 0x6ad8ff, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.55, depthWrite: false })); s2.position.set(x, y + 2.5, z); s2.scale.setScalar(9); levelGroup.add(s2); } }
+      for (let i = 0; i < 26; i++) { const sx = i % 2 ? 1 : -1, x = sx * rand(16, 50), z = rand(-10, 210), y = terrainH(L, x, z), h = rand(3, 9); B.add(stone, CONE8, xf([x, y + h / 2 - 0.4, z], null, [rand(1, 2.2), h, rand(1, 2.2)])); }
+      for (const z of [14, 32, 90, 106]) for (const sx of [-1, 1]) crystalCluster(B, sx * (z > 70 ? 12.6 : 10.8), z > 70 ? 1 : 0, z, 0.6, sx > 0 ? pink : cyan);
+      // the Heart of Light, a giant crystal on plaza B (the mid-chapter scene looks at it)
+      const hx = -8, hz = 90; B.add(stone, CYL12, xf([hx, 1.3, hz], null, [2.2, 0.6, 2.2]));
+      const heart = new THREE.Mesh(G.oct, toon(0xffffff, { em: 0xff7ae0, ei: 0.9 })); heart.scale.set(1.3, 3.4, 1.3); heart.position.set(hx, 4.6, hz); levelGroup.add(heart); addOutline(heart, OUT_PROP); heart.userData.slow = true; L.spin.push(heart);
+      const hg = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff7ae0, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.8, depthWrite: false })); hg.position.set(hx, 4.6, hz); hg.scale.setScalar(12); levelGroup.add(hg);
+      addSolid(L, hx, hz, 2.4, 1, 6);
+      for (let a = 0; a < 8; a++) { const ang = a / 8 * TAU + 0.2, x = Math.sin(ang) * 21.5, z = 152 + Math.cos(ang) * 21.5; if (Math.abs(x) < 15 && z < 152) continue; crystalCluster(B, x, 1, z, 2.2, a % 2 ? pink : cyan); }
+      B.flush(); terrainRocks(L, 30, 0x3a3058, 22);
+    } else if (id === 8) {
+      // the Hollow Capital: black spires with red windows, braziers, the Emperor's palace and an eclipse in the sky
+      const stone = toon(0x2a2232), roof = toon(0x140c18), glow = toon(0xff3355, { em: 0xff1a3a, ei: 1 }), gold = toon(0xffc24a, { em: 0x5a3000, ei: 1 });
+      for (let i = 0; i < 30; i++) { const sx = i % 2 ? 1 : -1, x = sx * rand(19, 64), z = rand(-20, 210), w = rand(4, 8), h = rand(10, 30); spire(B, x, z, terrainH(L, x, z) - 1, w, h, [stone, roof, glow]); addSolid(L, x, z, w * 0.75, terrainH(L, x, z) - 1, h); }
+      const py = terrainH(L, 0, 214) - 2; B.add(stone, G.box, xf([0, py + 9, 214], null, [44, 18, 14])); B.add(roof, HIP, xf([0, py + 22, 214], null, [44, 9, 20]));
+      for (const sx of [-1, 0, 1]) spire(B, sx * 15, 218, py + (sx ? 12 : 18), sx ? 6 : 8, sx ? 26 : 34, [stone, roof, glow]);
+      B.add(glow, G.box, xf([0, py + 6, 206.9], null, [8, 12, 0.3]));
+      for (let a = 0; a < 8; a++) { const ang = a / 8 * TAU + 0.2, x = Math.sin(ang) * 21.5, z = 152 + Math.cos(ang) * 21.5; if (Math.abs(x) < 15 && z < 152) continue; B.add(stone, G.box, xf([x, 4, z], [0, ang, 0], [1.4, 8, 1.4])); B.add(glow, G.oct, xf([x, 9, z], null, [0.6, 1.2, 0.6])); B.add(gold, G.box, xf([x, 8.1, z], [0, ang, 0], [1.7, 0.25, 1.7])); }
+      for (const z of [20, 60, 95, 126]) propGateArch(0, z, z > 64 ? 1 : 0, 0x3a2a40);
+      for (const z of [8, 26, 84, 102, 116]) { propLantern(-10.6, z, z > 70 ? 1 : 0, 0xff3355); propLantern(10.6, z, z > 70 ? 1 : 0, 0xff3355); }
+      B.flush(); terrainRocks(L, 24, 0x2a2232, 24);
+      mountainRing(0, 90, 340, 420, 30, 0x2a1a2a, null, 0x2e0c1e);
+      // the eclipse: a black sun with a burning corona, far away in the sky
+      const ec = new THREE.Group(); ec.position.set(60, 150, 520); ec.lookAt(0, 20, 90); levelGroup.add(ec);
+      const cor = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff4a3a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, fog: false })); cor.scale.setScalar(150); ec.add(cor);
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(30, 48), new THREE.MeshBasicMaterial({ color: 0x050008, fog: false })); disc.position.z = 1; ec.add(disc);
+    }
+  }
   // Standard chapter layout along +Z
   function buildLevel(id) {
     const th = THEMES[id];
@@ -1157,7 +1381,7 @@ export function createGame(canvas, opts = {}) {
     L.pads = id === 1 ? [{ x0: -31, x1: 31, z0: 189, z1: 214, y: 0 }, { x0: -45, x1: -29, z0: 38, z1: 82, y: 0 }, { x0: 29, x1: 45, z0: 38, z1: 82, y: 0 }, { x0: -19, x1: 19, z0: -32, z1: -16, y: 0 }]
       : id === 3 ? [{ x0: -10, x1: 10, z0: 172, z1: 186, y: 0 }] : id === 2 ? [] : [];
     addTerrain(L);
-    arenaRim(L, 0, 152, 20, 1, id === 2 ? 0x4a4870 : id === 4 ? 0x8a8cb8 : id === 3 ? 0x9a8a72 : 0xe6dccb);
+    arenaRim(L, 0, 152, 20, 1, th.rim ? th.rim : id === 2 ? 0x4a4870 : id === 4 ? 0x8a8cb8 : id === 3 ? 0x9a8a72 : 0xe6dccb);
     if (id === 1) terrainRocks(L, 14, 0xb8b0a0, 26); else if (id === 3) terrainRocks(L, 22, 0x8a7a6a, 24); else if (id === 4) terrainRocks(L, 34, 0x6a6c94, 22);
     // props by theme
     if (id === 1) {
@@ -1190,6 +1414,7 @@ export function createGame(canvas, opts = {}) {
       for (const s of [-1, 1]) { floorStrip(B, gm, s > 0 ? 9 : -12, s > 0 ? 12 : -9, -3.8, 39.6, 0); floorStrip(B, gm, s > 0 ? 10.5 : -14, s > 0 ? 14 : -10.5, 75, 119.6, 1); }
       for (const [z0, z1, y] of [[-3.8, 39.6, 0], [74, 119.6, 1]]) floorStrip(B, pm, -2.6, 2.6, z0, z1, y);
       B.flush(); mountainRing(0, 90, 340, 420, 30, 0x8a5a7a, null, 0xf0a070);
+    } else if (id >= 5) { buildLevelP2(L, id);
     } else if (id === 4) {
       // the Sky Gate: a colossal ring standing on the summit (its base is sunk into the rock), with stone buttresses
       const gy = terrainH(L, 0, 186) + 15;
@@ -1375,10 +1600,11 @@ export function createGame(canvas, opts = {}) {
     return best;
   }
   function faceTarget(p, t) { if (t) p.yaw = Math.atan2(t.pos.x - p.pos.x, t.pos.z - p.pos.z); }
-  function gainAura(v) { player.aura = clamp(player.aura + v, 0, 100); }
+  function gainAura(v) { player.aura = clamp(player.aura + v * PASSIVE.aura(), 0, 100); }
 
   function damageEnemy(e, dmg, o = {}) {
     if (e.dead) return;
+    if (typeof dmg === 'number') dmg = Math.round(dmg * PASSIVE.dmg());
     const hp = e.pos.clone(); hp.y += 1.3 * (e.rig.cfg.scale || 1);
     const src = o.from || (player ? player.pos : e.pos);
     const front = Math.abs(angDiff(e.yaw, Math.atan2(src.x - e.pos.x, src.z - e.pos.z))) < 1.35;
@@ -1427,7 +1653,7 @@ export function createGame(canvas, opts = {}) {
     const p = player; if (!p || p.dead || state.screen !== 'play') return false;
     if (p.inv > 0) { if (p.state === 'dodge' && !p.perfect) { p.perfect = true; slowT = 0.5; gainAura(12); sfx('perfect'); flash(p.pos.clone().add(new THREE.Vector3(0, 1.2, 0)), 2.5, 0x9ff8ff); } return false; }
     if (god) return false;
-    dmg = Math.max(1, Math.round(dmg * D().dmg));
+    dmg = Math.max(1, Math.round(dmg * D().dmg * PASSIVE.taken()));
     p.hp -= dmg; state.hitsTaken++; p.inv = 0.7; state.combo = 0;
     if (from) { const d = new THREE.Vector3(p.pos.x - from.x, 0, p.pos.z - from.z).normalize(); p.kb.copy(d).multiplyScalar(7); }
     cam.shake = 0.4; hitStop = 0.06; burst(p.pos.x, p.pos.y + 1.2, p.pos.z, 12, 0xff4a5a, 6, 0.4, 0.25);
@@ -1581,7 +1807,7 @@ export function createGame(canvas, opts = {}) {
   }
   function castSpell(id) {
     const g = GRIM(id), S = g.spell, fn = SPELLS[S.kind]; if (!fn || !player) return;
-    const p = player; p.state = 'cast'; p.st = 0; play(p.rig, 'cast', 0.5); gcd[id] = S.cd; castLock = 0.7;
+    const p = player; p.state = 'cast'; p.st = 0; play(p.rig, 'cast', 0.5); gcd[id] = S.cd * PASSIVE.cd(); castLock = 0.7;
     if (!p.book.visible) p.book.position.copy(p.pos).add(new THREE.Vector3(0, 1.05, 0)); p.book.visible = true; p.bookT = 2.5; tintBook(g.color);
     const t = lockTarget || nearestEnemy(p.pos, 16, p.yaw, 1.4); if (t) faceTarget(p, t);
     fn(S, hexOf(g.color), t);
@@ -1641,7 +1867,123 @@ export function createGame(canvas, opts = {}) {
       scene.add(core); core.position.copy(p.pos).setY(p.pos.y + 1.4);
       spells.push({ kind: 'void', mesh: core, ring, ring2, from: core.position.clone(), to, t: 0, S, col, tickT: 0.2 });
     },
+    // Dune (Sabulo): a sandstorm funnel that rolls forward, sweeps enemies along and bursts at the end
+    dune(S, col) {
+      const p = player; sfx('galeWind'); cam.shake = Math.max(cam.shake, 0.2);
+      const g = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+      for (let k = 0; k < 3; k++) { const c = new THREE.Mesh(CONE8, mat); c.rotation.x = Math.PI; c.scale.set(0.9 + k * 0.75, 3.4 - k * 0.4, 0.9 + k * 0.75); c.position.y = 1.7 + k * 0.45; g.add(c); }
+      const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.7 })); gl.scale.setScalar(6); gl.position.y = 1.6; g.add(gl);
+      g.position.copy(p.pos).add(new THREE.Vector3(Math.sin(p.yaw) * 1.2, 0, Math.cos(p.yaw) * 1.2)); scene.add(g);
+      spells.push({ kind: 'dune', mesh: g, dir: new THREE.Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw)), t: 0, S, col, tickT: 0, caught: new Set() });
+    },
+    // Frost (Fubuki): three lines of ice pillars race out and freeze what they touch
+    frost(S, col) {
+      const p = player; sfx('thornRoot'); cam.shake = Math.max(cam.shake, 0.2); shockRing(p.pos, 2.2, col, 0.35);
+      const lines = []; for (let l = 0; l < S.lines; l++) { const a = p.yaw + (l - (S.lines - 1) / 2) * 0.34; lines.push([Math.sin(a), Math.cos(a)]); }
+      const g = new THREE.Group(); scene.add(g);
+      spells.push({ kind: 'frost', mesh: g, origin: p.pos.clone(), lines, step: 0, stepT: 0, t: 0, S, col, hit: new Set() });
+    },
+    // Prism (Colossus): a rainbow beam that bounces from enemy to enemy
+    prism(S, col, t) {
+      const p = player; sfx('beam'); const hues = [0xff4a6a, 0xffa040, 0xffe24a, 0x5aff8a, 0x4ad8ff, 0x8a6aff, 0xff7ae0];
+      let from = p.pos.clone().setY(p.pos.y + 1.3), cur = t && !t.dead && t.pos.distanceTo(p.pos) < S.range ? t : nearestEnemy(p.pos, S.range, p.yaw, Math.PI);
+      const seen = new Set(), segs = [];
+      for (let k = 0; k < S.bounces && cur; k++) {
+        seen.add(cur); const to = cur.pos.clone(); to.y += 1.1 * (cur.rig.cfg.scale || 1); segs.push([from.clone(), to.clone(), hues[k % hues.length], cur]); from = to;
+        let nx = null, bd = S.hop; for (const e of enemies) { if (e.dead || e.decoyHidden || seen.has(e) || e.state === 'spawn') continue; const d = e.pos.distanceTo(cur.pos); if (d < bd) { bd = d; nx = e; } } cur = nx;
+      }
+      if (!segs.length) segs.push([from.clone(), from.clone().add(new THREE.Vector3(Math.sin(p.yaw) * 12, 0, Math.cos(p.yaw) * 12)), hues[0], null]);
+      const g = new THREE.Group(); scene.add(g); const up = new THREE.Vector3(0, 1, 0);
+      segs.forEach(([a, b, c, e], k) => {
+        const len = a.distanceTo(b) || 0.1, q = new THREE.Quaternion().setFromUnitVectors(up, b.clone().sub(a).normalize());
+        for (const [w, cc] of [[0.17, c], [0.06, 0xffffff]]) { const m = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({ color: cc, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); m.scale.set(w, len, w); m.position.copy(a).lerp(b, 0.5); m.quaternion.copy(q); g.add(m); }
+        flash(b, 2.2, c); burst(b.x, b.y, b.z, 10, c, 5, 0.4, 0.25, 0);
+        if (e) damageEnemy(e, S.dmg + k * 2, { spell: true, kb: 1.5, color: c, from: a, heavy: k === segs.length - 1 && k > 0 });
+      });
+      spells.push({ kind: 'prism', mesh: g, t: 0, S, col });
+    },
+    // Eclipse (Vael): a black sun over Ren rains crescent blades on every enemy nearby
+    eclipse(S, col) {
+      const p = player; sfx('voidCharge');
+      const sun = new THREE.Mesh(G.sphere, new THREE.MeshBasicMaterial({ color: 0x07000a })); sun.scale.setScalar(0.05);
+      const cor = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); cor.scale.setScalar(4.4); sun.add(cor);
+      const ring = new THREE.Mesh(G.torus, new THREE.MeshBasicMaterial({ color: 0xffc24a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })); ring.scale.set(1.25, 1.25, 0.18); sun.add(ring);
+      sun.position.copy(p.pos).setY(p.pos.y + 3.5); scene.add(sun); shockRing(p.pos, 3, col, 0.45);
+      spells.push({ kind: 'eclipse', mesh: sun, ring, t: 0, S, col, fireT: 0.3, k: 0 });
+    },
   };
+  // per-frame behaviour of the part 2 spells; return true when the spell is finished (it is then removed)
+  const SPELL_TICK = {
+    dune(s, dt) {
+      const S = s.S, m = s.mesh, sp = S.speed * (s.t < 0.2 ? s.t / 0.2 : 1);
+      const nx = m.position.x + s.dir.x * sp * dt, nz = m.position.z + s.dir.z * sp * dt;
+      if (!blocked(nx, nz, m.position.y + 0.5)) { m.position.x = nx; m.position.z = nz; } else s.t = Math.max(s.t, S.life - 0.1);
+      const gy = groundAt(m.position.x, m.position.z, m.position.y + 1); if (gy > -1e9) m.position.y = gy;
+      m.rotation.y += dt * 8; m.children.forEach((c, k) => { if (c.isMesh) { c.rotation.y += dt * (5 + k * 3); c.material.opacity = 0.5 * Math.min(1, s.t * 4, (S.life - s.t) * 4); } });
+      for (const e of enemies) {
+        if (e.dead || e.decoyHidden || e.state === 'spawn') continue; const dx = m.position.x - e.pos.x, dz = m.position.z - e.pos.z, d = Math.hypot(dx, dz); if (d > S.radius + e.radius) continue;
+        const f = e.boss ? 0.12 : 1, tx = e.pos.x + (dx * 3 + s.dir.x * sp) * dt * f, tz = e.pos.z + (dz * 3 + s.dir.z * sp) * dt * f;
+        if (!blocked(tx, e.pos.z, e.pos.y)) e.pos.x = tx; if (!blocked(e.pos.x, tz, e.pos.y)) e.pos.z = tz;
+        if (!e.boss && !['launched', 'rooted', 'dying'].includes(e.state)) { if (e.state !== 'stagger') play(e.rig, 'hurt', 0.4); e.state = 'stagger'; e.st = 0; relTok(e); cancelTele(e); }
+        s.caught.add(e);
+      }
+      s.tickT -= dt; if (s.tickT <= 0) { s.tickT = S.tick; for (const e of s.caught) if (!e.dead && Math.hypot(e.pos.x - m.position.x, e.pos.z - m.position.z) < S.radius + e.radius + 0.6) damageEnemy(e, S.dmg, { tick: true, spell: true, color: s.col, from: m.position }); }
+      for (let k = 0; k < 3 * qMul + 1; k++) { const a = rand(0, TAU), r = rand(0.5, S.radius); spawnP(PN, m.position.x + Math.cos(a) * r, m.position.y + rand(0.2, 3.5), m.position.z + Math.sin(a) * r, -Math.sin(a) * 7, rand(1, 3), Math.cos(a) * 7, 0.45, 0.35, k % 2 ? s.col : 0xd8b070, 0, 1); }
+      if (s.t < S.life) return false;
+      const c = m.position.clone(); shockRing(c, S.radius + 1.5, s.col, 0.5); burst(c.x, c.y + 1, c.z, 40, s.col, 9, 0.6, 0.45, 2); sfx('slam'); cam.shake = Math.max(cam.shake, 0.4);
+      for (const e of enemies) if (!e.dead && !e.decoyHidden && Math.hypot(e.pos.x - c.x, e.pos.z - c.z) < S.radius + 1.5 + e.radius) damageEnemy(e, S.finish, { heavy: true, spell: true, kb: 6, launch: 6, color: s.col, from: c });
+      return true;
+    },
+    frost(s, dt) {
+      const S = s.S; s.stepT -= dt;
+      while (s.stepT <= 0 && s.step < S.steps) {
+        s.stepT += 0.055; s.step++; const dist = 1.3 + s.step * S.gap;
+        for (const [dx, dz] of s.lines) {
+          const x = s.origin.x + dx * dist, z = s.origin.z + dz * dist, gy = groundAt(x, z, s.origin.y + 1.5); if (gy < -1e9 || blocked(x, z, gy + 0.2)) continue;
+          const pt = new THREE.Vector3(x, gy, z); crystalBurst(pt, 0xbff4ff, 3, 0.75 + s.step * 0.04);
+          for (const e of enemies) {
+            if (e.dead || e.decoyHidden || s.hit.has(e) || e.state === 'spawn' || Math.hypot(e.pos.x - x, e.pos.z - z) > 1.5 + e.radius) continue;
+            s.hit.add(e); e.rootT = e.boss ? S.bossFreeze : S.freeze; showIce(e);
+            damageEnemy(e, S.dmg, { spell: true, kb: 0, color: s.col, from: s.origin });
+            if (!e.boss && !e.dead && e.state !== 'launched') { e.state = 'rooted'; e.st = 0; relTok(e); cancelTele(e); play(e.rig, 'hurt', 0.4); }
+          }
+        }
+        if (s.step === 1) sfx('roots');
+      }
+      return s.step >= S.steps;
+    },
+    prism(s) {
+      const k = 1 - s.t / 0.45; s.mesh.children.forEach((m) => { m.material.opacity = Math.max(0, k); });
+      if (k > 0) return false; s.mesh.children.forEach((m) => m.material.dispose()); return true;
+    },
+    eclipse(s, dt) {
+      const S = s.S, m = s.mesh, p = player; if (!p) return true;
+      m.position.lerp(new THREE.Vector3(p.pos.x - Math.sin(p.yaw) * 0.8, p.pos.y + 3.5, p.pos.z - Math.cos(p.yaw) * 0.8), 1 - Math.exp(-6 * dt));
+      const grow = Math.min(1, s.t / 0.3), fade = Math.min(1, (S.life - s.t) / 0.3); m.scale.setScalar(Math.max(0.01, 0.6 * grow * fade)); s.ring.rotation.z += dt * 3; s.ring.rotation.x = 0.4 + Math.sin(s.t * 2) * 0.2;
+      if (Math.random() < 0.6 * qMul) { const a = rand(0, TAU); spawnP(PA, m.position.x + Math.cos(a) * 1.1, m.position.y + rand(-0.4, 0.4), m.position.z + Math.sin(a) * 1.1, Math.cos(a) * 1.5, rand(-0.5, 0.5), Math.sin(a) * 1.5, 0.4, 0.35, a > 3 ? s.col : 0xffc24a, 0, 0); }
+      s.fireT -= dt;
+      if (s.fireT <= 0 && s.t < S.life - 0.2) {
+        s.fireT = S.rate; const list = enemies.filter((e) => !e.dead && !e.decoyHidden && e.state !== 'spawn' && e.pos.distanceTo(p.pos) < S.range);
+        if (list.length) {
+          const tg = list[s.k % list.length], col = s.k % 2 ? 0xffc24a : s.col; s.k++;
+          const b = new THREE.Mesh(G.cone, new THREE.MeshBasicMaterial({ color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); b.scale.set(0.14, 0.95, 0.14); scene.add(b);
+          const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); gl.scale.setScalar(1.3); b.add(gl);
+          const a = rand(0, TAU); projectiles.push({ mesh: b, pos: m.position.clone(), vel: new THREE.Vector3(Math.cos(a) * 6, 4, Math.sin(a) * 6), owner: 'player', dmg: S.dmg, life: 2.2, target: tg, color: col, trail: col, radius: 0.9 });
+          if (s.k % 3 === 1) sfx('spellFire');
+        }
+      }
+      return s.t >= S.life;
+    },
+  };
+  // frozen enemies: a block of ice around the legs (shares the vine holder so it hides when the hold ends)
+  function showIce(e) {
+    showVine(e, 0x8fe8ff);
+    if (!e.vine.userData.iced) {
+      e.vine.userData.iced = true; const m = new THREE.MeshToonMaterial({ color: 0xbff4ff, gradientMap: GRAD, emissive: 0x2a8aff, emissiveIntensity: 0.5, transparent: true, opacity: 0.72 });
+      for (let i = 0; i < 4; i++) { const c = new THREE.Mesh(G.oct, m); const a = i / 4 * TAU; c.position.set(Math.sin(a) * 0.32, 0.45, Math.cos(a) * 0.32); c.scale.set(0.32, 0.75, 0.32); c.rotation.set(Math.cos(a) * 0.3, a, -Math.sin(a) * 0.3); c.userData.ice = true; e.vine.add(c); }
+    }
+    e.vine.children.forEach((c) => (c.visible = !!c.userData.ice));
+  }
   // shadow clones: Ren's rig recoloured as a living shadow, reused between casts
   const shadowRigs = []; let shadowMat = null, shadowFaceMat = null;
   function makeShadowRig() {
@@ -1693,12 +2035,12 @@ export function createGame(canvas, opts = {}) {
       for (let i = 0; i < 5; i++) { const c = new THREE.Mesh(G.cone, m); const a = i / 5 * TAU; c.position.set(Math.sin(a) * 0.45, 0.35, Math.cos(a) * 0.45); c.scale.set(0.06, 0.7, 0.06); c.rotation.set(Math.cos(a) * 0.4, 0, -Math.sin(a) * 0.4); g.add(c); }
       e.rig.root.add(g); e.vine = g;
     }
-    e.vine.visible = true;
+    e.vine.visible = true; e.vine.children.forEach((c) => (c.visible = !c.userData.ice));
   }
   function updateSpells(dt) {
     for (let i = spells.length - 1; i >= 0; i--) {
       const s = spells[i]; s.t += dt;
-      if (s.kind !== 'void') continue;
+      if (s.kind !== 'void') { const f = SPELL_TICK[s.kind]; if (!f || f(s, dt)) { scene.remove(s.mesh); spells.splice(i, 1); } continue; }
       const S = s.S, travel = 0.35;
       s.ring.rotation.z += dt * 6; s.ring2.rotation.y += dt * 5;
       if (s.t < travel) { s.mesh.position.lerpVectors(s.from, s.to, sm(s.t / travel)); s.mesh.scale.setScalar(0.15 + 0.5 * s.t / travel); }
@@ -1807,6 +2149,10 @@ export function createGame(canvas, opts = {}) {
     hollow: { block: 0, evade: 0.32, ranged: true, chain: 1, shot: 0xc040ff },
     thornling: { block: 0.15, evade: 0.15, ranged: true, chain: 0, shot: 0xffb020 },
     nullknight: { block: 0.38, evade: 0.05, ranged: true, chain: 1, shot: 0x7cf8ff },
+    scarab: { block: 0, evade: 0.3, ranged: true, chain: 1, shot: 0xe8a83a },
+    frostbrute: { block: 0.42, evade: 0, ranged: false, chain: 0, shot: 0x8fe8ff },
+    shardling: { block: 0.3, evade: 0.12, ranged: true, chain: 1, shot: 0xff7ae0 },
+    hollowlord: { block: 0.32, evade: 0.25, ranged: true, chain: 1, shot: 0xff3a6a },
   };
   function spawnEnemy(type, x, z, y, role) {
     const def = ENEMY_DEFS[type]; const rig = def.mk(); rig.fight = true; const hp = Math.round(def.hp * D().eHp);
@@ -1943,11 +2289,16 @@ export function createGame(canvas, opts = {}) {
     twin: { mk: makeTwin, hp: 380, speed: 5, poise: 70, attacks: ['galeDash', 'orbs', 'combo'], p2: ['galeDash', 'orbs', 'combo', 'clones', 'shadowStep'], p3: ['shadowStep', 'orbRing', 'clones', 'combo', 'galeDash'], phases: [0.6, 0.3], rage: { 2: 'clones', 3: 'orbRing' }, iframes: ['galeDash', 'shadowStep'], closer: 'shadowStep', emo: 'neutral', armorMul: 1, drop: 'shadow' },
     warden: { mk: makeWarden, hp: 520, speed: 2.4, poise: 90, attacks: ['slam', 'roots', 'sweep'], p2: ['slam', 'roots', 'sweep', 'quake'], p3: ['quake', 'thornWall', 'roots', 'sweep', 'slam'], phases: [0.6, 0.3], rage: { 2: 'quake', 3: 'thornWall' }, iframes: [], closer: 'roots', emo: 'angry', drop: 'thorn' },
     null: { mk: makeNull, hp: 720, speed: 3.5, poise: 110, attacks: ['orbs', 'beam', 'blink'], p2: ['orbs', 'beam', 'blink', 'ringBurst', 'storm', 'orbRing'], p3: ['orbRing', 'beam', 'blink2', 'ringBurst', 'storm', 'crossBeams'], phases: [0.66, 0.33], rage: { 2: 'ringBurst', 3: 'crossBeams' }, iframes: ['blink', 'blink2'], closer: 'blink', emo: 'neutral', drop: 'void' },
+    // part 2 bosses: want = preferred distance, melee = combo anim, *Col = colours for shared moves, decoyMk = clone rig, tint3 = phase-3 screen tint
+    dune: { mk: makeSabulo, hp: 820, speed: 3.3, poise: 110, attacks: ['sandWave', 'quicksand', 'combo', 'roots'], p2: ['sandWave', 'quicksand', 'combo', 'burrow', 'roots', 'sandstorm'], p3: ['burrow', 'duneQuake', 'sandstorm', 'quicksand', 'sandWave', 'combo'], phases: [0.6, 0.3], rage: { 2: 'sandstorm', 3: 'duneQuake' }, iframes: ['burrow'], closer: 'burrow', emo: 'angry', drop: 'dune', want: 5, radius: 0.8, melee: 'slash', spikeCol: 0xc8985e },
+    frost: { mk: makeFubuki, hp: 900, speed: 4.8, poise: 100, attacks: ['iceLance', 'shardFan', 'combo'], p2: ['iceLance3', 'shardFan', 'combo', 'blizzard', 'multiDash', 'frostNova'], p3: ['avalanche', 'frostNova', 'multiDash', 'iceLance3', 'combo', 'blizzard'], phases: [0.6, 0.3], rage: { 2: 'blizzard', 3: 'avalanche' }, iframes: ['multiDash'], closer: 'multiDash', emo: 'neutral', drop: 'frost', want: 5, melee: 'slash', tint3: 0x6ad8ff },
+    prism: { mk: makeColossus, hp: 1080, speed: 2.6, poise: 140, attacks: ['prismBeam', 'crystalRise', 'slam'], p2: ['prismBeam', 'crystalRise', 'slam', 'crossBeams', 'quake', 'shardFan'], p3: ['prismWave', 'crossBeams', 'crystalRise', 'prismBeam', 'quake', 'slam'], phases: [0.6, 0.3], rage: { 2: 'crossBeams', 3: 'prismWave' }, iframes: [], closer: 'crystalRise', emo: 'angry', drop: 'prism', want: 4, radius: 1.3, big: true, melee: 'slam', beamCol: 0xff9af0 },
+    vael: { mk: makeVael, hp: 1450, speed: 4.6, poise: 150, attacks: ['combo', 'orbs', 'shadowStep', 'eclipseSlash'], p2: ['combo', 'orbRing', 'shadowStep', 'crossBeams', 'eclipseSlash', 'clones'], p3: ['blackSun', 'blink2', 'crossBeams', 'eclipseRain', 'combo', 'ringBurst', 'eclipseSlash'], phases: [0.66, 0.33], rage: { 2: 'clones', 3: 'blackSun' }, iframes: ['shadowStep', 'blink2'], closer: 'shadowStep', emo: 'neutral', drop: 'eclipse', want: 5, melee: 'slash', orbCol: 0xff3a6a, stepCol: 0xff3a6a, beamCol: 0xff3a6a, decoyMk: makeVael, tint3: 0xff2a4a, music: 'final' },
   };
   function spawnBoss(id) {
-    const B = BOSSES[id]; const rig = B.mk(); rig.fight = id !== 'null';
+    const B = BOSSES[id]; const rig = B.mk(); rig.fight = id !== 'null' && !B.noFight;
     const def = Object.assign({ id }, B); const hp = Math.round(B.hp * D().bHp);
-    const e = makeFighter(rig, { type: id, def, hp, maxHp: hp, kind: 'enemy', boss: true, state: 'idle', st: 0, atkCd: 1.5, phase: 1, radius: id === 'warden' ? 1.3 : 0.55 });
+    const e = makeFighter(rig, { type: id, def, hp, maxHp: hp, kind: 'enemy', boss: true, state: 'idle', st: 0, atkCd: 1.5, phase: 1, radius: B.radius || (id === 'warden' ? 1.3 : 0.55) });
     const a = level.arena; e.pos.set(a.x, a.y, a.z + 6); e.yaw = Math.PI; e.lastPos.copy(e.pos); syncFighter(e, 0);
     setEmotion(rig, B.emo);
     def.onDefeat = (b) => bossDefeated(b);
@@ -1963,7 +2314,7 @@ export function createGame(canvas, opts = {}) {
     const fr = e.hp / e.maxHp;
     if (B.phases[e.phase - 1] !== undefined && fr <= B.phases[e.phase - 1]) {
       e.phase++; state.boss.phase = e.phase; emit('bossPhase', { phase: e.phase }); sfx('roar'); impact = 2; cam.shake = 0.6; shockRing(e.pos, 8, 0xff3a5a, 0.6); burst(e.pos.x, e.pos.y + 1.5, e.pos.z, 50, 0xff3a5a, 9, 0.8, 0.4, 0); setEmotion(rig, 'angry');
-      if (B.id === 'null' && e.phase === 3) { OV.tintAmt.value = 0.25; OV.tint.value.set(0xff2a6a); }
+      if ((B.id === 'null' || B.tint3) && e.phase === 3) { OV.tintAmt.value = 0.25; OV.tint.value.set(B.tint3 || 0xff2a6a); }
       endBossAttackFx(e); e.wantGuard = false; showGuard(e, false); e.state = 'rage'; e.st = 0; e.ragePushed = false; play(rig, 'power', 1.2); if (rig.aura) rig.aura.visible = true;
     }
     if (!bossActive || p.dead) { rig.anim = 'idle'; return; }
@@ -1972,7 +2323,7 @@ export function createGame(canvas, opts = {}) {
       case 'idle': case 'chase': {
         if (e.wantGuard) { e.wantGuard = false; e.state = 'guard'; e.st = 0; e.yaw = ty; play(rig, 'sign', 0.8); showGuard(e, true); flash(e.pos.clone().setY(e.pos.y + 1.4), 2.4, 0x7ad8ff); sfx('guardUp'); break; }
         e.yaw += angDiff(e.yaw, ty) * (1 - Math.exp(-5 * dt)); e.atkCd -= dt * rate;
-        const want = B.id === 'warden' ? 3.5 : B.id === 'null' ? 8 : 4, rooted = e.rootT > 0;
+        const want = B.want || (B.id === 'warden' ? 3.5 : B.id === 'null' ? 8 : 4), rooted = e.rootT > 0;
         if (!rooted && d > want + 1) { const sp = B.speed * [1, 1.15, 1.3][e.phase - 1]; e.vel.x = dx / d * sp; e.vel.z = dz / d * sp; rig.anim = 'run'; }
         else if (!rooted && d < want - 2) { e.vel.x = -dx / d * 2; e.vel.z = -dz / d * 2; rig.anim = 'run'; }
         else rig.anim = 'idle';
@@ -2001,13 +2352,14 @@ export function createGame(canvas, opts = {}) {
   const CHAINED = ['combo', 'multiDash', 'quake', 'crossBeams', 'shadowStep', 'blink2'];
   function startBossAttack(e, a) {
     e.state = 'attack'; e.st = 0; e.atk = a; e.fired = 0; const rig = e.rig; e.yaw = aimYaw(e); sfx('telegraph');
-    const W0 = { windSlash: 0.85, windSlash3: 0.9, galeDash: 0.8, melee: 0.6, combo: 0.7, cyclone: 1.1, orbs: 0.7, clones: 0.8, slam: 1.1, roots: 1.0, sweep: 1.2, beam: 1.1, blink: 0.7, ringBurst: 1.0, storm: 1.0, counter: 0.5, tornado: 1.1, orbRing: 0.85, thornWall: 1.0, multiDash: 0.75, quake: 0.9, crossBeams: 1.1, shadowStep: 0.45, blink2: 0.45 }[a] || 0.8;
+    const W0 = { windSlash: 0.85, windSlash3: 0.9, galeDash: 0.8, melee: 0.6, combo: 0.7, cyclone: 1.1, orbs: 0.7, clones: 0.8, slam: 1.1, roots: 1.0, sweep: 1.2, beam: 1.1, blink: 0.7, ringBurst: 1.0, storm: 1.0, counter: 0.5, tornado: 1.1, orbRing: 0.85, thornWall: 1.0, multiDash: 0.75, quake: 0.9, crossBeams: 1.1, shadowStep: 0.45, blink2: 0.45 }[a] || (ATK2[a] && ATK2[a].w) || 0.8;
     // later phases and Hard wind up faster, but a telegraph never gets shorter than 0.45 s
     const W = Math.max(Math.min(W0, 0.45), W0 / ([1, 1.1, 1.2][e.phase - 1] / D().wind));
     e.wind = W; const fwd = (r) => fwdOf(e, r);
     e.pos.y = Math.max(e.pos.y, groundAt(e.pos.x, e.pos.z, e.pos.y + 1) || e.pos.y);
     const gy = level.arena.y; const gp = (v) => v.setY(gy); const sc = rig.cfg.scale || 1;
     if (CHAINED.includes(a)) { chainStart(e, a); return; }
+    if (ATK2[a]) { ATK2[a].setup(e, W, gp); return; }
     switch (a) {
       case 'windSlash': play(rig, 'slash', W + 0.5); e.tele = telegraph('line', gp(e.pos.clone()), 2.4, 22, e.yaw, W); break;
       case 'windSlash3': play(rig, 'slash', W + 0.5); e.tele = [-0.45, 0, 0.45].map((o) => telegraph('line', gp(e.pos.clone()), 2.2, 20, e.yaw + o, W)); break;
@@ -2029,7 +2381,7 @@ export function createGame(canvas, opts = {}) {
       case 'storm': play(rig, 'raise', W + 0.8); { e.rootPts = []; for (let i = 0; i < 7; i++) { const a2 = rand(0, TAU), r = rand(0, level.arena.r - 2); const pt = i < 2 ? player.pos.clone() : new THREE.Vector3(level.arena.x + Math.cos(a2) * r, gy, level.arena.z + Math.sin(a2) * r); gp(pt); e.rootPts.push(pt); } e.tele = e.rootPts.map((pt) => telegraph('circle', pt, 2, 0, 0, W)); } break;
     }
   }
-  function B_melee(e) { return e.def.id === 'warden' ? 'slam' : e.def.id === 'kaze' ? 'slash' : 'claw'; }
+  function B_melee(e) { return e.def.melee || (e.def.id === 'warden' ? 'slam' : e.def.id === 'kaze' ? 'slash' : 'claw'); }
   // multi-step attacks: each step has its own telegraph (setup), a hit (fire) and an active window (act)
   const CHAINS = {
     combo: {
@@ -2060,7 +2412,7 @@ export function createGame(canvas, opts = {}) {
       fire(e) {
         const p = player, gy = level.arena.y; e.beams = []; sfx('beam'); cam.shake = 0.45; let hit = false;
         for (const y of e.cYaws) {
-          const holder = new THREE.Group(), m = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({ color: 0xfff0a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); m.scale.set(0.8, 26, 0.8); m.rotation.x = Math.PI / 2; m.position.z = 13; holder.add(m); holder.position.set(e.pos.x, gy + 1.1, e.pos.z); holder.rotation.y = y; scene.add(holder); e.beams.push(holder);
+          const holder = new THREE.Group(), m = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({ color: e.def.beamCol || 0xfff0a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); m.scale.set(0.8, 26, 0.8); m.rotation.x = Math.PI / 2; m.position.z = 13; holder.add(m); holder.position.set(e.pos.x, gy + 1.1, e.pos.z); holder.rotation.y = y; scene.add(holder); e.beams.push(holder);
           const lx = p.pos.x - e.pos.x, lz = p.pos.z - e.pos.z, along = lx * Math.sin(y) + lz * Math.cos(y), perp = Math.abs(lx * Math.cos(y) - lz * Math.sin(y));
           if (!hit && along > 0 && along < 26 && perp < 1.5 && p.pos.y - gy < 2) hit = hurtPlayer(16, e.pos) || true;
         }
@@ -2071,15 +2423,118 @@ export function createGame(canvas, opts = {}) {
     // vanish, reappear behind Ren, strike (twice for blink2 / Hard)
     shadowStep: {
       n: (e) => 2 * (1 + chainX()), dur: 0.15, wind: (e, i) => (i % 2 ? 0.6 : e.wind), iframe: (e, i) => i % 2 === 0,
-      setup(e, i, W) { const col = e.def.id === 'twin' ? 0xff2a4a : 0xffd24a; if (i % 2 === 0) { play(e.rig, 'raise', W + 0.3); burst(e.pos.x, e.pos.y + 1, e.pos.z, 20, col, 4, 0.4, 0.4, 0); } else { e.yaw = aimYaw(e); play(e.rig, 'slash', W + 0.4); e.rig.animT = 0.1; e.tele = telegraph('circle', fwdOf(e, 1.5).setY(level.arena.y), 2.6, 0, 0, W); } },
+      setup(e, i, W) { const col = e.def.stepCol || (e.def.id === 'twin' ? 0xff2a4a : 0xffd24a); if (i % 2 === 0) { play(e.rig, 'raise', W + 0.3); burst(e.pos.x, e.pos.y + 1, e.pos.z, 20, col, 4, 0.4, 0.4, 0); } else { e.yaw = aimYaw(e); play(e.rig, 'slash', W + 0.4); e.rig.animT = 0.1; e.tele = telegraph('circle', fwdOf(e, 1.5).setY(level.arena.y), 2.6, 0, 0, W); } },
       fire(e, i) {
-        const col = e.def.id === 'twin' ? 0xff2a4a : 0xffd24a;
+        const col = e.def.stepCol || (e.def.id === 'twin' ? 0xff2a4a : 0xffd24a);
         if (i % 2 === 0) { burst(e.pos.x, e.pos.y + 1, e.pos.z, 25, col, 5, 0.5, 0.4, 0); const an = player.yaw + Math.PI + rand(-0.6, 0.6); let x = player.pos.x + Math.sin(an) * 2.6, z = player.pos.z + Math.cos(an) * 2.6; if (blocked(x, z, e.pos.y)) { x = player.pos.x - Math.sin(an) * 2.6; z = player.pos.z - Math.cos(an) * 2.6; } e.pos.x = x; e.pos.z = z; e.yaw = aimYaw(e); sfx('blink'); burst(e.pos.x, e.pos.y + 1, e.pos.z, 25, col, 5, 0.5, 0.4, 0); }
         else { slashArc(e.pos.clone().setY(e.pos.y + 1.2), e.yaw, 0.2, 2.6, col); bossHit(fwdOf(e, 1.5), 2.6, 14); sfx('whoosh'); }
       },
     },
   };
   CHAINS.blink2 = Object.assign({}, CHAINS.shadowStep, { n: (e) => 4 + 2 * chainX() });
+  // ---------- part 2 boss moves (chapters 5-8) ----------
+  // ATK2[name]: w = base wind-up (s), setup(e, W, gp) = telegraph + anim, pre(e, t, dt) = during the wind-up, fire(e) = the hit, act(e, t, dt) = after the hit, dur = active time
+  function crystalBurst(pt, col, n = 5, s = 1) {
+    const g = new THREE.Group(); g.position.copy(pt); scene.add(g); const m = toon(col, { em: col, ei: 0.5 });
+    for (let i = 0; i < n; i++) { const a = i / n * TAU + rand(-0.3, 0.3), r = i ? rand(0.4, 0.9) * s : 0, l = (i ? rand(1.2, 2) : 2.6) * s; part(g, G.oct, m, [Math.sin(a) * r, l * 0.4, Math.cos(a) * r], [0.3 * s, l, 0.3 * s], [Math.cos(a) * 0.35, a, -Math.sin(a) * 0.35]); }
+    burst(pt.x, pt.y + 0.4, pt.z, 14, col, 6, 0.5, 0.3);
+    projectiles.push({ mesh: g, pos: pt.clone(), vel: new THREE.Vector3(), owner: 'fx', life: 0.9, grow: true });
+  }
+  function sandColumn(pt, col = 0xe8b860) {
+    const m = new THREE.Mesh(CONE8, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.scale.set(1.8, 7, 1.8); m.rotation.x = Math.PI; m.position.set(pt.x, pt.y + 3.5, pt.z); scene.add(m);
+    burst(pt.x, pt.y + 0.5, pt.z, 24, col, 7, 0.7, 0.45, 2); shockRing(pt, 2.6, col, 0.4);
+    projectiles.push({ mesh: m, pos: m.position.clone(), vel: new THREE.Vector3(), owner: 'fx', life: 0.45 });
+  }
+  function darkStrike(pt, col = 0xff3a6a) {
+    const pts = []; let x = pt.x, z = pt.z; for (let y = 36; y >= pt.y; y -= 4) { pts.push(new THREE.Vector3(x, y, z)); x = pt.x + rand(-1, 1); z = pt.z + rand(-1, 1); } pts.push(pt.clone());
+    const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: col, transparent: true })); scene.add(l);
+    flash(pt.clone().setY(pt.y + 0.5), 4, col); shockRing(pt, 2.5, col, 0.4); burst(pt.x, pt.y + 0.3, pt.z, 16, 0x2a0010, 5, 0.5, 0.4, 0);
+    projectiles.push({ mesh: l, pos: pt.clone(), vel: new THREE.Vector3(), owner: 'fx', life: 0.3 });
+  }
+  function beamAt(e, yaw, col, len = 28, w = 0.8) {
+    const holder = new THREE.Group(), m = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({ color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    m.scale.set(w, len, w); m.rotation.x = Math.PI / 2; m.position.z = len / 2; holder.add(m);
+    const core = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); core.scale.set(w * 0.35, len, w * 0.35); core.rotation.x = Math.PI / 2; core.position.z = len / 2; holder.add(core);
+    holder.position.set(e.pos.x, level.arena.y + 1.1, e.pos.z); holder.rotation.y = yaw; scene.add(holder); (e.p2fx = e.p2fx || []).push(holder);
+    const p = player, lx = p.pos.x - e.pos.x, lz = p.pos.z - e.pos.z, along = lx * Math.sin(yaw) + lz * Math.cos(yaw), perp = Math.abs(lx * Math.cos(yaw) - lz * Math.sin(yaw));
+    return along > 0 && along < len && perp < w + 0.7 && p.pos.y - level.arena.y < 2;
+  }
+  const scatterPts = (e, n, near, gy) => { const pts = []; for (let i = 0; i < n; i++) { const a2 = rand(0, TAU), r = rand(0, level.arena.r - 2); pts.push(i < near ? player.pos.clone().add(new THREE.Vector3(i ? rand(-3, 3) : 0, 0, i ? rand(-3, 3) : 0)).setY(gy) : new THREE.Vector3(level.arena.x + Math.cos(a2) * r, gy, level.arena.z + Math.sin(a2) * r)); } return pts; };
+  const hitAt = (c, r, dmg) => { const p = player; if (Math.hypot(p.pos.x - c.x, p.pos.z - c.z) < r && p.pos.y - level.arena.y < 1.2) return hurtPlayer(dmg, c); return false; };
+  const ringHit = (e, dmg) => { const p = player, dd = Math.hypot(p.pos.x - e.pos.x, p.pos.z - e.pos.z); if (!e.ring.hit && Math.abs(dd - e.ring.r) < 0.9 && p.pos.y - level.arena.y < 0.8) { e.ring.hit = true; hurtPlayer(dmg, e.pos); } };
+  const ATK2 = {
+    // Dune Tyrant Sabulo
+    sandWave: { w: 0.9, dur: 0.6, setup(e, W, gp) { play(e.rig, 'slash', W + 0.5); e.tele = telegraph('line', gp(e.pos.clone()), 4.2, 24, e.yaw, W); },
+      fire(e) { const pr = bossProj(e, e.yaw, 11, 0xe8a83a, 14, { arc: true, radius: 2.0, life: 2.3, h: 0.7 }); pr.mesh.scale.setScalar(2.8); sfx('wind'); cam.shake = Math.max(cam.shake, 0.3); },
+      act(e) { if (Math.random() < 0.5) spawnP(PN, e.pos.x + Math.sin(e.yaw) * 2, level.arena.y + 0.3, e.pos.z + Math.cos(e.yaw) * 2, Math.sin(e.yaw) * 6, 1, Math.cos(e.yaw) * 6, 0.6, 0.5, 0xd8b070); } },
+    quicksand: { w: 0.95, dur: 2.6, setup(e, W, gp) { play(e.rig, 'raise', W + 0.5); e.qPt = gp(player.pos.clone()); e.tele = telegraph('circle', e.qPt, 5.5, 0, 0, W); },
+      fire(e) {
+        const g = new THREE.Group(); g.position.copy(e.qPt).setY(level.arena.y + 0.05); scene.add(g); (e.p2fx = e.p2fx || []).push(g);
+        const disc = new THREE.Mesh(new THREE.CircleGeometry(5.5, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x8a5a2a, transparent: true, opacity: 0.75, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })); g.add(disc);
+        for (let k = 0; k < 3; k++) { const r = new THREE.Mesh(new THREE.TorusGeometry(1.6 + k * 1.3, 0.12, 6, 40), new THREE.MeshBasicMaterial({ color: 0xe8b860, transparent: true, opacity: 0.8 })); r.rotation.x = -Math.PI / 2; r.position.y = 0.04; g.add(r); }
+        e.qT = 0; sfx('slam'); shockRing(e.qPt, 5.5, 0xe8a83a, 0.5);
+      },
+      act(e, t, dt) {
+        const g = e.p2fx && e.p2fx[0]; if (g) { g.rotation.y += dt * 2.4; g.children.forEach((c, k) => { if (k) c.scale.setScalar(1 - ((t * 0.6 + k * 0.33) % 1) * 0.5); }); if (t > 2.3) g.scale.setScalar(Math.max(0.01, (2.6 - t) / 0.3)); }
+        const p = player, dx = e.qPt.x - p.pos.x, dz = e.qPt.z - p.pos.z, d = Math.hypot(dx, dz);
+        if (d < 5.5 && t < 2.3 && p.state !== 'dodge' && p.state !== 'dash') { p.kb.x += dx / (d || 1) * 18 * dt; p.kb.z += dz / (d || 1) * 18 * dt; e.qT -= dt; if (e.qT <= 0 && d < 2.6) { e.qT = 0.55; hurtPlayer(8, e.qPt); } }
+        if (Math.random() < 0.6) { const a = rand(0, TAU), r = rand(1, 5.5); spawnP(PN, e.qPt.x + Math.cos(a) * r, level.arena.y + 0.2, e.qPt.z + Math.sin(a) * r, -Math.cos(a) * 2, 0.4, -Math.sin(a) * 2, 0.5, 0.35, 0xc8985e); }
+      } },
+    burrow: { w: 1.05, dur: 0.6, setup(e, W, gp) { play(e.rig, 'raise', W + 0.3); e.tele = telegraph('circle', gp(player.pos.clone()), 3.2, 0, 0, W); sfx('roots'); },
+      pre(e, t, dt) {
+        e.iframe = 1; const sc = e.rig.cfg.scale || 1, k = clamp(t / 0.45, 0, 1); e.rig.root.scale.setScalar(Math.max(0.01, sc * (1 - k))); e.hideScale = true;
+        if (Math.random() < 0.7) spawnP(PN, e.pos.x + rand(-1, 1), level.arena.y + 0.2, e.pos.z + rand(-1, 1), rand(-2, 2), 3, rand(-2, 2), 0.6, 0.5, 0xd8b070, -6);
+        if (e.tele && !Array.isArray(e.tele) && t < e.wind * 0.7) { const c = e.tele, p = player; c.cx += (p.pos.x - c.cx) * (1 - Math.exp(-5 * dt)); c.cz += (p.pos.z - c.cz) * (1 - Math.exp(-5 * dt)); c.m.position.set(c.cx, level.arena.y + 0.06, c.cz); }
+        if (e.tele && !Array.isArray(e.tele)) { e.burPt = new THREE.Vector3(e.tele.cx, level.arena.y, e.tele.cz); if (Math.random() < 0.5) spawnP(PN, e.tele.cx + rand(-1.5, 1.5), level.arena.y + 0.2, e.tele.cz + rand(-1.5, 1.5), 0, 2, 0, 0.4, 0.4, 0xd8b070, -4); }
+      },
+      fire(e) { const c = e.burPt || player.pos.clone(); e.pos.x = c.x; e.pos.z = c.z; e.yaw = aimYaw(e); spikeBurst(c.clone().setY(level.arena.y), 0xc8985e); sandColumn(c.clone().setY(level.arena.y)); cam.shake = 0.6; sfx('slam'); hitAt(c, 3.2, 17); play(e.rig, 'power', 0.8); },
+      act(e, t) { const sc = e.rig.cfg.scale || 1; e.rig.root.scale.setScalar(sc * Math.min(1, 0.2 + t / 0.25)); if (t < 0.2) e.iframe = 1; if (t >= 0.25) e.hideScale = false; } },
+    sandstorm: { w: 1.0, dur: 0.7, setup(e, W, gp) { play(e.rig, 'raise', W + 0.6); e.rootPts = scatterPts(e, 8, 2, level.arena.y); e.tele = e.rootPts.map((pt) => telegraph('circle', pt, 2.3, 0, 0, W)); },
+      fire(e) { sfx('wind'); cam.shake = 0.5; for (const pt of e.rootPts) { sandColumn(pt); hitAt(pt, 2.3, 14); } } },
+    // Frost Empress Fubuki
+    iceLance: { w: 0.8, dur: 0.4, setup(e, W, gp) { play(e.rig, 'cast2', W + 0.4); e.tele = telegraph('line', gp(e.pos.clone()), 1.8, 26, e.yaw, W); },
+      fire(e) { const pr = bossProj(e, e.yaw, 24, 0x8fe8ff, 14, { radius: 1.0, life: 1.3 }); pr.mesh.scale.set(0.2, 0.2, 1.5); pr.mesh.rotation.y = e.yaw; sfx('wind'); } },
+    iceLance3: { w: 0.85, dur: 0.4, setup(e, W, gp) { play(e.rig, 'cast2', W + 0.4); e.tele = [-0.38, 0, 0.38].map((o) => telegraph('line', gp(e.pos.clone()), 1.8, 24, e.yaw + o, W)); },
+      fire(e) { for (const o of [-0.38, 0, 0.38]) { const pr = bossProj(e, e.yaw + o, 22, 0x8fe8ff, 13, { radius: 1.0, life: 1.3 }); pr.mesh.scale.set(0.2, 0.2, 1.5); pr.mesh.rotation.y = e.yaw + o; } sfx('wind'); } },
+    shardFan: { w: 0.7, dur: 0.4, setup(e, W) { play(e.rig, 'cast2', W + 0.4); },
+      fire(e) { const n = e.phase >= 2 ? 9 : 7, col = e.def.id === 'prism' ? 0xff9af0 : 0xbff4ff; for (let i = 0; i < n; i++) { const pr = bossProj(e, e.yaw + (i - (n - 1) / 2) * 0.17, 13, col, 9, { radius: 0.8, life: 2.2 }); pr.mesh.scale.setScalar(0.24); } sfx('orb'); } },
+    frostNova: { w: 1.15, dur: 0.8, setup(e, W, gp) { play(e.rig, 'raise', W + 0.6); e.tele = telegraph('circle', gp(e.pos.clone()), 7, 0, 0, W); },
+      fire(e) { const gy = level.arena.y; for (let k = 0; k < 12; k++) { const a = k / 12 * TAU, r = 2.5 + (k % 3) * 1.6; crystalBurst(new THREE.Vector3(e.pos.x + Math.cos(a) * r, gy, e.pos.z + Math.sin(a) * r), 0xbff4ff, 4, 1.1); } shockRing(e.pos, 8, 0x8fe8ff, 0.55); flash(e.pos.clone().setY(gy + 1), 6, 0xbff4ff); cam.shake = 0.6; sfx('slam'); hitAt(e.pos, 7, 17); } },
+    blizzard: { w: 1.0, dur: 0.7, setup(e, W, gp) { play(e.rig, 'raise', W + 0.6); e.rootPts = scatterPts(e, 9, 3, level.arena.y); e.tele = e.rootPts.map((pt) => telegraph('circle', pt, 2.1, 0, 0, W)); OV.tintAmt.value = Math.max(OV.tintAmt.value, 0.12); OV.tint.value.set(0x9fdcff); },
+      pre(e) { if (Math.random() < 0.8) spawnP(PN, player.pos.x + rand(-12, 12), level.arena.y + rand(4, 9), player.pos.z + rand(-12, 12), -3, -6, 0, 0.8, 0.2, 0xffffff); },
+      fire(e) { sfx('roots'); cam.shake = 0.45; for (const pt of e.rootPts) { crystalBurst(pt, 0xbff4ff, 5, 1); hitAt(pt, 2.1, 14); } },
+      act(e, t) { if (t > 0.5 && !(state.boss && state.boss.phase === 3 && e.def.tint3)) OV.tintAmt.value = 0; } },
+    // The Prism Colossus
+    prismBeam: { w: 1.15, dur: 0.8, setup(e, W, gp) { play(e.rig, 'cast2', W + 0.7); e.tele = [-0.32, 0, 0.32].map((o) => telegraph('line', gp(e.pos.clone()), 2.4, 28, e.yaw + o, W)); },
+      fire(e) { let hit = false; [0xff5a9a, 0x9ff8ff, 0xffe27a].forEach((c, k) => { if (beamAt(e, e.yaw + (k - 1) * 0.32, c, 28, 0.8) && !hit) hit = hurtPlayer(17, e.pos) || true; }); sfx('beam'); cam.shake = 0.45; },
+      act(e, t) { if (e.p2fx) for (const b of e.p2fx) b.children.forEach((c) => (c.material.opacity = 1 - clamp(t / 0.8, 0, 1))); } },
+    crystalRise: { w: 1.0, dur: 0.7, setup(e, W, gp) { play(e.rig, 'slam', W + 0.6); e.rootPts = scatterPts(e, 7, 2, level.arena.y); e.tele = e.rootPts.map((pt) => telegraph('circle', pt, 2.3, 0, 0, W)); },
+      fire(e) { sfx('roots'); cam.shake = 0.5; e.rootPts.forEach((pt, k) => { crystalBurst(pt, k % 2 ? 0xff9af0 : 0x9ff8ff, 5, 1.2); hitAt(pt, 2.3, 15); }); } },
+    prismWave: { w: 1.0, dur: 2.2, setup(e, W, gp) { play(e.rig, 'slam', W + 0.6); e.tele = telegraph('circle', gp(e.pos.clone()), 3.5, 0, 0, W); },
+      fire(e) { e.ring = { r: 0.5, hit: false, last: 0 }; sfx('wave'); cam.shake = 0.5; },
+      act(e, t, dt) { if (!e.ring) return; const gy = level.arena.y; e.ring.r += dt * 8; shockRingAt(e, e.ring.r, 0xff7ae0); if (e.ring.r - e.ring.last > 3 && e.ring.r < 18) { e.ring.last = e.ring.r; for (let k = 0; k < 4; k++) { const an = k / 4 * TAU + e.ring.r; crystalBurst(new THREE.Vector3(e.pos.x + Math.cos(an) * e.ring.r, gy, e.pos.z + Math.sin(an) * e.ring.r), k % 2 ? 0xff9af0 : 0x9ff8ff, 3, 0.9); } } ringHit(e, 16); } },
+    // Hollow Emperor Vael
+    eclipseSlash: { w: 0.85, dur: 0.5, setup(e, W, gp) { play(e.rig, 'slash', W + 0.5); e.tele = [-0.6, -0.3, 0, 0.3, 0.6].map((o) => telegraph('line', gp(e.pos.clone()), 1.9, 20, e.yaw + o, W)); },
+      fire(e) { for (const o of [-0.6, -0.3, 0, 0.3, 0.6]) bossProj(e, e.yaw + o, 16, 0xff3a6a, 12, { arc: true, radius: 1.2 }); sfx('wind'); slashArc(e.pos.clone().setY(e.pos.y + 1.2), e.yaw, 0, 3, 0xff3a6a); } },
+    eclipseRain: { w: 1.05, dur: 0.6, setup(e, W, gp) { play(e.rig, 'raise', W + 0.6); e.rootPts = scatterPts(e, 9, 3, level.arena.y); e.tele = e.rootPts.map((pt) => telegraph('circle', pt, 2.2, 0, 0, W)); },
+      fire(e) { sfx('lightning'); flashT = 0.12; cam.shake = 0.5; for (const pt of e.rootPts) { darkStrike(pt); hitAt(pt, 2.2, 15); } } },
+    blackSun: { w: 1.4, dur: 2.2, setup(e, W, gp) {
+        play(e.rig, 'raise', W + 0.8); e.tele = telegraph('circle', gp(e.pos.clone()), 4, 0, 0, W);
+        const sun = new THREE.Mesh(G.sphere, new THREE.MeshBasicMaterial({ color: 0x050008 })); const cor = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff3a6a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); cor.scale.setScalar(4); sun.add(cor);
+        sun.position.copy(e.pos).setY(level.arena.y + 2.5); sun.scale.setScalar(0.1); scene.add(sun); (e.p2fx = e.p2fx || []).push(sun); e.sun = sun; OV.tintAmt.value = Math.max(OV.tintAmt.value, 0.2); OV.tint.value.set(0xff2a4a);
+      },
+      pre(e, t) { if (e.sun) { const k = sm(t / e.wind); e.sun.position.y = level.arena.y + 2.5 + k * 3.5; e.sun.scale.setScalar(0.1 + k * 1.3); } if (Math.random() < 0.7) { const a = rand(0, TAU), r = rand(4, 9); spawnP(PA, e.pos.x + Math.cos(a) * r, level.arena.y + rand(0.5, 5), e.pos.z + Math.sin(a) * r, -Math.cos(a) * r * 1.5, 2, -Math.sin(a) * r * 1.5, 0.5, 0.4, 0xff3a6a, 0, 0); } },
+      fire(e) { const n = D().chain ? 18 : 14; for (let i = 0; i < n; i++) bossProj(e, i / n * TAU + rand(0, 0.2), 8, 0xff3a6a, 11, { h: 1.2, life: 3.2, radius: 0.8 }); e.ring = { r: 0.5, hit: false }; impact = quality !== 'low' ? 2 : 0; cam.shake = 0.8; sfx('explosion'); shockRing(e.pos, 6, 0xff3a6a, 0.6); },
+      act(e, t, dt) { if (e.ring) { e.ring.r += dt * 9; shockRingAt(e, e.ring.r, 0xff3a6a); ringHit(e, 15); } if (e.sun) e.sun.scale.setScalar(Math.max(0.01, 1.4 * (1 - t / 2.2))); } },
+  };
+  // chained part 2 moves
+  CHAINS.duneQuake = Object.assign({}, CHAINS.quake, { n: (e) => 4 + chainX(), wind: (e, i) => (i ? 0.55 : e.wind) });
+  CHAINS.avalanche = {
+    n: (e) => 4 + chainX(), dur: 0.25, wind: (e, i) => (i ? 0.45 : e.wind),
+    setup(e, i, W) { if (!i) { e.yaw = aimYaw(e); e.avYaw = e.yaw; play(e.rig, 'slash', W + 0.4); } const r = 3.5 + i * 3.4; e.cPt = e.pos.clone().add(new THREE.Vector3(Math.sin(e.avYaw) * r, 0, Math.cos(e.avYaw) * r)).setY(level.arena.y); e.tele = telegraph('circle', e.cPt, 2.9, 0, 0, W); },
+    fire(e) { const c = e.cPt; crystalBurst(c, 0xbff4ff, 6, 1.3); shockRing(c, 3.5, 0x8fe8ff, 0.4); cam.shake = Math.max(cam.shake, 0.45); sfx('slam'); bossHit(c, 2.9, 15); },
+  };
+  CHAINED.push('duneQuake', 'avalanche');
   function chainStart(e, a) { const C = CHAINS[a]; e.cN = C.n(e); e.cI = 0; e.cT0 = e.st; e.cFired = false; e.cW = C.wind(e, 0); C.setup(e, 0, e.cW); }
   function chainUpdate(e, dt) {
     const C = CHAINS[e.atk], t = e.st - e.cT0;
@@ -2098,7 +2553,7 @@ export function createGame(canvas, opts = {}) {
       }
     }
   }
-  function endBossAttackFx(e) { cancelTele(e); if (e.beam) { scene.remove(e.beam); e.beam = null; } if (e.beams) { for (const b of e.beams) scene.remove(b); e.beams = null; } if (e.ringMesh) e.ringMesh.visible = false; e.ring = null; e.rig.pivot.rotation.y = 0; }
+  function endBossAttackFx(e) { cancelTele(e); if (e.p2fx) { for (const m of e.p2fx) scene.remove(m); e.p2fx = null; e.sun = null; } if (e.hideScale) { e.hideScale = false; e.rig.root.scale.setScalar(e.rig.cfg.scale || 1); } if (e.beam) { scene.remove(e.beam); e.beam = null; } if (e.beams) { for (const b of e.beams) scene.remove(b); e.beams = null; } if (e.ringMesh) e.ringMesh.visible = false; e.ring = null; e.rig.pivot.rotation.y = 0; }
   function bossAttackEnd(e) { endBossAttackFx(e); e.state = 'idle'; e.st = 0; e.atkCd = rand(1.0, 2.0); }
   function bossProj(e, yaw, speed, color, dmg, opts = {}) {
     const m = new THREE.Mesh(opts.arc ? ARC_G : G.sphere, new THREE.MeshBasicMaterial({ color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
@@ -2113,11 +2568,13 @@ export function createGame(canvas, opts = {}) {
     const rig = e.rig, a = e.atk, W = e.wind, p = player, gy = level.arena.y;
     const firing = e.st >= W;
     if (firing && e.def.iframes && e.def.iframes.includes(a)) e.iframe = 1;
+    const A2 = ATK2[a]; if (!firing && A2 && A2.pre) A2.pre(e, e.st, dt);
     if (!firing) { if (e.tele && !Array.isArray(e.tele)) e.tele.m.material.uniforms.fill.value = e.st / W; else if (e.tele) e.tele.forEach((t) => (t.m.material.uniforms.fill.value = e.st / W)); if (Math.random() < 0.4) spawnP(PA, e.pos.x + rand(-0.5, 0.5), e.pos.y + rand(0.5, 2.5) * (rig.cfg.scale || 1), e.pos.z + rand(-0.5, 0.5), 0, 2, 0, 0.4, 0.35, 0xff3a5a); return; }
     const once = () => { if (e.fired) return false; e.fired = 1; cancelTele(e); return true; };
     const hitCircle = (c, r, dmg) => { if (Math.hypot(p.pos.x - c.x, p.pos.z - c.z) < r && p.pos.y - gy < 1.2) hurtPlayer(dmg, c); };
     const fwd = (r) => fwdOf(e, r); const sc = rig.cfg.scale || 1;
     let dur = 0.7;
+    if (A2) { if (once()) A2.fire(e); if (A2.act) A2.act(e, e.st - W, dt); dur = A2.dur || 0.7; }
     switch (a) {
       case 'windSlash': if (once()) { bossProj(e, e.yaw, 16, 0x7affe0, 12, { arc: true, radius: 1.3 }); sfx('wind'); } break;
       case 'windSlash3': if (once()) { for (const o of [-0.45, 0, 0.45]) bossProj(e, e.yaw + o, 15, 0x7affe0, 12, { arc: true, radius: 1.2 }); sfx('wind'); } break;
@@ -2126,11 +2583,11 @@ export function createGame(canvas, opts = {}) {
       case 'counter': dur = 0.35; if (once()) { const r = 3.4 * Math.max(1, sc * 0.8); shockRing(e.pos, r + 0.4, 0x7ad8ff, 0.4); slashArc(e.pos.clone().setY(e.pos.y + 1.2), e.yaw, 0, 3 * sc, 0x7ad8ff); rig.pivot.rotation.y = 0; hitCircle(e.pos, r, 14); sfx('counterStrike'); cam.shake = Math.max(cam.shake, 0.4); } break;
       case 'cyclone': dur = 0.9; if (once()) { shockRing(e.pos, 6, 0x7affe0, 0.5); sfx('wind'); hitCircle(e.pos, 5.5, 15); } e.rig.pivot.rotation.y += dt * 30; for (let i = 0; i < 3; i++) { const an = rand(0, TAU); spawnP(PA, e.pos.x + Math.cos(an) * 4, e.pos.y + rand(0, 2), e.pos.z + Math.sin(an) * 4, -Math.sin(an) * 8, 1, Math.cos(an) * 8, 0.5, 0.4, 0x9affea); } break;
       case 'tornado': dur = 1.0; if (once()) { shockRing(e.pos, 7, 0x7affe0, 0.6); sfx('wind'); hitCircle(e.pos, 6, 16); for (let i = 0; i < 8; i++) bossProj(e, e.yaw + i / 8 * TAU, 13, 0x7affe0, 10, { arc: true, radius: 1.1 }); cam.shake = 0.5; } e.rig.pivot.rotation.y += dt * 30; for (let i = 0; i < 4; i++) { const an = rand(0, TAU); spawnP(PA, e.pos.x + Math.cos(an) * 5, e.pos.y + rand(0, 3), e.pos.z + Math.sin(an) * 5, -Math.sin(an) * 10, 2, Math.cos(an) * 10, 0.5, 0.45, 0x9affea); } break;
-      case 'orbs': if (once()) { const n = e.phase >= 2 ? 7 : 5; const col = e.def.id === 'twin' ? 0xff2a6a : 0xffd24a; for (let i = 0; i < n; i++) bossProj(e, e.yaw + (i - (n - 1) / 2) * 0.28, 7, col, 10, { homing: 1.2, h: 1.4, life: 3.5 }); sfx('orb'); } break;
-      case 'orbRing': if (once()) { const n = D().chain ? 16 : 12, col = e.def.id === 'twin' ? 0xff2a6a : 0xffd24a; for (let i = 0; i < n; i++) bossProj(e, e.yaw + (i + 0.5) / n * TAU, 7.5, col, 10, { h: 1.2, life: 3.5, radius: 0.8 }); shockRing(e.pos, 3, col, 0.4); sfx('orb'); } break;
+      case 'orbs': if (once()) { const n = e.phase >= 2 ? 7 : 5; const col = e.def.orbCol || (e.def.id === 'twin' ? 0xff2a6a : 0xffd24a); for (let i = 0; i < n; i++) bossProj(e, e.yaw + (i - (n - 1) / 2) * 0.28, 7, col, 10, { homing: 1.2, h: 1.4, life: 3.5 }); sfx('orb'); } break;
+      case 'orbRing': if (once()) { const n = D().chain ? 16 : 12, col = e.def.orbCol || (e.def.id === 'twin' ? 0xff2a6a : 0xffd24a); for (let i = 0; i < n; i++) bossProj(e, e.yaw + (i + 0.5) / n * TAU, 7.5, col, 10, { h: 1.2, life: 3.5, radius: 0.8 }); shockRing(e.pos, 3, col, 0.4); sfx('orb'); } break;
       case 'clones': if (once()) { const alive = enemies.filter((x) => x.decoy && !x.dead).length; for (let i = alive; i < 2; i++) { const an = rand(0, TAU); spawnDecoy(e, level.arena.x + Math.cos(an) * 8, level.arena.z + Math.sin(an) * 8); } sfx('clone'); burst(e.pos.x, e.pos.y + 1, e.pos.z, 30, 0xff2a4a, 6, 0.6, 0.4, 0); } break;
       case 'slam': if (once()) { const c = fwd(3.5); shockRing(c, 5.5, 0xffb020, 0.5); cam.shake = 0.6; sfx('slam'); burst(c.x, gy + 0.3, c.z, 40, 0xc8a070, 8, 0.6, 0.5); hitCircle(c, 4.5, 18); } dur = 0.9; break;
-      case 'roots': if (once()) { sfx('roots'); for (const pt of e.rootPts) { spikeBurst(pt, 0x6a4a2a); hitCircle(pt, 1.8, 13); } } dur = 0.8; break;
+      case 'roots': if (once()) { sfx('roots'); for (const pt of e.rootPts) { spikeBurst(pt, e.def.spikeCol || 0x6a4a2a); hitCircle(pt, 1.8, 13); } } dur = 0.8; break;
       case 'storm': if (once()) { sfx('lightning'); flashT = 0.15; for (const pt of e.rootPts) { lightning(pt); hitCircle(pt, 2, 14); } } dur = 0.6; break;
       case 'sweep': if (once()) { shockRing(e.pos, 8, 0xffb020, 0.5); slashArc(e.pos.clone().setY(e.pos.y + 1.5), e.yaw, 0, 6, 0xffb020); e.rig.pivot.rotation.y = 0; sfx('slam'); hitCircle(e.pos, 7, 15); cam.shake = 0.4; } break;
       case 'beam': dur = 0.9; if (once()) { const len = 30; const m = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({ color: 0xfff0a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); m.scale.set(0.9, len, 0.9); m.rotation.x = Math.PI / 2; const c = fwd(len / 2); m.position.set(c.x, gy + 1.1, c.z); m.rotation.set(Math.PI / 2, 0, 0); m.rotation.z = 0; const holder = new THREE.Group(); holder.position.copy(m.position); holder.rotation.y = e.yaw; m.position.set(0, 0, 0); holder.add(m); scene.add(holder); e.beam = holder; sfx('beam'); cam.shake = 0.4;
@@ -2159,7 +2616,7 @@ export function createGame(canvas, opts = {}) {
     projectiles.push({ mesh: l, pos: pt.clone(), vel: new THREE.Vector3(), owner: 'fx', life: 0.25 });
   }
   function spawnDecoy(boss, x, z) {
-    const rig = makeTwin(true); rig.fight = true;
+    const rig = (boss.def.decoyMk || makeTwin)(true); rig.fight = true;
     const e = makeFighter(rig, { type: 'twinClone', def: { id: 'twinClone', speed: 4.5, dmg: 8, wind: 0.6, hp: 1 }, hp: 1, maxHp: 1, kind: 'enemy', decoy: true, state: 'spawn', st: 0, atkCd: rand(1, 2) });
     rig.root.traverse((o) => { if (o.material && o.material.isMeshToonMaterial && !o.userData.outline) { } });
     e.pos.set(x, level.arena.y, z); e.lastPos.copy(e.pos); setEmotion(rig, 'neutral'); enemies.push(e); return e;
@@ -2177,7 +2634,7 @@ export function createGame(canvas, opts = {}) {
           if (Math.random() < 0.7) spawnP(PA, pr.pos.x, pr.pos.y, pr.pos.z, 0, 0.5, 0, 0.3, 0.4, pr.trail || 0xff6a1a);
           for (const e of enemies) {
             if (e.dead || e.decoyHidden || (pr.hitSet && pr.hitSet.has(e))) continue; const c = e.pos.clone(); c.y += 1 * (e.rig.cfg.scale || 1);
-            if (c.distanceTo(pr.pos) < pr.radius + e.radius * 0.8 + (e.boss && e.def.id === 'warden' ? 1 : 0)) {
+            if (c.distanceTo(pr.pos) < pr.radius + e.radius * 0.8 + (e.boss && (e.def.id === 'warden' || e.def.big) ? 1 : 0)) {
               damageEnemy(e, pr.dmg, { kb: pr.kb || 3, color: pr.color || 0xff7a2a, spell: true, from: pr.pos.clone().sub(pr.vel.clone().setY(0).setLength(2)) }); burst(pr.pos.x, pr.pos.y, pr.pos.z, 12, pr.color || 0xff5a1a, 6, 0.4, 0.3);
               if (pr.pierce) { pr.hitSet.add(e); continue; } pr.life = 0; break;
             }
@@ -2195,7 +2652,7 @@ export function createGame(canvas, opts = {}) {
   }
 
   // ---------- story scenes ----------
-  const NAMES = { ren: 'Ren', kaze: 'Instructor Kaze', twin: 'The Masked Twin', warden: 'Thorn Warden', null: 'Sovereign Null', book: 'Grimoire' };
+  const NAMES = { ren: 'Ren', kaze: 'Instructor Kaze', twin: 'The Masked Twin', warden: 'Thorn Warden', null: 'Sovereign Null', book: 'Grimoire', dune: 'Dune Tyrant Sabulo', frost: 'Frost Empress Fubuki', prism: 'The Prism Colossus', vael: 'Hollow Emperor Vael', elder: 'Elder Toma' };
   function actor(id) { if (id === 'ren') return player?.rig; const n = npcs.find((x) => x.id === id); if (n) return n.rig; const b = enemies.find((e) => e.boss && e.def.id === id); return b ? b.rig : null; }
   function spawnNpc(id, mk, x, z, yaw, y = 0) { const rig = mk(); rig.root.position.set(x, y, z); rig.root.rotation.y = yaw; scene.add(rig.root); const n = { id, rig, root: rig.root }; npcs.push(n); return n; }
   function removeNpc(id) { const i = npcs.findIndex((n) => n.id === id); if (i >= 0) { scene.remove(npcs[i].root); npcs.splice(i, 1); } }
@@ -2247,7 +2704,7 @@ export function createGame(canvas, opts = {}) {
   }
 
   // ---------- chapter flow ----------
-  const ENEMY_BY_CH = { 1: ['construct'], 2: ['hollow'], 3: ['thornling', 'hollow'], 4: ['nullknight', 'hollow'] };
+  const ENEMY_BY_CH = { 1: ['construct'], 2: ['hollow'], 3: ['thornling', 'hollow'], 4: ['nullknight', 'hollow'], 5: ['scarab', 'hollow', 'scarab'], 6: ['frostbrute', 'hollow'], 7: ['shardling', 'nullknight', 'shardling'], 8: ['hollowlord', 'frostbrute', 'shardling'] };
   function setObjective(text, total) { state.objective = { text, done: 0, total: total || 0 }; emit('objective', { text, done: 0, total: total || 0 }); }
   function wave(types, n, zc, y, label, onClear) {
     // some of each wave keep their distance and shoot (none in the chapter 1 tutorial wave)
@@ -2258,11 +2715,17 @@ export function createGame(canvas, opts = {}) {
   }
   function reachZ(z, fn) { triggers.push({ z, check: () => player && player.pos.z > z && !player.dead, fire: fn }); }
   function checkpoint(i) { state.cp = Math.max(state.cp, i); try { localStorage.setItem('aura-rising-cp', JSON.stringify({ ch: state.chapter, cp: state.cp })); } catch (e) { } if (player) player.hp = player.maxHp; emit('checkpoint', { index: i }); sfx('checkpoint'); }
+  // Kakusei (chapter 8): Ren's aura burns gold from then on
+  function applyKakusei() {
+    if (!player || !player.rig.aura || !powers.includes('kakusei')) return;
+    player.rig.aura.traverse((m) => { if (m.material && m.material.uniforms && m.material.uniforms.c1) { m.material.uniforms.c1.value.set(0xffc24a); m.material.uniforms.c2.value.set(0xff6a1a); } });
+  }
   function learnPower(id) {
     const ch = CHAPTERS.find((c) => c.power.id === id); if (!powers.includes(id)) powers.push(id);
     emit('powerLearned', { id, name: ch.power.name, desc: ch.power.desc }); sfx('powerup');
     if (player) { play(player.rig, 'power', 2); player.rig.aura.visible = true; setTimeout(() => { if (player && player.state !== 'dash' && player.state !== 'ult') player.rig.aura.visible = false; }, 2200); burst(player.pos.x, player.pos.y + 1, player.pos.z, 60, 0xb48cff, 8, 0.9, 0.4, 0); shockRing(player.pos, 5, 0xb48cff, 0.6); }
     if (id === 'domain' && player) player.aura = 100;
+    if (id === 'kakusei' && player) { player.aura = 100; applyKakusei(); }
     if (id === 'grimoire') { addGrimoire('crimson'); equipGrimoire('crimson'); }
     if (id === 'dash' && equipped) equipGrimoire(null);
   }
@@ -2291,8 +2754,46 @@ export function createGame(canvas, opts = {}) {
       wave2: 'Unleash your Domain (ULTIMATE)', bossIntro: [say('null', 'Little spark. Your light will open my gate.', 'neutral'), say('ren', 'My light is for protecting people. Not you!', 'angry'), say('null', 'Then be emptied.', 'angry')],
       win: [say('null', 'Such... warmth. I had forgotten.', 'shocked'), say('ren', 'The gate is closing!', 'determined'), say('kaze', 'You did it, Ren. The academy has a new legend.', 'smile'), say('ren', 'Heh. I am just getting started!', 'smile')],
     },
+    // ---------- part 2: the road to the Hollow Capital ----------
+    // npc: who stands with Ren in the intro; midNpc: who joins the mid-chapter scene; winKaze: Kaze walks in after the boss; n1/n2: wave sizes
+    5: {
+      npc: 'kaze', n1: 4, n2: 5,
+      intro: [say('kaze', 'Null was never the true master, Ren. Something sent the Hollows to him.', 'determined'), say('ren', 'Something stronger than Null...?', 'shocked'), say('vael', 'Little spark. You broke my servant. Come to my Capital... if you can walk that far.', 'neutral', { shot: { type: 'wide', pos: new THREE.Vector3(-7, 6, 16), look: new THREE.Vector3(0, 2, 4) } }), say('ren', 'Who said that?!', 'angry'), say('kaze', 'The Hollow Emperor, Vael. His Capital lies past this desert, the Frozen Peak and the Crystal Caverns.', 'neutral'), say('ren', 'Then I will cross all of them, and get stronger in every one!', 'determined')],
+      wave1: 'Defeat the Dust Scarabs',
+      mid: [say('ren', 'These ruins... the walls are covered in pictures of grimoires.', 'shocked'), say('book', 'Reader. Every grimoire you have taken still remembers its master. Listen, and they will answer faster.', 'neutral', { shot: { type: 'hero', who: 'ren' } }), say('ren', 'I can hear them! They want to fight with me!', 'smile')],
+      wave2: 'Chain your grimoire spells (swap with G)',
+      bossIntro: [say('dune', 'Who walks upon my sand? The Emperor promised me your light.', 'angry'), say('ren', 'Nobody is taking my light!', 'determined'), say('dune', 'Then the desert will swallow you. Watch the ground, little spark.', 'angry')],
+      win: [say('dune', 'The sand... it feels warm again. The Emperor waits beyond the Frozen Peak.', 'shocked'), say('ren', 'One down! Next stop: the Frozen Peak!', 'smile')],
+    },
+    6: {
+      npc: 'elder', n1: 4, n2: 5, midNpc: 'elder',
+      intro: [say('elder', 'A traveler, in this storm? You must be the boy the wind told us about.', 'neutral'), say('ren', 'I am Ren! I am on my way to the Hollow Capital.', 'smile'), say('elder', 'Then you must pass Empress Fubuki. Her blizzard has frozen our village for a hundred days.', 'determined'), say('ren', 'Then I will melt it!', 'determined')],
+      wave1: 'Drive the Frost Brutes out of the village',
+      mid: [say('elder', 'Your aura is bright, but bright things shatter. Let it flow around you, like a warm coat.', 'neutral'), say('ren', 'Like armor made of aura...', 'shocked'), say('elder', 'Yes. Now the cold cannot bite so deep.', 'smile')],
+      wave2: 'Protect the village',
+      bossIntro: [say('frost', 'Another little flame, come to go out in my snow.', 'neutral'), say('ren', 'Give this village its spring back!', 'angry'), say('frost', 'Spring is a lie. Only the blizzard lasts forever.', 'angry')],
+      win: [say('frost', 'Warm... it has been so long since I felt warm.', 'shocked'), say('ren', 'The snow is melting! Next: the Crystal Caverns.', 'smile')],
+    },
+    7: {
+      npc: 'kaze', n1: 4, n2: 5,
+      intro: [say('kaze', 'The road to the Capital runs under the mountain. Stay close to the light.', 'neutral'), say('ren', 'Whoa... the crystals are glowing all by themselves!', 'shocked'), say('kaze', 'They drink aura. Yours most of all.', 'smile'), say('ren', 'Then let us give them a show!', 'smile')],
+      wave1: 'Shatter the Shardlings',
+      mid: [say('ren', 'That giant crystal... it is beating like a heart.', 'shocked'), say('book', 'The Heart of Light. Touch it, reader, and your aura will overflow.', 'neutral', { shot: { type: 'hero', who: 'ren' } }), say('ren', 'Here goes nothing!', 'determined')],
+      wave2: 'Overflow your aura',
+      bossIntro: [say('prism', 'INTRUDER. THE HEART BELONGS TO THE EMPEROR.', 'angry'), say('ren', 'The Heart belongs to everyone!', 'angry'), say('prism', 'THEN BE SPLIT INTO SEVEN COLOURS.', 'angry')],
+      win: [say('prism', 'Light... restored. The Capital... lies above.', 'neutral'), say('ren', 'Vael. I am coming for you.', 'determined')],
+    },
+    8: {
+      npc: 'kaze', n1: 5, n2: 6, winKaze: true,
+      intro: [say('kaze', 'The Hollow Capital. Every Hollow that ever was came from this city.', 'determined'), say('ren', 'Instructor! You came all this way?', 'shocked'), say('kaze', 'A teacher walks with his student to the very end. Go, Ren. I will hold the gate.', 'smile'), say('ren', 'Right. Let us finish this!', 'determined')],
+      wave1: 'Break through the Hollow Lords',
+      mid: [say('ren', 'Kaze, the Twin, the Warden, Null... I can feel all of their power in my books.', 'shocked'), say('ren', 'My aura is changing... it is turning gold!', 'angry'), say('book', 'This is your Kakusei, Ren. Your true awakening.', 'neutral', { shot: { type: 'hero', who: 'ren' } })],
+      wave2: 'Awaken and break the last guard',
+      bossIntro: [say('vael', 'So the spark became a flame. I will swallow it all the same.', 'neutral'), say('ren', 'I am not a spark anymore. I am Ren of Starfall Academy!', 'angry'), say('vael', 'Then come. Let the last darkness fall!', 'angry')],
+      win: [say('vael', 'Impossible... a light that does not go out...', 'shocked'), say('ren', 'It is because I am not alone. Everyone I met is right here with me.', 'determined'), say('kaze', 'Ren! The Hollows are fading away. It is over!', 'smile'), say('ren', 'Heh. Let us go home, Instructor.', 'smile')],
+    },
   };
-  const NPC_MK = { kaze: makeKaze };
+  const NPC_MK = { kaze: makeKaze, elder: makeElder };
   function resetCombatFx() { clearSpells(); endDrop(); for (const k in gcd) gcd[k] = 0; castLock = 0; tokenGapT = 0; slotT = 0; attackTokens = 0; }
   // the collection comes from the save ({ grimoires, equipped }); without one, keep what this session has and add what earlier chapters must have given
   function restoreGrimoires(n, o) {
@@ -2309,7 +2810,7 @@ export function createGame(canvas, opts = {}) {
   }
   function startChapter(n, o = {}) {
     if (n === 'rush') return startBossRush(o);
-    n = Number(n); if (n >= 5) return showEnding();
+    n = Number(n); if (n > CHAPTERS.length) return showEnding();
     endUlt(); clearLevel(); resetCombatFx(); scene_ = null; state.paused = false;
     state.chapter = n; state.time = 0; state.hits = 0; state.hitsTaken = 0; state.combo = 0; state.cp = 0; bossActive = false; attackTokens = 0;
     OV.tint.value.set(0x6a3cff);
@@ -2341,35 +2842,38 @@ export function createGame(canvas, opts = {}) {
       openGate(L.gate1); setObjective('Cross to the next area', 0);
       reachZ(80, () => {
         checkpoint(1);
-        const mid = [{ do: () => { player.pos.set(0, 1, 80); player.yaw = 0; syncFighter(player, 0); if (n === 1 || n === 3) { removeNpc('kaze'); } } }, ...S.mid, { do: () => learnPower(learnId) }, { wait: 2.2, shot: { type: 'hero', who: 'ren' } }];
+        const mid = [{ do: () => { player.pos.set(0, 1, 80); player.yaw = 0; syncFighter(player, 0); if (n === 1 || n === 3) { removeNpc('kaze'); } if (S.midNpc) spawnNpc(S.midNpc, NPC_MK[S.midNpc], 0, 83.2, Math.PI, 1); } }, ...S.mid, { do: () => learnPower(learnId) }, { wait: 2.2, shot: { type: 'hero', who: 'ren' } }];
         runScene(mid, () => {
-          wave(types, n === 1 ? 4 : 5, 98, 1, S.wave2, () => { openGate(L.gate2); setObjective('Head to the arena', 0); stageBoss(); });
+          if (S.midNpc) removeNpc(S.midNpc);
+          wave(types, S.n2 || (n === 1 ? 4 : 5), 98, 1, S.wave2, () => { openGate(L.gate2); setObjective('Head to the arena', 0); stageBoss(); });
         });
       });
     };
     const startPlay = () => { setScreen('play'); };
     if (cp === 0) {
-      stageTwo(n === 2 ? null : 'kaze', makeKaze, 4, 0);
+      const npcId = 'npc' in S ? S.npc : n === 2 ? null : 'kaze';
+      stageTwo(npcId, NPC_MK[npcId] || makeKaze, 4, 0);
       if (n === 2 || n === 4) spawnNpc('kaze', makeKaze, 2.5, 7.5, Math.PI + 0.5, 0);
       if (n === 2) { const k = npcs[0]; }
       const intro = [{ wait: 2.2, shot: { type: 'wide', pos: new THREE.Vector3(8, 4.5, 20), look: new THREE.Vector3(0, 1.4, 4) } }, ...S.intro];
       runScene(o.skipIntro ? [] : intro, () => {
-        removeNpc('kaze'); startPlay();
-        wave(types, n === 1 ? 3 : 4, 26, 0, S.wave1, () => part2());
+        removeNpc('kaze'); if (npcId) removeNpc(npcId); startPlay();
+        wave(types, S.n1 || (n === 1 ? 3 : 4), 26, 0, S.wave1, () => part2());
         reachZ(14, () => { });
       });
     } else if (cp === 1) {
       openGate(L.gate1); startPlay();
-      wave(types, n === 1 ? 4 : 5, 98, 1, S.wave2, () => { openGate(L.gate2); setObjective('Head to the arena', 0); stageBoss(); });
+      wave(types, S.n2 || (n === 1 ? 4 : 5), 98, 1, S.wave2, () => { openGate(L.gate2); setObjective('Head to the arena', 0); stageBoss(); });
     } else {
       openGate(L.gate1); openGate(L.gate2); startPlay(); setObjective('Enter the arena', 0); stageBoss();
     }
     if (n === 4 && cp >= 1) player.aura = 100;
+    applyKakusei();
   }
   function bossIntroCard(boss) {
     const ch = CHAPTERS.find((c) => c.boss.id === boss.def.id);
     setScreen('bossIntro'); emit('bossIntro', { name: ch.boss.name, title: ch.boss.title, chapter: ch.id });
-    emit('music', { track: boss.def.id === 'null' ? 'final' : 'boss' }); sfx('roar');
+    emit('music', { track: boss.def.music || (boss.def.id === 'null' ? 'final' : 'boss') }); sfx('roar');
     setShot({ type: 'hero', who: boss.def.id }); play(boss.rig, 'power', 2); setEmotion(boss.rig, 'angry');
     burst(boss.pos.x, boss.pos.y + 1, boss.pos.z, 50, 0xff3a5a, 8, 0.9, 0.4, 0);
     introTimer = 2.6; introBoss = boss;
@@ -2388,17 +2892,18 @@ export function createGame(canvas, opts = {}) {
       if (state.rush) { if (b.def.drop) addGrimoire(b.def.drop); rushNext(); return; }
       const n = state.chapter; const win = SCRIPTS[n].win.slice();
       if (n === 1 || n === 4) { spawnNpc('kaze_win', makeKaze, 3, b.pos.z - 1, -Math.PI / 2, level.arena.y); }
+      else if (SCRIPTS[n].winKaze) { spawnNpc('kaze_win', makeKaze, b.pos.x - 2.8, b.pos.z - 1.6, Math.PI / 2, level.arena.y); } // the 'two' shot camera sits on +x: keep Kaze behind the pair
       const steps = win.map((s) => (s.say === 'kaze' ? Object.assign({}, s, { say: n === 1 ? 'kaze' : 'kaze2' }) : s));
       NAMES.kaze2 = 'Instructor Kaze';
       if (n === 1) { removeNpc('kaze_win'); }
-      if (n === 4) { const kn = npcs.find((x) => x.id === 'kaze_win'); if (kn) kn.id = 'kaze2'; }
+      if (n === 4 || SCRIPTS[n].winKaze) { const kn = npcs.find((x) => x.id === 'kaze_win'); if (kn) kn.id = 'kaze2'; }
       const drop = b.def.drop && GRIM(b.def.drop) ? b.def.drop : null;
       const dropSteps = drop ? [{ do: () => startDrop(b, drop) }, { wait: 1.3, shot: { type: 'two', a: 'ren', b: b.def.id } }, { do: () => grabDrop() }, { wait: 2.1, shot: { type: 'hero', who: 'ren' } }, { do: () => endDrop() }] : [{ wait: 1.6, shot: { type: 'hero', who: 'ren' } }];
       runScene([{ do: () => { play(player.rig, 'victory', 2); } }, ...dropSteps, ...steps], () => chapterClear());
     }, 1300);
   }
   function chapterClear() {
-    const n = state.chapter, t = state.time, par = [0, 240, 270, 300, 330][n] || 300;
+    const n = state.chapter, t = state.time, par = [0, 240, 270, 300, 330, 340, 350, 360, 400][n] || 300;
     const rank = state.hitsTaken <= 6 && t < par ? 'S' : state.hitsTaken <= 16 || t < par * 1.25 ? 'A' : 'B';
     const learnId = CHAPTERS[n - 1].power.id; if (!powers.includes(learnId) && learnId !== 'punch') powers.push(learnId);
     try { localStorage.removeItem('aura-rising-cp'); } catch (e) { }
@@ -2407,7 +2912,8 @@ export function createGame(canvas, opts = {}) {
     if (player) { play(player.rig, 'victory', 2); setEmotion(player.rig, 'smile'); setShot({ type: 'hero', who: 'ren' }); }
   }
   function showEnding() {
-    endUlt(); clearLevel(); resetCombatFx(); buildLevel(4); level.blockers = [];
+    // the story is over: back home to the academy courtyard
+    endUlt(); clearLevel(); resetCombatFx(); buildLevel(1); level.blockers = [];
     if (player) { removeFighter(player); scene.remove(player.book); }
     player = makePlayer(); player.pos.set(0, 1, 152); syncFighter(player, 0); play(player.rig, 'victory', 2); player.rig.fight = false; player.rig.aura.visible = true; setEmotion(player.rig, 'smile');
     spawnNpc('kaze', makeKaze, 2.6, 153.5, -2.2, 1); play(npcs[0].rig, 'idle');
@@ -2419,7 +2925,7 @@ export function createGame(canvas, opts = {}) {
   function startBossRush(o = {}) { if (Array.isArray(o.grimoires)) grims = o.grimoires.filter((id, i, a) => GRIM(id) && a.indexOf(id) === i); if ('equipped' in o) equipped = o.equipped; if (o.difficulty && DIFFICULTY[o.difficulty]) settings.difficulty = o.difficulty; state.rush = true; rushIdx = 0; state.rushTime = 0; rushLoad(); }
   function rushLoad() {
     const n = rushIdx + 1; endUlt(); clearLevel(); resetCombatFx(); scene_ = null; state.chapter = n; bossActive = false;
-    powers = ['dash', 'grimoire', 'domain']; addGrimoire('crimson'); for (const c of CHAPTERS) if (c.id < n && BOSSES[c.boss.id] && BOSSES[c.boss.id].drop) addGrimoire(BOSSES[c.boss.id].drop); if (!grims.includes(equipped)) equipped = grims[grims.length - 1] || null; buildLevel(n);
+    powers = CHAPTERS.map((c) => c.power.id).filter((p) => p !== 'punch'); addGrimoire('crimson'); for (const c of CHAPTERS) if (c.id < n && BOSSES[c.boss.id] && BOSSES[c.boss.id].drop) addGrimoire(BOSSES[c.boss.id].drop); if (!grims.includes(equipped)) equipped = grims[grims.length - 1] || null; buildLevel(n);
     if (player) { removeFighter(player); scene.remove(player.book); }
     const keepHp = player && rushIdx > 0 ? player.hp : 100;
     player = makePlayer(); player.hp = Math.min(100, keepHp + 40); player.pos.set(0, 1, 140); player.safe.copy(player.pos); syncFighter(player, 0);
@@ -2428,7 +2934,7 @@ export function createGame(canvas, opts = {}) {
     state.boss.name = CHAPTERS[n - 1].boss.name;
   }
   function rushNext() {
-    rushIdx++; if (rushIdx >= 4) { state.rush = false; setScreen('clear'); emit('chapterClear', { chapter: 'rush', time: Math.round(state.time), rank: state.hitsTaken < 8 ? 'S' : state.hitsTaken < 20 ? 'A' : 'B', hits: state.hits, hitsTaken: state.hitsTaken }); return; }
+    rushIdx++; if (rushIdx >= CHAPTERS.length) { state.rush = false; setScreen('clear'); emit('chapterClear', { chapter: 'rush', time: Math.round(state.time), rank: state.hitsTaken < 8 ? 'S' : state.hitsTaken < 20 ? 'A' : 'B', hits: state.hits, hitsTaken: state.hitsTaken }); return; }
     rushLoad();
   }
 
@@ -2610,7 +3116,7 @@ export function createGame(canvas, opts = {}) {
       return {
         screen: state.screen, chapter: state.chapter, hp: p ? Math.round(p.hp) : 0, maxHp: p ? p.maxHp : 100, aura: p ? Math.round(p.aura) : 0, auraMax: 100,
         ultReady: !!(p && p.aura >= 100), ultName: powers.includes('domain') ? 'Domain: Infinite Sanctum' : 'Aura Burst', powers: ['punch', ...powers],
-        cooldowns: { dash: p ? p.cd.dash / 2.2 : 0, power: p ? (equipped && GRIM(equipped) ? (gcd[equipped] || 0) / GRIM(equipped).spell.cd : powers.includes('dash') ? p.cd.dash / 2.2 : 0) : 0, dodge: p ? p.cd.dodge / 0.55 : 0, spell: equipped && GRIM(equipped) ? (gcd[equipped] || 0) / GRIM(equipped).spell.cd : 0 },
+        cooldowns: { dash: p ? p.cd.dash / 2.2 : 0, power: p ? (equipped && GRIM(equipped) ? (gcd[equipped] || 0) / (GRIM(equipped).spell.cd * PASSIVE.cd()) : powers.includes('dash') ? p.cd.dash / 2.2 : 0) : 0, dodge: p ? p.cd.dodge / 0.55 : 0, spell: equipped && GRIM(equipped) ? (gcd[equipped] || 0) / (GRIM(equipped).spell.cd * PASSIVE.cd()) : 0 },
         grimoires: grims.map((id) => { const g = GRIM(id); return { id, name: g.name, color: g.color, desc: g.desc, icon: g.icon }; }), equipped, difficulty: settings.difficulty,
         danger: dangerNow(), allies: allies.length,
         objective: state.objective ? Object.assign({}, state.objective) : null, boss: state.boss && bossActive || (state.boss && state.screen === 'bossIntro') ? (() => { const b = enemies.find((e) => e.boss); return Object.assign({ phases: (BOSSES[(b || {}).type] || { phases: [] }).phases.length + 1, guarding: !!(b && b.state === 'guard'), state: b ? b.state : null, x: b ? b.pos.x : 0, z: b ? b.pos.z : 0 }, state.boss); })() : null,
@@ -2638,6 +3144,9 @@ export function createGame(canvas, opts = {}) {
       skip() { api.skipScene(); },
       view(p, l, fov = 40) { if (!p) { cam.mode = 'follow'; return; } cam.mode = 'fixed'; const o = player ? player.pos : new THREE.Vector3(); cam.pos.set(o.x + p[0], o.y + p[1], o.z + p[2]); cam.look.set(o.x + l[0], o.y + l[1], o.z + l[2]); cam.fov = fov; },
       pose(anim, emo, yaw) { if (!player) return; if (anim) play(player.rig, anim, 99); if (emo) setEmotion(player.rig, emo); if (yaw != null) player.yaw = yaw; },
+      // test hooks for part 2: force a boss move, set the boss's HP fraction (opens later phases)
+      bossAttack(a) { const b = enemies.find((e) => e.boss && !e.dead); if (b && bossActive) { endBossAttackFx(b); b.lastAtk = a; startBossAttack(b, a); return true; } return false; },
+      bossHp(f) { const b = enemies.find((e) => e.boss && !e.dead); if (b) b.hp = Math.max(1, Math.round(b.maxHp * f)); },
       teleport(z) { if (player) { player.pos.z = z; player.pos.y = groundAt(0, z, 10); player.pos.x = 0; } },
     },
   };
