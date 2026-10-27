@@ -1102,6 +1102,7 @@ const EMO = {
 let curLine = null, typer = 0, typedLen = 0, typeAccum = 0, dlgHiddenTemp = false;
 function speakerPitch(name) { let h = 0; for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) | 0; return 0.8 + (Math.abs(h) % 7) * 0.08; }
 function showLine(l) {
+  if (document.pointerLockElement) { relockAfterTalk = true; exitPointerLock(); }
   const d = $('#dlg'); const emo = EMO[String(l.emotion || '').toLowerCase()] || EMO.neutral;
   curLine = { speaker: l.speaker || '', text: String(l.text || ''), emotion: l.emotion, side: l.side === 'right' ? 'right' : 'left', pitch: speakerPitch(l.speaker) };
   typedLen = 0; typeAccum = 0;
@@ -1140,20 +1141,21 @@ function advance() {
   Audio.sfx('ui');
   G('advanceDialogue');
   layoutDialogue();
+  relockIfTalkOver();
   return true;
 }
 function hideDialogue(all) { curLine = null; const d = $('#dlg'); d.classList.remove('on', 'done'); show(d, false); show('#skipBtn', false); $('#dlgLayer').classList.remove('block', 'scene'); }
 function hideDialogueTemporarily(on) { dlgHiddenTemp = on; $('#dlgLayer').style.visibility = on ? 'hidden' : ''; if (!on) layoutDialogue(); }
 $('#dlgLayer').addEventListener('pointerdown', e => { if (e.target.closest('#skipBtn')) return; if ($('#dlgLayer').classList.contains('block') || e.target.closest('#dlg')) { e.preventDefault(); advance(); } });
 $('#skipBtn').addEventListener('pointerdown', e => e.stopPropagation());
-$('#skipBtn').addEventListener('click', e => { e.stopPropagation(); curLine = null; hideDialogue(true); G('skipScene'); Audio.sfx('dodge'); });
+$('#skipBtn').addEventListener('click', e => { e.stopPropagation(); curLine = null; hideDialogue(true); G('skipScene'); Audio.sfx('dodge'); relockIfTalkOver(); });
 
 /* ============================================================
    events from the game
    ============================================================ */
 const on = (ev, fn) => { try { game.on(ev, (...a) => { try { fn(...a); } catch (e) { console.error('[ui] ' + ev, e); } }); } catch (e) { console.warn('game.on failed', ev, e); } };
 on('line', l => { if (mode === 'title') return; showLine(l || {}); });
-on('sceneEnd', () => { hideDialogue(true); if (mode === 'ending' || endingPending) { endingPending = false; showCredits(); } });
+on('sceneEnd', () => { hideDialogue(true); relockIfTalkOver(); if (mode === 'ending' || endingPending) { endingPending = false; showCredits(); } });
 on('objective', o => { const el = $('#objective'); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); if (o && o.text) { $('#objText').textContent = o.text; show(el, true); } Audio.sfx('objective'); });
 on('powerLearned', p => {
   p = p || {}; if (p.id && !save.powers.includes(p.id)) { save.powers.push(p.id); persist(); }
@@ -1379,6 +1381,14 @@ document.addEventListener('pointerlockchange', () => {
   if (lockedOnce && mode === 'game' && !paused && !modal && !curLine && Date.now() - lastUnlockReq > 300) pauseGame();
 });
 let lastUnlockReq = 0;
+// Mouse is freed while characters talk, then locked again when the talking is over.
+let relockAfterTalk = false;
+function relockIfTalkOver() {
+  if (!relockAfterTalk || curLine || mode !== 'game' || paused || modal) return;
+  const st = getState(); if (st.screen !== 'play' && st.screen !== 'bossIntro') return;
+  relockAfterTalk = false;
+  if (!document.pointerLockElement) { try { const p = canvas.requestPointerLock && canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {} }
+}
 function exitPointerLock() { if (document.pointerLockElement) { lastUnlockReq = Date.now(); try { document.exitPointerLock(); } catch (_) {} } }
 
 // keyboard
@@ -1402,7 +1412,7 @@ window.addEventListener('keydown', e => {
     const st = getState(); if (st.screen !== 'play' || e.code === 'Enter') { e.preventDefault(); if (!e.repeat) advance(); return; }
   }
   if (inGame && a) { e.preventDefault(); if (!e.repeat && !keys.has(e.code) && held[a] !== undefined) latch[a] = true; keys.add(e.code); return; }
-  if (inGame && (e.code === 'Enter')) { const st = getState(); if (st.screen === 'scene') { e.preventDefault(); G('advanceDialogue'); } }
+  if (inGame && (e.code === 'Enter')) { const st = getState(); if (st.screen === 'scene') { e.preventDefault(); G('advanceDialogue'); relockIfTalkOver(); } }
 });
 window.addEventListener('keyup', e => { keys.delete(e.code); });
 window.addEventListener('blur', () => { keys.clear(); releaseAll(); });
