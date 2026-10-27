@@ -453,7 +453,7 @@ export function createGame(canvas, opts = {}) {
       face: REN_FACE, trim: true, collar: 0xf4f4ff, lapel: 0x34408c, cuff: 0xf2c14e, sole: 0xe8333f, belt: 0x3a2a24, hemLen: 0.19,
       colors: { skin: 0xffe3d0, top: 0x232a58, bottom: 0x1a1d36, shoe: 0x2a2236, accent: 0xf2c14e },
       hair(rig, J) {
-        const blk = toon(0x262840), str = toon(0x8f9cff);
+        const blk = toon(0x262840), str = toon(0x6f7fe0);
         hairCap(J, blk);
         const sp = [];
         for (const [el, azs, len, w, sw] of [[64, [-24, 24], 0.2, 0.056, 1.5], [48, [-62, 0, 62], 0.24, 0.06, 1.35], [36, [-112, -158, 112, 158], 0.27, 0.062, 1.05], [12, [-82, -126, 180, 126, 82], 0.25, 0.06, 1.0], [-12, [-102, -146, 146, 102], 0.2, 0.052, 0.8], [-36, [-156, 180, 156], 0.15, 0.046, 0.55]])
@@ -912,18 +912,22 @@ export function createGame(canvas, opts = {}) {
       x.fillStyle = '#f6efe0'; x.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 11 : 26; x.lineTo(64 + Math.cos(a) * r, 108 + Math.sin(a) * r); } x.fill();
     }, false);
   }
+  function stripBase(x, col, inset) {
+    x.clearRect(0, 0, 128, 256); x.fillStyle = col; x.fillRect(inset + 6, 0, 116 - 2 * inset, 256);
+    for (let y = 0; y < 256; y += 5) for (const s of [-1, 1]) { const r = rand(5, 10), cx = 64 + s * (58 - inset - rand(0, 6)); for (const dy of [0, -256, 256]) { x.beginPath(); x.arc(cx, y + dy, r, 0, TAU); x.fill(); } }
+  }
   function grassTex() {
     return onceTex('grass', 128, 256, (x) => {
-      x.clearRect(0, 0, 128, 256);
-      for (let i = 0; i < 26; i++) { x.fillStyle = `rgba(${70 + rand(0, 40) | 0},${140 + rand(0, 50) | 0},${60 + rand(0, 30) | 0},1)`; x.beginPath(); x.ellipse(64, i * 10, 52 + rand(0, 12), 9, 0, 0, TAU); x.fill(); }
+      stripBase(x, '#6fb04e', 12);
+      for (let i = 0; i < 40; i++) { x.fillStyle = `rgba(${70 + rand(0, 40) | 0},${140 + rand(0, 50) | 0},${60 + rand(0, 30) | 0},0.6)`; x.beginPath(); x.ellipse(rand(26, 102), rand(0, 256), rand(6, 16), rand(4, 9), 0, 0, TAU); x.fill(); }
       for (let i = 0; i < 260; i++) { const xx = rand(14, 114), y = rand(0, 256), h = rand(4, 10); x.strokeStyle = Math.random() < 0.5 ? '#3f8a3a' : '#9ad86a'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(xx, y); x.lineTo(xx + rand(-3, 3), y - h); x.stroke(); }
       for (let i = 0; i < 18; i++) { x.fillStyle = ['#ffd2e6', '#fff6a8', '#ffffff'][i % 3]; x.beginPath(); x.arc(rand(20, 108), rand(0, 256), 2.4, 0, TAU); x.fill(); }
     });
   }
   function pathTex() {
     return onceTex('path', 128, 256, (x) => {
-      x.clearRect(0, 0, 128, 256);
-      for (let i = 0; i < 30; i++) { x.fillStyle = `rgba(${224 + rand(-10, 10) | 0},${208 + rand(-10, 10) | 0},${176 + rand(-10, 10) | 0},1)`; x.beginPath(); x.ellipse(64, i * 9, 50 + rand(0, 12), 8, 0, 0, TAU); x.fill(); }
+      stripBase(x, '#dcc8a2', 10);
+      for (let i = 0; i < 30; i++) { x.fillStyle = shade('#dcc8a2', rand(0.93, 1.05), 0.5); x.beginPath(); x.ellipse(rand(24, 104), rand(0, 256), rand(6, 14), rand(4, 8), 0, 0, TAU); x.fill(); }
       for (let i = 0; i < 70; i++) { x.fillStyle = shade('#a8957a', rand(0.8, 1.2), 0.8); x.beginPath(); x.ellipse(rand(18, 110), rand(0, 256), rand(1.5, 4), rand(1, 3), rand(0, 3), 0, TAU); x.fill(); }
     });
   }
@@ -1113,7 +1117,8 @@ export function createGame(canvas, opts = {}) {
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.0, 16, 20, 1, true), new THREE.MeshBasicMaterial(Object.assign({ color: 0xffd27a, map: new THREE.CanvasTexture(c), opacity: 0.55 }, add))); beam.position.y = 8; g.add(beam);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.09, 6, 40), new THREE.MeshBasicMaterial(Object.assign({ color: 0xffe08a, opacity: 0.9 }, add))); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.12; g.add(ring);
     const sh = new THREE.Shape([[0, 0.75], [0.6, 0.05], [0.3, 0.05], [0.3, -0.55], [-0.3, -0.55], [-0.3, 0.05], [-0.6, 0.05]].map((p) => new THREE.Vector2(p[0], p[1])));
-    const arrow = new THREE.Mesh(new THREE.ShapeGeometry(sh).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial(Object.assign({ color: 0xffd27a, opacity: 0.85 }, add))); arrow.visible = false; arrow.renderOrder = 3; scene.add(arrow);
+    const arrow = new THREE.Mesh(new THREE.ShapeGeometry(sh).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffb020, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 })); arrow.visible = false; arrow.renderOrder = 3; scene.add(arrow);
+    const rim = new THREE.Mesh(new THREE.ShapeGeometry(sh).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x2a1030, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 })); rim.scale.setScalar(1.25); rim.position.y = -0.005; arrow.add(rim);
     return { g, ring, arrow, pos: new THREE.Vector3() };
   })();
   function objectiveTarget() {
@@ -1135,7 +1140,7 @@ export function createGame(canvas, opts = {}) {
     if (B.arrow.visible) {
       const a = Math.atan2(dx, dz), r = 1.7 + 0.18 * Math.sin(clock * 6);
       B.arrow.position.set(player.pos.x + Math.sin(a) * r, (player.grounded ? player.pos.y : groundAt(player.pos.x, player.pos.z, player.pos.y)) + 0.07, player.pos.z + Math.cos(a) * r);
-      B.arrow.rotation.y = a; B.arrow.material.color.set(tg.enemy ? 0xff6a8a : 0xffd27a); B.arrow.material.opacity = 0.65 + 0.3 * Math.sin(clock * 6);
+      B.arrow.rotation.y = a; B.arrow.material.color.set(tg.enemy ? 0xff3a5a : 0xffb020); B.arrow.material.opacity = 0.75 + 0.2 * Math.sin(clock * 6);
     }
   }
 
