@@ -1002,7 +1002,7 @@
         break;
       }
       case 'money': {
-        if (smp) L.push(hero('stand', 1070, 440, 520, 'left'));
+        if (smp) L.push(hero('stand', 1150, 450, 520, 'left'));
         else L.push(foodLayer(1000, 420, 520, 0));
         L.push(hl = textLayer(c, { text: c.headline || 'DONUT SMP', x: X(380), y: 150, maxWidth: 640, maxSize: 96, maxLines: 2, rotation: right ? 2 : -2 }));
         var num = c.number || '$1B', longNum = num.length > 9;
@@ -1012,7 +1012,7 @@
         break;
       }
       case 'rank': {
-        if (smp) L.push(hero('stand', 1000, 410, 540, 'left'));
+        if (smp) L.push(hero('stand', 1120, 420, 540, 'left'));
         else L.push(foodLayer(920, 380, 640, 0));
         var crown = takeSticker(function (s) { return /crown|flame|burst/.test(s); }) || (smp ? 'px-crown' : 'burst');
         L.push(stickerLayer(c, crown, { x: X(230), y: 120, w: crown === 'burst' ? 340 : 190, rotation: -10 }));
@@ -1021,7 +1021,7 @@
         break;
       }
       case 'count': {
-        if (smp) L.push(hero('stand', 1010, 420, 520, 'left'));
+        if (smp) L.push(hero('stand', 1130, 430, 520, 'left'));
         else L.push(foodLayer(930, 380, 640, 0));
         var badge = takeSticker(function (s) { return /burst|diamond|spawner|chest|emerald/.test(s); }) || (smp ? null : 'burst');
         if (badge === 'burst') L.push(stickerLayer(c, 'burst', { x: X(260), y: 300, w: 420, rotation: -8, color: pal.accent }));
@@ -1032,11 +1032,11 @@
         break;
       }
       case 'time': {
-        if (smp) L.push(hero('run', 1000, 440, 500, 'left'));
+        if (smp) L.push(hero('run', 1080, 450, 500, 'left'));
         else L.push(foodLayer(930, 400, 640, 0));
         var clock = takeSticker(function (s) { return /clock|pickaxe/.test(s); }) || (smp ? null : 'clock');
-        if (clock) L.push(stickerLayer(c, clock, { x: X(85), y: 190, w: 130, rotation: -12 }));
-        L.push(textLayer(c, { text: c.number || '10 MIN', x: X(385), y: 190, maxWidth: 430, maxSize: 150, maxLines: 1, fill: { kind: 'gradient', color: pal.accent, color2: darker(pal.accent, 0.75) }, effect: smp ? 'extrude' : 'none', effectColor: '#000000', strokeWidth: 16, rotation: -4 }));
+        if (clock) L.push(stickerLayer(c, clock, { x: X(smp ? 90 : 85), y: smp ? 80 : 190, w: smp ? 110 : 130, rotation: -12 }));
+        L.push(textLayer(c, { text: c.number || '10 MIN', x: X(smp ? 420 : 385), y: 190, maxWidth: smp ? 640 : 430, maxSize: 150, maxLines: 1, fill: { kind: 'gradient', color: pal.accent, color2: darker(pal.accent, 0.75) }, effect: smp ? 'extrude' : 'none', effectColor: '#000000', strokeWidth: 16, rotation: -4 }));
         L.push(hl = textLayer(c, { text: c.headline, x: X(330), y: 440, maxWidth: 560, maxSize: 120, maxLines: 2, rotation: right ? 2 : -2 }));
         if (c.subline) L.push(below(hl, textLayer(c, { text: c.subline, x: X(320), y: 640, maxWidth: 520, maxSize: 72, maxLines: 1, minSize: 60, optional: true, effect: 'box', box: { color: smp ? '#000000' : pal.accent, padding: 16, radius: smp ? 4 : 14 }, color: '#FFFFFF' })));
         break;
@@ -1058,8 +1058,12 @@
       [{ x: X(1180), y: 110 }, { x: X(110), y: 640 }, { x: X(1190), y: 640 }, { x: X(110), y: 110 }, { x: X(1190), y: 380 }, { x: X(100), y: 380 }];
     var taken = L.map(roughBox);
     var used = 0;
+    // the drawn set-piece already shows the trap / chests / spawners: no icon repeating it
+    var piece = smp && !bgImage && !split ? (c.setPiece || pickSetPiece(c, '')) : '';
+    var SAME = { 'px-trap': /trap/, 'px-chest': /stash|base/, 'px-spawner': /spawner/, 'px-portal': /portal/, 'px-sword': /pvp/ };
     st.forEach(function (s) {
       if (isArrow(s) || isRing(s)) return; // arrows/rings only where they point at something
+      if (piece && SAME[s] && SAME[s].test(piece)) return;
       var sw = smp ? 140 : 150;
       for (var k = 0; k < spots.length; k++) {
         var sp = spots[k]; if (!sp) continue;

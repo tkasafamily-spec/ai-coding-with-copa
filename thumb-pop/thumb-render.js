@@ -411,112 +411,77 @@
     if (/dish|food|plate|meal|cookie|cake|pasta|burger|pizza|bowl|recipe|ingredient|finished|raw|snack|dessert|bread|chicken/.test(t)) return 'plate';
     return 'photo';
   }
-  function drawChip(c, label, cx, cy, size) {
-    var t = '+ ' + String(label || 'Add photo');
-    c.save();
-    c.font = '700 ' + size + 'px ' + UI_FONT; c.textAlign = 'center'; c.textBaseline = 'middle';
-    var tw = c.measureText(t).width, pw = tw + size * 1.4, ph = size * 1.9;
-    c.fillStyle = 'rgba(12,12,14,0.72)'; c.beginPath(); rr(c, cx - pw / 2, cy - ph / 2, pw, ph, ph / 2); c.fill();
-    c.lineWidth = Math.max(1, size * 0.09); c.strokeStyle = 'rgba(255,255,255,0.55)'; c.stroke();
-    c.fillStyle = '#ffffff'; c.fillText(t, cx, cy + size * 0.04);
-    c.restore();
-  }
-  function drawPlaceholderArt(c, kind, shape, w, h, label, hasScene) {
-    var m = Math.min(w, h);
-    if (shape === 'circle' && kind === 'plate' && !hasScene) {
-      var pg = c.createLinearGradient(0, 0, w, h); pg.addColorStop(0, '#c98a4f'); pg.addColorStop(1, '#8a5528');
-      c.fillStyle = pg; shapePath(c, 'circle', 0, 0, w, h, 0); c.fill();
-      c.save(); c.translate(w * 0.06, h * 0.06); c.scale(0.88, 0.88); drawPlaceholderArt(c, 'plate', 'none', w, h, label, false); c.restore();
-      return;
-    }
-    if (shape !== 'none') {
-      if (!hasScene) {
-        shapePath(c, shape, 0, 0, w, h, 0);
-        var g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(40,40,46,0.55)'); g.addColorStop(1, 'rgba(10,10,14,0.65)');
-        c.fillStyle = g; c.fill();
-        c.save(); shapePath(c, shape, 0, 0, w, h, -m * 0.035); c.setLineDash && c.setLineDash([m * 0.05, m * 0.035]);
-        c.lineWidth = Math.max(2, m * 0.012); c.strokeStyle = 'rgba(255,255,255,0.7)'; c.stroke(); c.restore();
-        // small photo icon
-        var s = m * 0.22, ix = w / 2 - s / 2, iy = h / 2 - s * 0.75;
-        c.fillStyle = 'rgba(255,255,255,0.85)'; c.beginPath(); rr(c, ix, iy, s, s * 0.78, s * 0.12); c.fill();
-        c.fillStyle = 'rgba(30,30,36,0.9)'; c.beginPath(); c.moveTo(ix + s * 0.12, iy + s * 0.66); c.lineTo(ix + s * 0.4, iy + s * 0.32); c.lineTo(ix + s * 0.6, iy + s * 0.52); c.lineTo(ix + s * 0.72, iy + s * 0.42); c.lineTo(ix + s * 0.9, iy + s * 0.66); c.closePath(); c.fill();
-        c.beginPath(); c.arc(ix + s * 0.72, iy + s * 0.22, s * 0.08, 0, 7); c.fill();
-      }
-      drawChip(c, label, w / 2, hasScene ? h / 2 : h / 2 + m * 0.2, clamp(m * 0.075, 14, 40));
-      return;
-    }
-    if (kind === 'person') {
-      var g2 = c.createLinearGradient(0, 0, 0, h); g2.addColorStop(0, '#f4f4f4'); g2.addColorStop(1, '#c9c9cf');
-      c.fillStyle = g2;
-      var hr = Math.min(w * 0.27, h * 0.2);
-      c.beginPath(); c.arc(w * 0.5, h * 0.33, hr, 0, Math.PI * 2); c.fill();
-      c.beginPath(); c.moveTo(w * 0.04, h); c.bezierCurveTo(w * 0.04, h * 0.66, w * 0.25, h * 0.57, w * 0.5, h * 0.57); c.bezierCurveTo(w * 0.75, h * 0.57, w * 0.96, h * 0.66, w * 0.96, h); c.closePath(); c.fill();
-      drawChip(c, label, w / 2, h * 0.8, clamp(m * 0.075, 14, 40));
-    } else if (kind === 'plate') {
-      var cx = w / 2, cy = h / 2, r = Math.min(w, h) * 0.48;
-      c.fillStyle = '#fbfbfb'; c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.fill();
-      var g3 = c.createRadialGradient(cx, cy - r * 0.2, r * 0.1, cx, cy, r * 0.72);
-      g3.addColorStop(0, '#ffffff'); g3.addColorStop(1, '#e1e1e4');
-      c.fillStyle = g3; c.beginPath(); c.arc(cx, cy, r * 0.7, 0, Math.PI * 2); c.fill();
-      c.lineWidth = r * 0.03; c.strokeStyle = 'rgba(0,0,0,0.08)'; c.stroke();
-      drawChip(c, label, cx, cy, clamp(m * 0.075, 14, 40));
-    } else {
-      c.fillStyle = 'rgba(20,20,26,0.5)'; c.beginPath(); rr(c, 0, 0, w, h, m * 0.06); c.fill();
-      c.save(); c.beginPath(); rr(c, m * 0.03, m * 0.03, w - m * 0.06, h - m * 0.06, m * 0.04);
-      c.setLineDash && c.setLineDash([m * 0.05, m * 0.035]); c.lineWidth = Math.max(2, m * 0.012); c.strokeStyle = 'rgba(255,255,255,0.75)'; c.stroke(); c.restore();
-      drawChip(c, label, w / 2, h / 2, clamp(m * 0.075, 14, 40));
-    }
-  }
   function strHash(t) { var h = 7; t = String(t || ''); for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return Math.abs(h); }
-  function autoScene(L, info) {
-    var list = info.theme === 'smp' ? ['blocky-day', 'blocky-sunset', 'cave'] : ['wood-board', 'marble', 'gingham'];
-    list = list.filter(function (x) { return x !== info.bgScene; }).slice(0, 2);
-    return list[strHash(L.placeholder) % list.length];
+  /* generated art for an empty image slot: 'scene:<id>[:<setPiece>]' | 'food:<dish>' | null.
+     Older designs without a fill field: a scene field still shows that scene, a dish label shows food. */
+  function fillOf(L) {
+    var f = L.fill;
+    if (typeof f === 'string') {
+      if (f.indexOf('scene:') === 0) { var p = f.slice(6).split(':'); return { kind: 'scene', scene: SCENE_BY[p[0]] ? p[0] : (SCENE_BY[L.scene] ? L.scene : null), setPiece: SETPIECES[p[1]] ? p[1] : null }; }
+      if (f.indexOf('food:') === 0) return { kind: 'food', dish: foodKind(f.slice(5)) };
+      return null;
+    }
+    if (f === undefined) {
+      if (L.scene && SCENE_BY[L.scene]) return { kind: 'scene', scene: L.scene, setPiece: null };
+      if (L.placeholder && phKind(L.placeholder) === 'plate') return { kind: 'food', dish: foodKind(L.placeholder) };
+    }
+    return null;
   }
-  function renderImage(L, src, s, placeholders, info) {
+  function fillSceneCanvas(fill, theme) {
+    var sid = fill.scene || THEME_SCENE[theme === 'smp' ? 'smp' : 'cooking'];
+    if (!fill.setPiece) return sceneCanvas(sid);
+    var key = 'SCF|' + sid + '|' + fill.setPiece, hit = cget(key); if (hit) return hit.canvas;
+    var C = mk(W, H), c = C.getContext('2d'); c.drawImage(sceneCanvas(sid), 0, 0);
+    try { drawSetPiece(c, fill.setPiece, 'center'); } catch (e) { /* scene alone */ }
+    return cset(key, { canvas: C }).canvas;
+  }
+  function renderImage(L, src, s, opts, info) {
     var n = natSize(src);
     info = info || { theme: 'cooking', bgScene: null };
+    var fill = n ? null : fillOf(L), empty = !n && !fill;
+    if (empty && !(opts && opts.emptyOutline)) return null;
     var fr = imageFrame(L, n ? src : null), w = fr.w, h = fr.h, shape = fr.shape;
     var ol = obj(L.outline), ow = clamp(num(ol.width, 0), 0, 60), oc = str(ol.color, '#ffffff');
     var gl = obj(L.glow), glow = { size: clamp(num(gl.size, 0), 0, 120), color: str(gl.color, '#ffffff') };
     var sh = shadowOf(L.shadow);
-    var sceneId = !n && L.scene && SCENE_BY[L.scene] ? L.scene : null;
-    if (!n && !sceneId && !placeholders) return null;
-    var phk = phKind(L.placeholder), autoPlate = false;
-    if (!n && !sceneId && placeholders && shape !== 'none' && phk !== 'person') { sceneId = autoScene(L, info); autoPlate = info.theme !== 'smp'; }
-    var tail = [n ? tokenOf(src) : 'ph:' + (sceneId || '') + ':' + autoPlate + ':' + (placeholders ? 1 : 0) + ':' + str(L.placeholder), (w / h).toFixed(4), shape, !!L.flipX,
+    if (empty) { ow = 0; glow.size = 0; sh = shadowOf(null); }
+    var foodBg = fill && fill.kind === 'food' ? (SCENE_BY[L.scene] ? L.scene : 'wood-board') : '';
+    var what = n ? tokenOf(src) : empty ? 'empty' : [fill.kind, fill.scene || '', fill.setPiece || '', fill.dish || '', foodBg, info.theme].join(':');
+    var tail = [what, (w / h).toFixed(4), shape, !!L.flipX,
       num(L.fx, 0.5), num(L.fy, 0.5), num(L.zoom, 1), ow, oc, glow.size, glow.color, sh.on ? [sh.blur, sh.dx, sh.dy, sh.color].join(',') : '', s.toFixed(3)].join('|');
     var hit = lookup(L, 'I|' + w.toFixed(2) + '|' + tail, 'Iq|' + quantPx(w * s).toFixed(2) + '|' + tail); if (hit) return hit;
     var key = storeKey;
-    if (!n && !sceneId) { ow = Math.min(ow, 10); }
     var pad = fxPad(ow, glow.size, sh), dw = w + 2 * pad, dh = h + 2 * pad;
     var es = safeScale(s, dw, dh), cw = Math.ceil(dw * es), ch = Math.ceil(dh * es);
     var I = mk(cw, ch), c = I.getContext('2d');
     c.setTransform(es, 0, 0, es, pad * es, pad * es);
     smooth(c, true);
-    var cut = shape === 'none';
+    var cut = shape === 'none', food = fill && fill.kind === 'food';
     if (L.flipX) { c.translate(w, 0); c.scale(-1, 1); }
     if (n) {
       if (cut) c.drawImage(src, 0, 0, w, h);
       else { c.save(); shapePath(c, shape, 0, 0, w, h, 0); c.clip(); coverDraw(c, src, n, L.fx, L.fy, L.zoom, 0, 0, w, h); c.restore(); }
+    } else if (fill && fill.kind === 'scene') {
+      var sc = fillSceneCanvas(fill, info.theme);
+      c.save(); shapePath(c, cut ? 'square' : shape, 0, 0, w, h, 0); c.clip(); coverDraw(c, sc, { w: W, h: H }, L.fx, L.fy, L.zoom, 0, 0, w, h); c.restore();
+    } else if (food) {
+      if (!cut) {
+        c.save(); shapePath(c, shape, 0, 0, w, h, 0); c.clip();
+        coverDraw(c, sceneCanvas(foodBg), { w: W, h: H }, 0.5, 0.5, 1, 0, 0, w, h);
+        var zw = w * 1.34, zh = h * 1.34; c.translate((w - zw) / 2, (h - zh) / 2 + h * 0.06); drawFood(c, fill.dish, zw, zh, es); c.restore();
+      } else drawFood(c, fill.dish, w, h, es);
     } else {
-      if (sceneId) {
-        var sc = sceneCanvas(sceneId);
-        c.save(); shapePath(c, cut ? 'square' : shape, 0, 0, w, h, 0); c.clip(); coverDraw(c, sc, { w: W, h: H }, L.fx, L.fy, L.zoom, 0, 0, w, h);
-        c.fillStyle = 'rgba(0,0,0,0.12)'; c.fillRect(0, 0, w, h); c.restore();
-      }
-      if (L.flipX) { c.setTransform(es, 0, 0, es, pad * es, pad * es); }
-      if (autoPlate) {
-        var pm = Math.min(w, h) * 0.84;
-        c.save(); shapePath(c, shape, 0, 0, w, h, 0); c.clip(); c.translate((w - pm) / 2, (h - pm) / 2);
-        c.shadowColor = 'rgba(0,0,0,0.35)'; c.shadowBlur = pm * 0.06 * es; c.shadowOffsetY = pm * 0.03 * es;
-        c.fillStyle = '#fbfbfb'; c.beginPath(); c.arc(pm / 2, pm / 2, pm * 0.48, 0, Math.PI * 2); c.fill(); c.shadowColor = 'rgba(0,0,0,0)';
-        drawPlaceholderArt(c, 'plate', 'none', pm, pm, str(L.placeholder, 'Your photo'), false); c.restore();
-      } else if (placeholders) drawPlaceholderArt(c, phk, sceneId && cut ? 'square' : shape, w, h, str(L.placeholder, 'Your photo'), !!sceneId);
+      c.save(); shapePath(c, cut ? 'rounded' : shape, 0, 0, w, h, -3); if (c.setLineDash) c.setLineDash([14, 10]);
+      c.lineWidth = 3; c.strokeStyle = 'rgba(255,255,255,0.4)'; c.stroke(); c.restore();
     }
     var sil = null;
     if (ow > 0) {
-      if (cut && (n || !sceneId)) sil = dilate(I, ow * es, oc, false);
+      if (cut && food) {
+        var FS = mk(cw, ch), fx = FS.getContext('2d'); fx.setTransform(es, 0, 0, es, pad * es, pad * es); smooth(fx, true);
+        if (L.flipX) { fx.translate(w, 0); fx.scale(-1, 1); }
+        FOOD_SIL = true; try { drawFood(fx, fill.dish, w, h, es); } finally { FOOD_SIL = false; }
+        sil = dilate(FS, ow * es, oc, false); free(FS);
+      } else if (cut && n) sil = dilate(I, ow * es, oc, false);
       else {
         sil = mk(cw, ch); var x = sil.getContext('2d'); x.setTransform(es, 0, 0, es, pad * es, pad * es);
         x.fillStyle = oc; shapePath(x, cut ? 'square' : shape, 0, 0, w, h, ow); x.fill();
@@ -1801,7 +1766,8 @@
       w.box(2, -5, 2, 6, -5, 2, 'chest'); w.set(2, -4, 2, 'chest'); w.set(3, -4, 2, 'gold'); w.set(5, -4, 2, 'diamond'); w.set(6, -4, 2, 'chest');
       w.set(2, -5, 4, 'furnace'); w.set(6, -5, 4, 'crafting'); w.set(4, -5, 5, 'lantern'); w.set(2, -3, 2, 'torch');
       w.set(4, 0, 3, 'plate'); w.set(1, 1, 1, 'tallgrass'); w.set(7, 1, 6, 'flower'); w.set(6, 1, 1, 'tallgrass');
-      w.glows.push({ p: [4.5, -4, 4.5], r: 3.4, c: '#ffb04a', a: 0.6 });
+      w.set(3, -5, 6, 'lantern'); w.set(5, -5, 6, 'lantern'); w.box(2, -5, 1, 6, -3, 1, 'bricks');
+      w.glows.push({ p: [4.5, -4, 5], r: 4.4, c: '#ffb04a', a: 0.85 }); w.glows.push({ p: [4.5, -3.2, 3], r: 3, c: '#fff0c0', a: 0.4 });
     } },
     'spawner-farm': { name: 'Spawner farm', build: function (w) {
       vwGround(w, 9, 7, 'bricks', 'stone');
@@ -1815,10 +1781,10 @@
       w.set(10, 1, 1, 'hay'); w.set(10, 1, 2, 'hay'); w.set(10, 2, 1, 'hay'); w.set(0, 1, 8, 'chest'); w.set(0, 1, 0, 'torch'); w.set(10, 1, 8, 'torch'); w.set(10, 1, 5, 'flower');
     } },
     'pvp-duel': { name: 'PvP duel', build: function (w) {
-      vwGround(w, 9, 6, 'bricks', 'stone');
-      w.box(0, 1, 0, 8, 1, 0, 'bricks'); w.set(0, 2, 0, 'bricks'); w.set(8, 2, 0, 'bricks'); w.set(0, 3, 0, 'torch'); w.set(8, 3, 0, 'torch'); w.set(4, 2, 0, 'gold');
-      w.sprites.push({ who: 'hero', pose: 'point', facing: 'right', p: [2.6, 1, 3.2], h: 2.05, sword: 1 });
-      w.sprites.push({ who: 'rival', pose: 'point', facing: 'left', p: [6.4, 1, 3.0], h: 2.05, sword: 1 });
+      vwGround(w, 7, 5, 'bricks', 'stone');
+      w.box(0, 1, 0, 6, 1, 0, 'bricks'); w.set(0, 2, 0, 'bricks'); w.set(6, 2, 0, 'bricks'); w.set(0, 3, 0, 'torch'); w.set(6, 3, 0, 'torch'); w.set(3, 2, 0, 'gold');
+      w.sprites.push({ who: 'hero', pose: 'point', facing: 'right', p: [1.7, 1, 2.8], h: 3.1, sword: 1 });
+      w.sprites.push({ who: 'rival', pose: 'point', facing: 'left', p: [5.3, 1, 2.6], h: 3.1, sword: 1 });
     } },
     'stash-chests': { name: 'Loot stash', build: function (w) {
       vwGround(w, 8, 7, 'bricks', 'stone');
@@ -1920,7 +1886,7 @@
     var w = VW(); def.build(w);
     var yaw = side === 'left' ? 34 : side === 'center' ? 26 : -34, pitch = 30;
     var probe = renderVoxels(w, yaw, pitch, 4);
-    var tw = side === 'center' ? 720 : 620, th = 470, k = Math.min(tw / probe.w, th / probe.h);
+    var tw = side === 'center' ? 820 : 760, th = 560, k = Math.min(tw / probe.w, th / probe.h);
     free(probe.canvas);
     var out = renderVoxels(w, yaw, pitch, 4 * k);
     return cset(key, { canvas: out.canvas, w: out.w, h: out.h });
@@ -1929,13 +1895,263 @@
   function drawSetPiece(c, id, side) {
     side = side === 'left' || side === 'center' ? side : 'right';
     var sp = setPieceCanvas(id, side); if (!sp) return;
-    var cx = side === 'left' ? 330 : side === 'center' ? 640 : 950, x = cx - sp.w / 2, y = H - sp.h * 0.93;
+    var cx = side === 'left' ? 360 : side === 'center' ? 640 : 920, x = cx - sp.w / 2, y = H - sp.h * 0.9;
     c.save();
     var halo = c.createRadialGradient(cx, y + sp.h * 0.55, 10, cx, y + sp.h * 0.55, sp.w * 0.62);
     halo.addColorStop(0, 'rgba(255,255,235,0.22)'); halo.addColorStop(1, 'rgba(255,255,235,0)'); c.fillStyle = halo; c.fillRect(cx - sp.w, y - sp.h * 0.2, sp.w * 2, sp.h * 1.6);
     c.shadowColor = 'rgba(0,0,0,0.5)'; c.shadowBlur = 30; c.shadowOffsetY = 14;
     c.drawImage(sp.canvas, x, y);
     c.restore();
+  }
+
+  /* ------------------------------------------------------------------ food: generated plate-of-food illustrations (soft light, no outlines) */
+  var FOODS = ['cookies', 'pasta', 'pancakes', 'burger', 'cake', 'salad', 'soup', 'generic', 'ingredients'];
+  function foodKind(t) {
+    t = String(t || '').toLowerCase();
+    if (FOODS.indexOf(t) >= 0) return t;
+    if (/cookie|biscuit|snickerdoodle/.test(t)) return 'cookies';
+    if (/pancake|waffle|crepe|crêpe|french toast/.test(t)) return 'pancakes';
+    if (/pasta|spaghetti|noodle|mac\b|macaroni|lasagn|carbonara|bolognese|ramen|penne|linguine/.test(t)) return 'pasta';
+    if (/burger|sandwich|slider|sub\b|toastie/.test(t)) return 'burger';
+    if (/cake|cupcake|brownie|cheesecake|muffin|dessert|chocolate|donut|doughnut/.test(t)) return 'cake';
+    if (/salad|bowl|healthy|veg/.test(t)) return 'salad';
+    if (/soup|stew|chowder|broth|chili|curry/.test(t)) return 'soup';
+    if (/ingredient|raw|before|prep/.test(t)) return 'ingredients';
+    return 'generic';
+  }
+  function ellP(c, x, y, rx, ry, rot) { c.beginPath(); if (c.ellipse) c.ellipse(x, y, Math.max(0.01, rx), Math.max(0.01, ry), rot || 0, 0, Math.PI * 2); else { c.save(); c.translate(x, y); c.rotate(rot || 0); c.scale(1, ry / rx); c.arc(0, 0, rx, 0, Math.PI * 2); c.restore(); } }
+  function fillE(c, x, y, rx, ry, fill, rot) { ellP(c, x, y, rx, ry, rot); c.fillStyle = fill; c.fill(); }
+  function radG(c, x, y, r, stops) { var g = c.createRadialGradient(x, y, 0, x, y, Math.max(0.01, r)); for (var i = 0; i < stops.length; i += 2) g.addColorStop(stops[i], stops[i + 1]); return g; }
+  function linG(c, x0, y0, x1, y1, stops) { var g = c.createLinearGradient(x0, y0, x1, y1); for (var i = 0; i < stops.length; i += 2) g.addColorStop(stops[i], stops[i + 1]); return g; }
+  function blobP(c, x, y, rx, ry, R, n, jit, rot) {
+    var pts = [], i; n = n || 9; rot = rot || 0;
+    for (i = 0; i < n; i++) { var a = rot + i / n * Math.PI * 2, k = 1 + (R() - 0.5) * 2 * jit; pts.push([x + Math.cos(a) * rx * k, y + Math.sin(a) * ry * k]); }
+    c.beginPath();
+    var mid = function (p, q) { return [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]; }, m0 = mid(pts[n - 1], pts[0]);
+    c.moveTo(m0[0], m0[1]);
+    for (i = 0; i < n; i++) { var p = pts[i], m = mid(p, pts[(i + 1) % n]); c.quadraticCurveTo(p[0], p[1], m[0], m[1]); }
+    c.closePath();
+  }
+  var FOOD_SIL = false;
+  function softShadow(c, k, blur, dy, alpha) { if (FOOD_SIL) return; c.shadowColor = 'rgba(40,20,5,' + (alpha == null ? 0.35 : alpha) + ')'; c.shadowBlur = blur * k; c.shadowOffsetY = dy * k; c.shadowOffsetX = 0; }
+  function noShadow(c) { c.shadowColor = 'rgba(0,0,0,0)'; c.shadowBlur = 0; c.shadowOffsetY = 0; }
+  function gloss(c, x, y, rx, ry, a, rot) { fillE(c, x, y, rx, ry, 'rgba(255,255,255,' + a + ')', rot); }
+  function plate(c, cx, cy, rx, ry, k, rim) {
+    c.save(); softShadow(c, k, rx * 0.14, ry * 0.16, 0.38);
+    fillE(c, cx, cy, rx, ry, linG(c, cx - rx, cy - ry, cx + rx, cy + ry, [0, '#ffffff', 1, '#d9d9d6'])); c.restore();
+    fillE(c, cx, cy + ry * 0.05, rx * 0.74, ry * 0.7, radG(c, cx - rx * 0.15, cy - ry * 0.25, rx * 0.9, [0, '#fbfbf9', 1, '#e3e3df']));
+    ellP(c, cx, cy + ry * 0.05, rx * 0.74, ry * 0.7); c.lineWidth = rx * 0.012; c.strokeStyle = 'rgba(0,0,0,0.07)'; c.stroke();
+    if (rim) { ellP(c, cx, cy, rx * 0.93, ry * 0.9); c.lineWidth = rx * 0.018; c.strokeStyle = rim; c.stroke(); }
+    c.save(); c.beginPath(); if (c.ellipse) c.ellipse(cx, cy, rx * 0.97, ry * 0.94, 0, Math.PI * 1.05, Math.PI * 1.55); c.lineWidth = rx * 0.025; c.lineCap = 'round'; c.strokeStyle = 'rgba(255,255,255,0.9)'; c.stroke(); c.restore();
+  }
+  function bowl(c, cx, cy, rx, ry, depth, k, outside, inside) {
+    c.save(); softShadow(c, k, rx * 0.12, ry * 0.25, 0.4);
+    c.beginPath(); c.moveTo(cx - rx, cy); c.bezierCurveTo(cx - rx, cy + depth * 0.9, cx - rx * 0.5, cy + depth, cx, cy + depth); c.bezierCurveTo(cx + rx * 0.5, cy + depth, cx + rx, cy + depth * 0.9, cx + rx, cy); c.closePath();
+    c.fillStyle = linG(c, cx - rx, 0, cx + rx, 0, [0, shade(outside, -0.25), 0.35, outside, 0.6, shade(outside, 0.18), 1, shade(outside, -0.35)]); c.fill(); c.restore();
+    fillE(c, cx, cy, rx, ry, linG(c, 0, cy - ry, 0, cy + ry, [0, shade(inside, -0.1), 1, shade(inside, 0.08)]));
+    ellP(c, cx, cy, rx, ry); c.lineWidth = rx * 0.02; c.strokeStyle = 'rgba(255,255,255,0.85)'; c.stroke();
+  }
+  function chip(c, x, y, r, R) { blobP(c, x, y, r, r * 0.8, R, 6, 0.3, R() * 6); c.fillStyle = '#3a1d10'; c.fill(); blobP(c, x - r * 0.2, y - r * 0.25, r * 0.5, r * 0.35, R, 5, 0.3, 0); c.fillStyle = '#6a3a20'; c.fill(); fillE(c, x - r * 0.3, y - r * 0.35, r * 0.16, r * 0.1, 'rgba(255,240,220,0.7)'); }
+  function cookie(c, x, y, r, R, k) {
+    var ry = r * 0.55, th = r * 0.17, seed = R() * 6;
+    c.save(); softShadow(c, k, r * 0.1, r * 0.06, 0.35);
+    blobP(c, x, y + th, r, ry, rng(seed * 1000 | 0), 11, 0.06, seed); c.fillStyle = '#8a4a1a'; c.fill(); c.restore();
+    for (var i = 6; i >= 0; i--) { blobP(c, x, y + th * i / 6, r, ry, rng(seed * 1000 | 0), 11, 0.06, seed); c.fillStyle = shade('#b26a2a', -0.05 * i / 6); c.fill(); }
+    blobP(c, x, y, r, ry, rng(seed * 1000 | 0), 11, 0.06, seed);
+    c.fillStyle = radG(c, x - r * 0.15, y - ry * 0.2, r * 1.05, [0, '#f0c27a', 0.55, '#dd9e52', 0.9, '#c27c36', 1, '#a8642a']); c.fill();
+    c.save(); c.clip();
+    c.strokeStyle = 'rgba(255,226,170,0.55)'; c.lineWidth = r * 0.03; c.lineCap = 'round';
+    for (var q = 0; q < 4; q++) { var a = R() * 6.28, d = R() * 0.6; c.beginPath(); c.moveTo(x + Math.cos(a) * r * d, y + Math.sin(a) * ry * d); c.quadraticCurveTo(x + Math.cos(a + 0.4) * r * (d + 0.15), y + Math.sin(a + 0.4) * ry * (d + 0.15), x + Math.cos(a + 0.2) * r * (d + 0.3), y + Math.sin(a + 0.2) * ry * (d + 0.3)); c.stroke(); }
+    for (var j = 0; j < 8; j++) { var b = R() * 6.28, e = Math.sqrt(R()) * 0.78; chip(c, x + Math.cos(b) * r * e, y + Math.sin(b) * ry * e, r * (0.1 + R() * 0.06), R); }
+    for (var s = 0; s < 6; s++) { c.fillStyle = 'rgba(255,255,255,0.9)'; c.fillRect(x + (R() - 0.5) * r * 1.2, y + (R() - 0.5) * ry * 1.2, r * 0.03, r * 0.03); }
+    c.restore();
+  }
+  var FOOD_DRAW = {
+    cookies: function (c, cx, cy, S, R, k) {
+      plate(c, cx, cy + S * 0.12, S, S * 0.5, k);
+      cookie(c, cx - S * 0.36, cy - S * 0.08, S * 0.4, R, k); cookie(c, cx + S * 0.38, cy - S * 0.1, S * 0.4, R, k);
+      for (var i = 0; i < 3; i++) cookie(c, cx + S * 0.02, cy + S * 0.2 - i * S * 0.085, S * 0.44, R, k);
+      for (var j = 0; j < 7; j++) { var a = R() * 6.28; blobP(c, cx + Math.cos(a) * S * 0.62, cy + S * 0.22 + Math.sin(a) * S * 0.22, S * 0.02, S * 0.015, R, 5, 0.3); c.fillStyle = j % 2 ? '#c27c36' : '#3a1d10'; c.fill(); }
+    },
+    pasta: function (c, cx, cy, S, R, k) {
+      plate(c, cx, cy + S * 0.12, S, S * 0.5, k);
+      var mx = cx, my = cy + S * 0.08, rx = S * 0.62, ry = S * 0.3, hgt = S * 0.26;
+      c.save(); softShadow(c, k, S * 0.05, S * 0.03, 0.3); fillE(c, mx, my, rx, ry, '#e6b84e'); c.restore();
+      var cols = ['#f8dc8c', '#f1cb68', '#e8bb52', '#fbe3a0', '#e0ab42'];
+      c.lineCap = 'round';
+      var nest = function (a, d) { return [mx + Math.cos(a) * rx * d, my + Math.sin(a) * ry * d - hgt * (1 - d * d)]; };
+      for (var i = 0; i < 150; i++) {
+        var a0 = R() * 6.28, sweep = (0.8 + R() * 1.8) * (R() < 0.5 ? -1 : 1), d0 = 0.15 + R() * 0.85, d1 = clamp(d0 + (R() - 0.5) * 0.5, 0.1, 1);
+        c.beginPath();
+        for (var t = 0; t <= 16; t++) { var u = t / 16, q = nest(a0 + sweep * u, d0 + (d1 - d0) * u + Math.sin(u * 6 + i) * 0.03); if (t) c.lineTo(q[0], q[1]); else c.moveTo(q[0], q[1]); }
+        c.lineWidth = S * 0.034; c.strokeStyle = 'rgba(150,95,20,0.5)'; c.stroke();
+        c.lineWidth = S * 0.022; c.strokeStyle = cols[i % cols.length]; c.stroke();
+        if (i % 5 === 0) { c.lineWidth = S * 0.007; c.strokeStyle = 'rgba(255,250,225,0.8)'; c.stroke(); }
+      }
+      var sx = mx, sy = my - hgt * 0.75;
+      c.save(); softShadow(c, k, S * 0.04, S * 0.02, 0.3);
+      blobP(c, sx, sy, S * 0.33, S * 0.16, R, 10, 0.18); c.fillStyle = radG(c, sx - S * 0.08, sy - S * 0.05, S * 0.36, [0, '#ef5a3a', 0.6, '#cf2e1c', 1, '#a01a0e']); c.fill(); c.restore();
+      for (var b = 0; b < 8; b++) fillE(c, sx + (R() - 0.5) * S * 0.45, sy + (R() - 0.5) * S * 0.18, S * 0.025, S * 0.016, '#8a140a');
+      [[-0.15, -0.02], [0.13, -0.05], [0.0, 0.07]].forEach(function (p) {
+        var x = sx + p[0] * S, y = sy + p[1] * S, r = S * 0.11;
+        c.save(); softShadow(c, k, S * 0.03, S * 0.02, 0.35); fillE(c, x, y, r, r * 0.92, radG(c, x - r * 0.3, y - r * 0.35, r * 1.3, [0, '#a8643a', 0.5, '#7a3e1e', 1, '#4a200e'])); c.restore();
+        for (var q = 0; q < 6; q++) fillE(c, x + (R() - 0.5) * r * 1.2, y + (R() - 0.5) * r, r * 0.08, r * 0.06, '#5a2a12');
+        gloss(c, x - r * 0.35, y - r * 0.4, r * 0.22, r * 0.12, 0.55, -0.5);
+      });
+      gloss(c, sx + S * 0.2, sy - S * 0.04, S * 0.05, S * 0.02, 0.6, -0.3);
+      [[0.18, -0.12, 0.6], [-0.22, -0.1, -0.5]].forEach(function (p) { var x = sx + p[0] * S, y = sy + p[1] * S, L2 = S * 0.11; c.save(); c.translate(x, y); c.rotate(p[2]); c.beginPath(); c.moveTo(-L2, 0); c.quadraticCurveTo(0, -L2 * 0.55, L2, 0); c.quadraticCurveTo(0, L2 * 0.55, -L2, 0); c.fillStyle = linG(c, 0, -L2 * 0.5, 0, L2 * 0.5, [0, '#4fb848', 1, '#2a7a2a']); c.fill(); c.beginPath(); c.moveTo(-L2 * 0.9, 0); c.lineTo(L2 * 0.8, 0); c.lineWidth = S * 0.008; c.strokeStyle = 'rgba(200,255,190,0.6)'; c.stroke(); c.restore(); });
+      for (var p2 = 0; p2 < 26; p2++) { c.fillStyle = p2 % 3 ? '#fff6d6' : '#f2e2a8'; c.fillRect(mx + (R() - 0.5) * rx * 1.2, my - hgt * 0.6 + (R() - 0.5) * ry * 1.1, S * 0.018, S * 0.012); }
+    },
+    pancakes: function (c, cx, cy, S, R, k) {
+      plate(c, cx, cy + S * 0.2, S, S * 0.5, k);
+      var rx = S * 0.58, ry = S * 0.25, th = S * 0.085, base = cy + S * 0.22, n = 5;
+      for (var i = 0; i < n; i++) {
+        var y = base - i * th * 1.08, jx = (R() - 0.5) * S * 0.04, seed = (R() * 1e4) | 0;
+        c.save(); if (i === 0) softShadow(c, k, S * 0.06, S * 0.03, 0.35);
+        blobP(c, cx + jx, y + th, rx, ry, rng(seed), 12, 0.03); c.fillStyle = '#9a5418'; c.fill(); c.restore();
+        for (var t = 5; t >= 0; t--) { blobP(c, cx + jx, y + th * t / 5, rx, ry, rng(seed), 12, 0.03); c.fillStyle = linG(c, cx - rx, 0, cx + rx, 0, [0, '#a8581c', 0.3, '#d99448', 0.6, '#e8a85a', 1, '#a05018']); c.fill(); }
+        blobP(c, cx + jx, y, rx, ry, rng(seed), 12, 0.03); c.fillStyle = radG(c, cx + jx - rx * 0.1, y - ry * 0.1, rx, [0, '#f6cf8a', 0.7, '#e2a458', 1, '#c27a34']); c.fill();
+      }
+      var ty = base - (n - 1) * th * 1.08;
+      c.save(); blobP(c, cx + S * 0.02, ty, rx * 0.78, ry * 0.72, R, 10, 0.12); c.fillStyle = radG(c, cx - S * 0.1, ty - S * 0.05, rx, [0, 'rgba(214,120,30,0.95)', 1, 'rgba(150,62,10,0.95)']); c.fill(); c.restore();
+      [-0.42, -0.18, 0.12, 0.38].forEach(function (f, i) {
+        var dx = cx + f * rx * 1.5, len = S * (0.12 + R() * 0.2), top = ty + ry * Math.sqrt(Math.max(0, 1 - f * f * 2.2)) * 0.9;
+        c.beginPath(); c.moveTo(dx - S * 0.04, top - S * 0.02); c.lineTo(dx + S * 0.04, top - S * 0.02); c.lineTo(dx + S * 0.03, top + len); c.arc(dx, top + len, S * 0.03, 0, Math.PI); c.closePath();
+        c.fillStyle = 'rgba(160,66,10,0.94)'; c.fill(); fillE(c, dx - S * 0.012, top + len * 0.4, S * 0.008, len * 0.3, 'rgba(255,220,170,0.6)');
+      });
+      gloss(c, cx - S * 0.18, ty - S * 0.04, S * 0.12, S * 0.025, 0.45, -0.1);
+      var bx = cx + S * 0.04, by = ty - S * 0.05;
+      c.save(); softShadow(c, k, S * 0.02, S * 0.015, 0.3);
+      c.beginPath(); rr(c, bx - S * 0.1, by - S * 0.05, S * 0.2, S * 0.1, S * 0.025); c.fillStyle = '#f5d670'; c.fill(); c.restore();
+      c.beginPath(); rr(c, bx - S * 0.1, by - S * 0.065, S * 0.2, S * 0.07, S * 0.025); c.fillStyle = '#fff0b0'; c.fill(); gloss(c, bx - S * 0.04, by - S * 0.045, S * 0.04, S * 0.012, 0.8);
+      var berry = function (x, y, r) { c.save(); softShadow(c, k, r * 0.6, r * 0.3, 0.35); fillE(c, x, y, r, r, radG(c, x - r * 0.3, y - r * 0.3, r * 1.3, [0, '#7a8be8', 0.5, '#3a4aa8', 1, '#141a50'])); c.restore(); fillE(c, x + r * 0.1, y - r * 0.1, r * 0.25, r * 0.2, '#1a1f45'); gloss(c, x - r * 0.4, y - r * 0.4, r * 0.2, r * 0.14, 0.75); };
+      berry(cx - S * 0.12, ty - S * 0.02, S * 0.045); berry(cx + S * 0.22, ty + S * 0.02, S * 0.045); berry(cx + S * 0.1, ty + S * 0.07, S * 0.04);
+      berry(cx - S * 0.72, cy + S * 0.3, S * 0.05); berry(cx - S * 0.64, cy + S * 0.38, S * 0.045); berry(cx + S * 0.7, cy + S * 0.33, S * 0.05);
+      var rasp = function (x, y, r) { for (var i = 0; i < 9; i++) { var a = i / 9 * 6.28, d = i % 3 ? 0.55 : 0; fillE(c, x + Math.cos(a) * r * d, y + Math.sin(a) * r * d * 0.9, r * 0.42, r * 0.42, radG(c, x + Math.cos(a) * r * d - r * 0.1, y + Math.sin(a) * r * d - r * 0.1, r * 0.5, [0, '#ff6a7a', 1, '#c4142e'])); } };
+      rasp(cx + S * 0.62, cy + S * 0.42, S * 0.06); rasp(cx - S * 0.3, ty + S * 0.06, S * 0.05);
+    },
+    burger: function (c, cx, cy, S, R, k) {
+      plate(c, cx, cy + S * 0.38, S, S * 0.4, k);
+      var w = S * 1.02, b = cy + S * 0.42;
+      c.save(); softShadow(c, k, S * 0.08, S * 0.04, 0.4);
+      c.beginPath(); rr(c, cx - w * 0.5, b - S * 0.16, w, S * 0.16, S * 0.07); c.fillStyle = linG(c, 0, b - S * 0.16, 0, b, [0, '#eaa658', 1, '#b06a2a']); c.fill(); c.restore();
+      var py = b - S * 0.16;
+      blobP(c, cx, py - S * 0.1, w * 0.56, S * 0.14, R, 14, 0.04); c.fillStyle = linG(c, 0, py - S * 0.2, 0, py + S * 0.02, [0, '#6e3a1c', 0.5, '#4e2410', 1, '#2e1408']); c.fill();
+      for (var i = 0; i < 40; i++) fillE(c, cx + (R() - 0.5) * w * 1.0, py - S * 0.09 + (R() - 0.5) * S * 0.16, S * 0.012, S * 0.008, R() < 0.5 ? '#8a5030' : '#1e0c04');
+      var cy2 = py - S * 0.19;
+      c.beginPath(); c.moveTo(cx - w * 0.56, cy2); c.lineTo(cx + w * 0.56, cy2 - S * 0.01);
+      [[0.42, 0.13], [0.15, 0.07], [-0.12, 0.16], [-0.4, 0.09]].forEach(function (d) { var x = cx + d[0] * w; c.lineTo(x + S * 0.05, cy2 + S * 0.02); c.quadraticCurveTo(x, cy2 + d[1] * S * 1.4, x - S * 0.05, cy2 + S * 0.02); });
+      c.lineTo(cx - w * 0.58, cy2 + S * 0.03); c.closePath(); c.fillStyle = linG(c, 0, cy2 - S * 0.03, 0, cy2 + S * 0.2, [0, '#ffd54a', 1, '#f2a614']); c.fill();
+      var ty = cy2 - S * 0.05;
+      c.beginPath(); rr(c, cx - w * 0.5, ty - S * 0.045, w, S * 0.07, S * 0.035); c.fillStyle = linG(c, 0, ty - S * 0.05, 0, ty + S * 0.03, [0, '#ff6a52', 1, '#c4221a']); c.fill();
+      var ly = ty - S * 0.05;
+      c.beginPath(); c.moveTo(cx - w * 0.6, ly + S * 0.02);
+      for (var j = 0; j <= 12; j++) { var x = cx - w * 0.6 + j / 12 * w * 1.2; c.quadraticCurveTo(x - w * 0.05, ly + (j % 2 ? S * 0.07 : -S * 0.01), x, ly + S * 0.02); }
+      c.lineTo(cx + w * 0.55, ly - S * 0.03); c.lineTo(cx - w * 0.55, ly - S * 0.03); c.closePath(); c.fillStyle = linG(c, 0, ly - S * 0.03, 0, ly + S * 0.07, [0, '#8fe05a', 1, '#3f9a2a']); c.fill();
+      var top = ly - S * 0.03;
+      c.save(); softShadow(c, k, S * 0.04, S * 0.02, 0.3);
+      c.beginPath(); c.moveTo(cx - w * 0.54, top); c.bezierCurveTo(cx - w * 0.56, top - S * 0.5, cx + w * 0.56, top - S * 0.5, cx + w * 0.54, top); c.quadraticCurveTo(cx, top + S * 0.05, cx - w * 0.54, top); c.closePath();
+      c.fillStyle = radG(c, cx - w * 0.15, top - S * 0.3, w * 0.75, [0, '#f8c278', 0.45, '#e09a48', 0.85, '#b8682a', 1, '#94501c']); c.fill(); c.restore();
+      gloss(c, cx - w * 0.2, top - S * 0.28, w * 0.14, S * 0.05, 0.3, -0.35);
+      for (var s = 0; s < 16; s++) { var a = R() * Math.PI, d = 0.25 + R() * 0.65, sx = cx + Math.cos(a) * w * 0.42 * d * (R() < 0.5 ? -1 : 1), sy = top - S * 0.36 * Math.sqrt(1 - Math.pow((sx - cx) / (w * 0.55), 2)) * (0.55 + R() * 0.4); fillE(c, sx, sy, S * 0.022, S * 0.012, '#fff2d0', R() * 3); }
+    },
+    cake: function (c, cx, cy, S, R, k) {
+      plate(c, cx, cy + S * 0.35, S * 0.95, S * 0.42, k);
+      var rx = S * 0.6, ry = S * 0.22, top = cy - S * 0.2, bot = cy + S * 0.32;
+      c.save(); softShadow(c, k, S * 0.08, S * 0.04, 0.4);
+      c.beginPath(); c.moveTo(cx - rx, top); c.lineTo(cx - rx, bot); if (c.ellipse) c.ellipse(cx, bot, rx, ry, 0, Math.PI, 0, true); c.lineTo(cx + rx, top); c.closePath();
+      c.fillStyle = linG(c, cx - rx, 0, cx + rx, 0, [0, '#3e1c0c', 0.3, '#6e3820', 0.55, '#7e4428', 1, '#341608']); c.fill(); c.restore();
+      fillE(c, cx, top, rx, ry, radG(c, cx - rx * 0.2, top - ry * 0.3, rx * 1.1, [0, '#7a4226', 1, '#4a220e']));
+      c.beginPath(); c.moveTo(cx - rx, top);
+      for (var i = 0; i <= 14; i++) { var a = Math.PI - i / 14 * Math.PI, x = cx + Math.cos(a) * rx, y = top + Math.sin(a) * ry, len = S * (0.06 + R() * 0.16) * (i % 2 ? 1 : 0.4); c.lineTo(x - S * 0.02, y); c.lineTo(x - S * 0.02, y + len); c.arc(x, y + len, S * 0.02, Math.PI, 0, true); c.lineTo(x + S * 0.02, y); }
+      c.lineTo(cx + rx, top); if (c.ellipse) c.ellipse(cx, top, rx, ry, 0, 0, Math.PI, true); c.closePath(); c.fillStyle = '#2e1206'; c.fill();
+      fillE(c, cx, top, rx * 0.98, ry * 0.96, radG(c, cx - rx * 0.25, top - ry * 0.4, rx, [0, '#5a2a14', 1, '#2a1006']));
+      gloss(c, cx - rx * 0.35, top - ry * 0.35, rx * 0.25, ry * 0.12, 0.28, -0.1);
+      for (var g = 0; g < 9; g++) { var a2 = Math.PI - g / 8 * Math.PI, gx = cx + Math.cos(a2) * rx * 0.98, gy = top + Math.sin(a2) * ry; gloss(c, gx - S * 0.006, gy + S * 0.04, S * 0.006, S * 0.02, 0.35); }
+      var berry = function (x, y, r) {
+        c.save(); softShadow(c, k, r * 0.4, r * 0.25, 0.4); c.beginPath(); c.moveTo(x, y + r); c.bezierCurveTo(x - r * 1.1, y + r * 0.3, x - r * 0.9, y - r * 0.8, x, y - r * 0.6); c.bezierCurveTo(x + r * 0.9, y - r * 0.8, x + r * 1.1, y + r * 0.3, x, y + r); c.fillStyle = radG(c, x - r * 0.3, y - r * 0.3, r * 1.4, [0, '#ff5a6a', 0.6, '#e01e36', 1, '#9a0a1e']); c.fill(); c.restore();
+        for (var q = 0; q < 6; q++) fillE(c, x + (R() - 0.5) * r, y + (R() - 0.3) * r, r * 0.06, r * 0.09, '#ffe27a');
+        c.beginPath(); c.moveTo(x - r * 0.5, y - r * 0.6); c.lineTo(x, y - r * 0.95); c.lineTo(x + r * 0.5, y - r * 0.6); c.lineTo(x, y - r * 0.45); c.closePath(); c.fillStyle = '#3f9a2a'; c.fill();
+        gloss(c, x - r * 0.35, y - r * 0.2, r * 0.15, r * 0.25, 0.55, 0.3);
+      };
+      var cream = function (x, y, r) { c.save(); softShadow(c, k, r * 0.4, r * 0.2, 0.3); fillE(c, x, y, r, r * 0.7, '#fffaf2'); c.restore(); fillE(c, x, y - r * 0.35, r * 0.65, r * 0.45, '#ffffff'); fillE(c, x, y - r * 0.65, r * 0.3, r * 0.25, '#ffffff'); c.beginPath(); c.arc(x, y - r * 0.2, r * 0.55, Math.PI * 1.1, Math.PI * 1.7); c.lineWidth = r * 0.08; c.strokeStyle = 'rgba(200,190,180,0.6)'; c.stroke(); };
+      for (var b = 0; b < 7; b++) { var a3 = Math.PI * 1.06 + b / 6 * Math.PI * 0.88; cream(cx + Math.cos(a3) * rx * 0.72, top + Math.sin(a3) * ry * 0.62, S * 0.075); }
+      berry(cx - S * 0.18, top + S * 0.04, S * 0.09); berry(cx + S * 0.16, top + S * 0.02, S * 0.085); berry(cx, top - S * 0.06, S * 0.08);
+      for (var sp = 0; sp < 24; sp++) { c.fillStyle = ['#ffd23f', '#ff5aa5', '#4fd8ff', '#ffffff', '#7dff6b'][sp % 5]; c.save(); c.translate(cx + (R() - 0.5) * rx * 1.5, top + (R() - 0.5) * ry * 1.4); c.rotate(R() * 3); c.fillRect(-S * 0.012, -S * 0.004, S * 0.024, S * 0.008); c.restore(); }
+    },
+    salad: function (c, cx, cy, S, R, k) {
+      var ry = S * 0.34;
+      bowl(c, cx, cy, S * 0.9, ry, S * 0.62, k, '#f4f4f0', '#e8ece6');
+      c.save(); ellP(c, cx, cy, S * 0.88, ry * 0.96); c.rect(cx - S, cy - S, S * 2, S); c.clip();
+      var greens = ['#3f9a2a', '#5cbf3a', '#2f7a22', '#8fd45f', '#4a8a2a', '#76c94a'];
+      for (var i = 0; i < 46; i++) {
+        var a = R() * 6.28, d = Math.sqrt(R()) * 0.92, x = cx + Math.cos(a) * S * 0.8 * d, y = cy + Math.sin(a) * ry * 0.85 * d - S * 0.14 * (1 - d * d);
+        c.save(); c.translate(x, y); c.rotate(R() * 6.28); var L2 = S * (0.1 + R() * 0.08);
+        c.beginPath(); c.moveTo(-L2, 0); c.bezierCurveTo(-L2 * 0.4, -L2 * 0.8, L2 * 0.5, -L2 * 0.7, L2, 0); c.bezierCurveTo(L2 * 0.5, L2 * 0.7, -L2 * 0.4, L2 * 0.8, -L2, 0);
+        var gc = greens[i % greens.length]; c.fillStyle = linG(c, 0, -L2, 0, L2, [0, shade(gc, 0.2), 1, shade(gc, -0.2)]); c.fill();
+        c.beginPath(); c.moveTo(-L2 * 0.8, 0); c.lineTo(L2 * 0.8, 0); c.lineWidth = S * 0.006; c.strokeStyle = 'rgba(230,255,200,0.55)'; c.stroke(); c.restore();
+      }
+      c.restore();
+      var tom = function (x, y, r) { c.save(); softShadow(c, k, r * 0.4, r * 0.2, 0.3); fillE(c, x, y, r, r * 0.85, radG(c, x - r * 0.3, y - r * 0.3, r * 1.3, [0, '#ff7a6a', 0.6, '#e42a1e', 1, '#a01008'])); c.restore(); fillE(c, x + r * 0.1, y + r * 0.05, r * 0.6, r * 0.45, '#ff9a80'); for (var q = 0; q < 4; q++) fillE(c, x + (q - 1.5) * r * 0.22, y + r * 0.08, r * 0.06, r * 0.1, '#fff0b0'); gloss(c, x - r * 0.45, y - r * 0.45, r * 0.2, r * 0.12, 0.7, -0.5); };
+      var cuc = function (x, y, r) { fillE(c, x, y, r, r * 0.6, '#2f7a22'); fillE(c, x, y - r * 0.05, r * 0.86, r * 0.5, '#e2f5b8'); for (var q = 0; q < 6; q++) { var a = q / 6 * 6.28; fillE(c, x + Math.cos(a) * r * 0.35, y - r * 0.05 + Math.sin(a) * r * 0.2, r * 0.07, r * 0.05, '#c2df8a'); } };
+      var feta = function (x, y, r) { c.save(); softShadow(c, k, r * 0.4, r * 0.2, 0.25); c.beginPath(); rr(c, x - r, y - r * 0.8, r * 2, r * 1.6, r * 0.25); c.fillStyle = '#fbfbf4'; c.fill(); c.restore(); c.fillStyle = '#e6e6d8'; c.fillRect(x - r, y + r * 0.2, r * 2, r * 0.5); };
+      var crou = function (x, y, r) { c.beginPath(); rr(c, x - r, y - r, r * 2, r * 1.8, r * 0.3); c.fillStyle = linG(c, 0, y - r, 0, y + r, [0, '#f2c060', 1, '#b8742a']); c.fill(); for (var q = 0; q < 4; q++) fillE(c, x + (R() - 0.5) * r, y + (R() - 0.5) * r, r * 0.12, r * 0.1, '#8a4a10'); };
+      var bits = [[-0.42, -0.06, 'tom'], [0.3, -0.12, 'tom'], [0.05, 0.08, 'tom'], [-0.12, -0.16, 'cuc'], [0.5, 0.05, 'cuc'], [-0.55, 0.1, 'cuc'], [0.18, -0.02, 'feta'], [-0.28, 0.06, 'feta'], [0.4, -0.22, 'crou'], [-0.05, -0.08, 'crou']];
+      bits.forEach(function (b) { var x = cx + b[0] * S, y = cy + b[1] * S - S * 0.08; if (b[2] === 'tom') tom(x, y, S * 0.085); else if (b[2] === 'cuc') cuc(x, y, S * 0.09); else if (b[2] === 'feta') feta(x, y, S * 0.04); else crou(x, y, S * 0.04); });
+      c.strokeStyle = '#a03a8a'; c.lineWidth = S * 0.014; for (var o = 0; o < 3; o++) { c.beginPath(); if (c.ellipse) c.ellipse(cx + (R() - 0.5) * S * 0.9, cy - S * 0.1 + (R() - 0.5) * ry * 0.6, S * 0.08, S * 0.05, R() * 3, 0, Math.PI * 1.2); c.stroke(); }
+    },
+    soup: function (c, cx, cy, S, R, k) {
+      var ry = S * 0.32;
+      bowl(c, cx, cy + S * 0.05, S * 0.88, ry, S * 0.6, k, '#2f5f9a', '#f2f0ea');
+      var sy = cy + S * 0.07;
+      fillE(c, cx, sy, S * 0.8, ry * 0.86, radG(c, cx - S * 0.2, sy - ry * 0.3, S * 0.9, [0, '#f27a3a', 0.6, '#e0582a', 1, '#b23a14']));
+      c.save(); ellP(c, cx, sy, S * 0.8, ry * 0.86); c.clip();
+      c.beginPath(); for (var i = 0; i < 70; i++) { var a = i * 0.32, r = S * 0.02 + i * S * 0.0045; var x = cx + S * 0.05 + Math.cos(a) * r, y = sy + Math.sin(a) * r * 0.42; if (i) c.lineTo(x, y); else c.moveTo(x, y); }
+      c.lineWidth = S * 0.035; c.lineCap = 'round'; c.strokeStyle = 'rgba(255,248,236,0.95)'; c.stroke(); c.lineWidth = S * 0.012; c.strokeStyle = 'rgba(255,255,255,1)'; c.stroke();
+      for (var h = 0; h < 30; h++) fillE(c, cx + (R() - 0.5) * S * 1.3, sy + (R() - 0.5) * ry * 1.2, S * 0.014, S * 0.009, h % 4 ? '#2f8a2a' : '#1a1a1a', R() * 3);
+      [[-0.45, -0.05], [-0.3, 0.12], [0.45, -0.08]].forEach(function (p) { var x = cx + p[0] * S, y = sy + p[1] * S, r = S * 0.05; c.save(); softShadow(c, k, r * 0.4, r * 0.2, 0.3); c.beginPath(); rr(c, x - r, y - r, r * 2, r * 1.7, r * 0.3); c.fillStyle = linG(c, 0, y - r, 0, y + r, [0, '#f6cf70', 1, '#c07a2a']); c.fill(); c.restore(); });
+      gloss(c, cx - S * 0.35, sy - ry * 0.4, S * 0.18, ry * 0.08, 0.35, -0.08);
+      c.restore();
+      c.lineCap = 'round';
+      if (!FOOD_SIL) [[-0.25, 0], [0.05, 1], [0.32, 2]].forEach(function (p) {
+        var x = cx + p[0] * S, y = sy - ry * 0.5;
+        c.beginPath(); c.moveTo(x, y); c.bezierCurveTo(x - S * 0.12, y - S * 0.18, x + S * 0.12, y - S * 0.3, x - S * 0.02, y - S * 0.5 - p[1] * S * 0.04);
+        c.lineWidth = S * 0.05; c.strokeStyle = 'rgba(255,255,255,0.16)'; c.stroke(); c.lineWidth = S * 0.022; c.strokeStyle = 'rgba(255,255,255,0.28)'; c.stroke();
+      });
+    },
+    generic: function (c, cx, cy, S, R, k) {
+      plate(c, cx, cy + S * 0.12, S, S * 0.5, k);
+      var stick = function (x, y, L2, rot) {
+        c.save(); c.translate(x, y); c.rotate(rot);
+        c.save(); softShadow(c, k, S * 0.05, S * 0.03, 0.4);
+        c.beginPath(); c.moveTo(L2 * 0.25, -L2 * 0.06); c.lineTo(L2 * 0.62, -L2 * 0.04); c.lineTo(L2 * 0.62, L2 * 0.04); c.lineTo(L2 * 0.25, L2 * 0.06); c.closePath(); c.fillStyle = '#f2e6c8'; c.fill();
+        fillE(c, L2 * 0.66, -L2 * 0.05, L2 * 0.06, L2 * 0.055, '#fbf2dc'); fillE(c, L2 * 0.66, L2 * 0.05, L2 * 0.06, L2 * 0.055, '#efe2c2');
+        blobP(c, 0, 0, L2 * 0.38, L2 * 0.25, R, 11, 0.12); c.fillStyle = radG(c, -L2 * 0.1, -L2 * 0.1, L2 * 0.45, [0, '#f2b850', 0.6, '#d2862a', 1, '#9a5214']); c.fill(); c.restore();
+        for (var i = 0; i < 46; i++) { var a = R() * 6.28, d = Math.sqrt(R()) * 0.9; fillE(c, Math.cos(a) * L2 * 0.34 * d, Math.sin(a) * L2 * 0.22 * d, L2 * 0.03, L2 * 0.022, R() < 0.55 ? 'rgba(255,214,120,0.85)' : 'rgba(130,64,12,0.7)', R() * 3); }
+        gloss(c, -L2 * 0.14, -L2 * 0.12, L2 * 0.12, L2 * 0.05, 0.35, -0.2);
+        c.restore();
+      };
+      stick(cx - S * 0.28, cy + S * 0.02, S * 0.95, -0.5); stick(cx + S * 0.25, cy - S * 0.08, S * 0.9, 0.35); stick(cx - S * 0.02, cy + S * 0.22, S * 0.95, 0.08);
+      var lx = cx + S * 0.62, ly = cy + S * 0.18;
+      c.beginPath(); c.moveTo(lx - S * 0.13, ly); c.quadraticCurveTo(lx, ly - S * 0.2, lx + S * 0.13, ly); c.closePath(); c.fillStyle = '#ffe14d'; c.fill(); c.lineWidth = S * 0.02; c.strokeStyle = '#f2c414'; c.stroke();
+      c.beginPath(); c.moveTo(lx - S * 0.1, ly - S * 0.01); c.quadraticCurveTo(lx, ly - S * 0.15, lx + S * 0.1, ly - S * 0.01); c.closePath(); c.fillStyle = '#fff6b0'; c.fill();
+      for (var p = 0; p < 7; p++) fillE(c, cx - S * 0.66 + (R() - 0.5) * S * 0.16, cy + S * 0.2 + (R() - 0.5) * S * 0.1, S * 0.035, S * 0.025, p % 2 ? '#3f9a2a' : '#5cbf3a', R() * 3);
+    },
+    ingredients: function (c, cx, cy, S, R, k) {
+      bowl(c, cx - S * 0.45, cy - S * 0.05, S * 0.42, S * 0.15, S * 0.28, k, '#f4f4f0', '#e8e8e2');
+      c.beginPath(); c.moveTo(cx - S * 0.8, cy - S * 0.06); c.bezierCurveTo(cx - S * 0.7, cy - S * 0.42, cx - S * 0.2, cy - S * 0.42, cx - S * 0.1, cy - S * 0.06); c.closePath(); c.fillStyle = radG(c, cx - S * 0.55, cy - S * 0.3, S * 0.45, [0, '#ffffff', 0.7, '#f4efe6', 1, '#dcd3c4']); c.fill(); for (var fl = 0; fl < 12; fl++) fillE(c, cx - S * 0.45 + (R() - 0.5) * S * 0.5, cy - S * 0.16 + (R() - 0.5) * S * 0.16, S * 0.02, S * 0.008, 'rgba(210,200,185,0.6)');
+      var egg = function (x, y, r, rot) { c.save(); softShadow(c, k, r * 0.4, r * 0.2, 0.35); fillE(c, x, y, r * 0.78, r, radG(c, x - r * 0.3, y - r * 0.4, r * 1.4, [0, '#fff3e2', 0.6, '#e9c9a0', 1, '#c09068']), rot); c.restore(); gloss(c, x - r * 0.3, y - r * 0.45, r * 0.18, r * 0.12, 0.7, rot); };
+      egg(cx + S * 0.18, cy - S * 0.08, S * 0.16, 0.5); egg(cx + S * 0.4, cy + S * 0.02, S * 0.16, 1.2);
+      c.save(); softShadow(c, k, S * 0.05, S * 0.03, 0.35); c.beginPath(); rr(c, cx - S * 0.2, cy + S * 0.18, S * 0.42, S * 0.2, S * 0.03); c.fillStyle = '#f2cf6a'; c.fill(); c.restore();
+      c.beginPath(); rr(c, cx - S * 0.2, cy + S * 0.14, S * 0.42, S * 0.12, S * 0.03); c.fillStyle = '#fff0b0'; c.fill(); c.fillStyle = 'rgba(255,255,255,0.8)'; c.fillRect(cx - S * 0.12, cy + S * 0.16, S * 0.2, S * 0.02);
+      for (var i = 0; i < 26; i++) { var dd = Math.sqrt(R()), aa = R() * 6.28, x = cx + S * 0.55 + Math.cos(aa) * dd * S * 0.2, y = cy + S * 0.3 + Math.sin(aa) * dd * S * 0.08 - (1 - dd) * S * 0.08; c.beginPath(); c.moveTo(x, y - S * 0.06); c.quadraticCurveTo(x + S * 0.05, y + S * 0.03, x, y + S * 0.03); c.quadraticCurveTo(x - S * 0.05, y + S * 0.03, x, y - S * 0.06); c.fillStyle = i % 3 ? '#3a1d10' : '#5a301a'; c.fill(); fillE(c, x - S * 0.012, y - S * 0.01, S * 0.008, S * 0.012, 'rgba(255,230,200,0.5)'); }
+    }
+  };
+  /* draws the dish centred in [0,w]x[0,h]; k = device px per design px (for blur) */
+  function drawFood(c, dish, w, h, k, seed) {
+    var kind = foodKind(dish), S = Math.min(w * 0.46, h * 0.62), R = rng(seed || strHash(kind) + 3);
+    c.save(); c.lineJoin = 'round';
+    try { FOOD_DRAW[kind](c, w / 2, h * 0.5, S, R, k || 1); } finally { c.restore(); }
   }
 
   /* ------------------------------------------------------------------ boxes + hit test */
@@ -1963,26 +2179,6 @@
   }
 
   /* ------------------------------------------------------------------ render */
-  // Where the empty background's "+ Add …" chip goes: the spot (bottom, middle, top, then the sides)
-  // that covers the least text, then the fewest cut-outs and stickers, so it never hides a subline or the face box's own chip.
-  function bgChipSpot(design, layers, images, label, size) {
-    var c = measureCtx(); c.font = '700 ' + size + 'px ' + UI_FONT;
-    var pw = c.measureText('+ ' + String(label)).width + size * 1.4, ph = size * 1.9, boxes = [];
-    for (var i = 0; i < layers.length; i++) {
-      var L = layers[i]; if (!L || L.hidden) continue;
-      if (L.type === 'image' && L.imageId && L.shape !== 'none') continue; // a filled photo box can take a chip on top
-      var b = layerBox(design, L, images), a = num(b.rotation, 0) * DEG, cs = Math.abs(Math.cos(a)), sn = Math.abs(Math.sin(a));
-      var hw = (b.w * cs + b.h * sn) / 2, hh = (b.w * sn + b.h * cs) / 2;
-      boxes.push({ x0: b.x - hw, x1: b.x + hw, y0: b.y - hh, y1: b.y + hh, k: L.type === 'text' ? 1 : L.type === 'image' ? 0.6 : 0.4 });
-    }
-    var best = null, half = pw / 2 + 16;
-    [[W / 2, H - 46], [W / 2, H / 2], [W / 2, 46], [half, H - 46], [W - half, H - 46], [half, H / 2], [W - half, H / 2], [half, 46], [W - half, 46]].forEach(function (p) {
-      var x0 = p[0] - pw / 2 - 12, x1 = p[0] + pw / 2 + 12, y0 = p[1] - ph / 2 - 12, y1 = p[1] + ph / 2 + 12, cost = 0;
-      boxes.forEach(function (q) { var w = Math.min(x1, q.x1) - Math.max(x0, q.x0), h = Math.min(y1, q.y1) - Math.max(y0, q.y0); if (w > 0 && h > 0) cost += w * h * q.k; });
-      if (!best || cost < best.cost - 1) best = { x: p[0], y: p[1], cost: cost };
-    });
-    return best;
-  }
   function drawCached(ctx, e, L, s, cur) {
     if (!e) return;
     var x = num(L.x, W / 2) * s, y = num(L.y, H / 2) * s, r = num(L.rotation, 0), m = (e.m || 1) * (e.w0 && cur ? cur / e.w0 : 1);
@@ -2007,7 +2203,6 @@
   function renderInner(ctx, design, images, opts) {
     opts = opts || {}; images = images || {}; design = design || {};
     var s = num(opts.scale, 1); if (!(s > 0)) s = 1;
-    var ph = opts.placeholders !== false;
     if (opts.exact) EXACT = true;
     frame++;
     ctx.save();
@@ -2022,17 +2217,12 @@
       try {
         var e = null, cur = 0;
         if (L.type === 'text') { e = renderText(L, s); cur = textMetricsOf(L).size; }
-        else if (L.type === 'image') { e = renderImage(L, L.imageId ? images[L.imageId] : null, s, ph, info); cur = clamp(num(L.w, 400), 8, 6000); }
+        else if (L.type === 'image') { e = renderImage(L, L.imageId ? images[L.imageId] : null, s, opts, info); cur = clamp(num(L.w, 400), 8, 6000); }
         else if (L.type === 'sticker') { e = renderSticker(L, s); cur = clamp(num(L.w, 200), 8, 6000); }
         else if (L.type === 'emoji') { e = renderEmoji(L, s); cur = clamp(num(L.size, 120), 8, 1200); }
         else if (L.type === 'skin') { e = renderSkin(L, L.imageId ? images[L.imageId] : null, s); cur = clamp(num(L.h, 520), 24, 3000); }
         drawCached(ctx, e, L, s, cur);
       } catch (err) { if (window.console) console.warn('ThumbRender layer failed', L && L.id, err); }
-    }
-    var bg = obj(design.background);
-    if (ph && bg.kind === 'image' && !natSize(bg.imageId ? images[bg.imageId] : null) && bg.placeholder) {
-      var spot = bgChipSpot(design, layers, images, bg.placeholder, 26);
-      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.save(); ctx.scale(s, s); drawChip(ctx, bg.placeholder, spot.x, spot.y, 26); ctx.restore();
     }
     var mark = function (id, dashed) {
       for (var k = 0; k < layers.length; k++) if (layers[k] && layers[k].id === id && !layers[k].hidden) {
@@ -2118,6 +2308,7 @@
     }
     if (type === 'sticker') return smp ? stk('px-diamond', { w: 180 }) : stk('arrow-curved', { w: 240, color: '#ff2d2d' });
     if (type === 'emoji') return emo(smp ? '😱' : '🤤', { size: 140 });
+    if (type === 'skin') return skn({ x: smp ? 1000 : 960, y: 430, h: 520, pose: 'stand', facing: 'left', glow: smp ? { size: 30, color: '#39ff5a' } : { size: 0, color: '#ffffff' } });
     if (type === 'image') {
       return smp
         ? img({ w: 520, shape: 'none', outline: { width: 8, color: '#ffffff' }, glow: { size: 30, color: '#39ff5a' }, shadow: { blur: 24, color: 'rgba(0,0,0,0.5)', dx: 0, dy: 10 }, placeholder: 'Your photo' })
@@ -2126,24 +2317,33 @@
     return null;
   }
 
-  /* ------------------------------------------------------------------ templates */
+  /* ------------------------------------------------------------------ templates (make({ me }) -> a finished, filled design) */
   var NOSH = { blur: 0, color: 'rgba(0,0,0,0)', dx: 0, dy: 0 };
   var SOFT = { blur: 18, color: 'rgba(0,0,0,0.6)', dx: 0, dy: 8 };
+  function meOf(o) { var m = obj(o && o.me); return { skinId: m.skinId || null, faceId: m.faceId || null, dishId: m.dishId || null, shotId: m.shotId || null }; }
+  function skn(o) {
+    return assign({ id: newId(), type: 'skin', imageId: null, pose: 'stand', facing: 'left', x: 1000, y: 430, h: 520, rotation: 0, opacity: 1,
+      outline: { width: 8, color: '#ffffff' }, glow: { size: 0, color: '#ffffff' }, shadow: { blur: 24, color: 'rgba(0,0,0,0.5)', dx: 0, dy: 10 }, slotHint: 'your skin' }, o);
+  }
+  /* screenshot background when the owner gave one, else the scene (+ set-piece) */
+  function shotBg(me, scene, setPiece, side) { return { kind: me.shotId ? 'image' : 'scene', imageId: me.shotId, scene: scene, setPiece: setPiece || null, setPieceSide: side || 'right', slotHint: 'your screenshot' }; }
   var TEMPLATES = [
     /* ---------------- Cooking ---------------- */
-    { id: 'cook-hero', theme: 'cooking', name: 'Hero dish', blurb: 'Big food photo + two-line title', make: function () {
+    { id: 'cook-hero', theme: 'cooking', name: 'Hero dish', blurb: 'Big food photo + two-line title', make: function (o) {
+      var me = meOf(o);
       return design('cooking', 'cook-hero', 'Crispy chicken', { kind: 'scene', scene: 'kitchen-bokeh' }, [
-        img({ x: 900, y: 430, w: 680, aspect: 1.05, shape: 'none', placeholder: 'Your dish', outline: { width: 10, color: '#ffffff' }, shadow: { blur: 40, color: 'rgba(0,0,0,0.6)', dx: 0, dy: 24 } }),
+        img({ x: 900, y: 430, w: 680, aspect: 1.05, shape: 'none', imageId: me.dishId, fill: 'food:fried chicken', placeholder: 'Your dish', slotHint: 'your dish', outline: { width: 10, color: '#ffffff' }, shadow: { blur: 40, color: 'rgba(0,0,0,0.6)', dx: 0, dy: 24 } }),
         txt({ text: 'CRISPY', font: 'anton', size: 140, x: 300, y: 180, rotation: -4, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 14, color: DARK } }),
         txt({ text: 'CHICKEN', font: 'anton', size: 168, x: 318, y: 355, rotation: -4, fill: { kind: 'gradient', color: '#fff36b', color2: '#ffb000' }, stroke: { width: 15, color: DARK }, effect: 'extrude', effectColor: '#8a3b00', effectSize: 12 }),
         stk('arrow-curved', { x: 520, y: 575, w: 230, rotation: -20, color: '#ff2d2d', flipX: false }),
         emo('🤤', { x: 1160, y: 130, size: 150, rotation: 12 })
       ]);
     } },
-    { id: 'cook-before-after', theme: 'cooking', name: 'Before → After', blurb: 'Raw ingredients vs the finished dish', make: function () {
+    { id: 'cook-before-after', theme: 'cooking', name: 'Before → After', blurb: 'Raw ingredients vs the finished dish', make: function (o) {
+      var me = meOf(o);
       return design('cooking', 'cook-before-after', 'Before and after', { kind: 'color', color: '#111111' }, [
-        img({ x: 320, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'wood-board', placeholder: 'Raw ingredients', shadow: NOSH }),
-        img({ x: 960, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'kitchen-bokeh', placeholder: 'Finished dish', shadow: NOSH }),
+        img({ x: 320, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'wood-board', fill: 'food:ingredients', placeholder: 'Raw ingredients', slotHint: 'your ingredients', shadow: NOSH }),
+        img({ x: 960, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'kitchen-bokeh', imageId: me.dishId, fill: 'food:cookies', placeholder: 'Finished dish', slotHint: 'your finished dish', shadow: NOSH }),
         stk('divider', { x: 640, y: 360, w: 120, color: '#ffffff', shadow: SOFT }),
         txt({ text: 'BEFORE', font: 'archivo', size: 76, x: 245, y: 92, rotation: -3, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 0, color: DARK }, effect: 'box', box: { color: '#111111', padding: 20, radius: 10 }, shadow: SOFT }),
         txt({ text: 'AFTER', font: 'archivo', size: 76, x: 1050, y: 92, rotation: 3, fill: { kind: 'solid', color: '#111111' }, stroke: { width: 0, color: DARK }, effect: 'box', box: { color: '#ffd60a', padding: 20, radius: 10 }, shadow: SOFT }),
@@ -2151,44 +2351,53 @@
         txt({ text: 'WORTH IT?', font: 'luckiest', size: 96, x: 660, y: 640, rotation: -2, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 12, color: DARK } })
       ]);
     } },
-    { id: 'cook-ingredients', theme: 'cooking', name: 'Only 3 ingredients', blurb: 'Huge number badge + the dish', make: function () {
+    { id: 'cook-ingredients', theme: 'cooking', name: 'Only 3 ingredients', blurb: 'Huge number badge + the dish', make: function (o) {
+      var me = meOf(o);
       return design('cooking', 'cook-ingredients', '3 ingredient dessert', { kind: 'scene', scene: 'marble' }, [
-        img({ x: 890, y: 400, w: 680, aspect: 1.05, shape: 'none', placeholder: 'Your dish', shadow: { blur: 36, color: 'rgba(0,0,0,0.45)', dx: 0, dy: 22 } }),
+        img({ x: 890, y: 400, w: 680, aspect: 1.05, shape: 'none', imageId: me.dishId, fill: 'food:pancakes', placeholder: 'Your dish', slotHint: 'your dish', outline: { width: 10, color: '#ffffff' }, shadow: { blur: 36, color: 'rgba(0,0,0,0.45)', dx: 0, dy: 22 } }),
         stk('burst', { x: 300, y: 300, w: 470, color: '#ffd60a', text: '', rotation: -8 }),
         txt({ text: '3', font: 'bowlby', size: 300, x: 300, y: 300, rotation: -8, fill: { kind: 'solid', color: '#e3121b' }, stroke: { width: 14, color: '#ffffff' }, effect: 'extrude', effectColor: '#7a0000', effectSize: 14, shadow: NOSH }),
         txt({ text: 'INGREDIENTS', font: 'anton', size: 92, x: 310, y: 585, rotation: -3, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 0, color: DARK }, effect: 'box', box: { color: '#e3121b', padding: 18, radius: 12 }, shadow: SOFT }),
         txt({ text: 'only', font: 'caveat', size: 100, uppercase: false, x: 150, y: 90, rotation: -10, fill: { kind: 'solid', color: '#111111' }, stroke: { width: 8, color: '#ffffff' }, shadow: NOSH })
       ]);
     } },
-    { id: 'cook-quick', theme: 'cooking', name: 'Quick time', blurb: 'Clock badge "10 MIN" + big title', make: function () {
+    { id: 'cook-quick', theme: 'cooking', name: 'Quick time', blurb: 'Clock badge "10 MIN" + big title', make: function (o) {
+      var me = meOf(o);
       return design('cooking', 'cook-quick', '10 minute dinner', { kind: 'scene', scene: 'wood-board' }, [
-        img({ x: 900, y: 410, w: 700, aspect: 1.05, shape: 'none', placeholder: 'Your dish', shadow: { blur: 36, color: 'rgba(0,0,0,0.55)', dx: 0, dy: 22 } }),
+        img({ x: 900, y: 410, w: 700, aspect: 1.05, shape: 'none', imageId: me.dishId, fill: 'food:pasta', placeholder: 'Your dish', slotHint: 'your dish', outline: { width: 10, color: '#ffffff' }, shadow: { blur: 36, color: 'rgba(0,0,0,0.55)', dx: 0, dy: 22 } }),
         stk('badge-time', { x: 270, y: 120, w: 420, color: '#ff3b30', text: '10 MIN', rotation: -5 }),
         txt({ text: 'EASY\nDINNER', font: 'bowlby', size: 118, lineHeight: 1, x: 305, y: 420, rotation: -4, fill: { kind: 'gradient', color: '#ffffff', color2: '#ffe27a' }, stroke: { width: 14, color: DARK }, effect: 'extrude', effectColor: '#2a1300', effectSize: 10 }),
         stk('flame', { x: 1150, y: 120, w: 140, rotation: 10 })
       ]);
     } },
-    { id: 'cook-taste', theme: 'cooking', name: 'Taste test', blurb: 'Your face + the dish + reaction', make: function () {
-      return design('cooking', 'cook-taste', 'Taste test', { kind: 'scene', scene: 'color-pop' }, [
-        img({ x: 330, y: 445, w: 560, aspect: 0.8, shape: 'none', placeholder: 'Your face', outline: { width: 12, color: '#ffffff' }, shadow: { blur: 30, color: 'rgba(0,0,0,0.45)', dx: 0, dy: 14 } }),
-        img({ x: 945, y: 430, w: 440, shape: 'circle', placeholder: 'Your dish', outline: { width: 14, color: '#ffffff' }, shadow: { blur: 30, color: 'rgba(0,0,0,0.45)', dx: 0, dy: 14 } }),
-        txt({ text: 'IS IT GOOD?!', font: 'luckiest', size: 118, x: 900, y: 118, rotation: 4, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 14, color: DARK }, maxWidth: 700 }),
-        stk('arrow-curved', { x: 650, y: 620, w: 200, rotation: -95, color: '#e3121b', flipX: true }),
-        emo('😱', { x: 590, y: 220, size: 130, rotation: -12 })
-      ]);
+    { id: 'cook-taste', theme: 'cooking', name: 'Taste test', blurb: 'Your face + the dish + reaction', make: function (o) {
+      var me = meOf(o), L = [];
+      if (me.faceId) {
+        L.push(img({ x: 330, y: 445, w: 560, aspect: 0.8, shape: 'none', imageId: me.faceId, placeholder: 'Your face', slotHint: 'your face', outline: { width: 12, color: '#ffffff' }, shadow: { blur: 30, color: 'rgba(0,0,0,0.45)', dx: 0, dy: 14 } }));
+        L.push(img({ x: 945, y: 430, w: 440, shape: 'circle', imageId: me.dishId, fill: 'food:burger', placeholder: 'Your dish', slotHint: 'your dish', outline: { width: 14, color: '#ffffff' }, shadow: { blur: 30, color: 'rgba(0,0,0,0.45)', dx: 0, dy: 14 } }));
+        L.push(stk('arrow-curved', { x: 650, y: 620, w: 200, rotation: -95, color: '#e3121b', flipX: true }));
+        L.push(emo('😱', { x: 590, y: 220, size: 130, rotation: -12 }));
+      } else {
+        L.push(img({ x: 420, y: 410, w: 600, shape: 'circle', imageId: me.dishId, fill: 'food:burger', placeholder: 'Your dish', slotHint: 'your dish', outline: { width: 14, color: '#ffffff' }, shadow: { blur: 30, color: 'rgba(0,0,0,0.45)', dx: 0, dy: 14 } }));
+        L.push(stk('arrow-curved', { x: 860, y: 470, w: 230, rotation: 10, color: '#e3121b', flipX: true }));
+        L.push(emo('😱', { x: 1090, y: 520, size: 170, rotation: 10 }));
+      }
+      L.push(txt({ text: 'IS IT GOOD?!', font: 'luckiest', size: 118, x: 900, y: 118, rotation: 4, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 14, color: DARK }, maxWidth: 700 }));
+      return design('cooking', 'cook-taste', 'Taste test', { kind: 'scene', scene: 'color-pop' }, L);
     } },
-    { id: 'cook-band', theme: 'cooking', name: 'Clean recipe title', blurb: 'Photo + bold title band + handwritten note', make: function () {
-      return design('cooking', 'cook-band', 'Choc chip cookies', { kind: 'image', imageId: null, scene: 'kitchen-bokeh', placeholder: 'Add your food photo (Background)' }, [
-        txt({ text: 'CHOC CHIP COOKIES', font: 'archivo', size: 92, x: 640, y: 590, maxWidth: 1180, fill: { kind: 'solid', color: '#111111' }, stroke: { width: 0, color: DARK }, effect: 'box', box: { color: '#ffd60a', padding: 26, radius: 6 }, rotation: -2, shadow: { blur: 24, color: 'rgba(0,0,0,0.5)', dx: 0, dy: 10 } }),
-        txt({ text: 'the best ones ever', font: 'caveat', size: 92, uppercase: false, x: 340, y: 470, rotation: -5, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 9, color: DARK }, shadow: SOFT }),
-        stk('sparkles', { x: 1110, y: 140, w: 170, color: '#ffe14d', rotation: 8 }),
-        stk('heart', { x: 1170, y: 470, w: 120, rotation: 14, color: '#ff2d55' })
-      ]);
+    { id: 'cook-band', theme: 'cooking', name: 'Clean recipe title', blurb: 'Photo + bold title band + handwritten note', make: function (o) {
+      var me = meOf(o), L = [];
+      if (!me.dishId) L.push(img({ x: 760, y: 300, w: 660, aspect: 1.25, shape: 'none', fill: 'food:cookies', placeholder: 'Your dish', slotHint: 'your dish', outline: { width: 0, color: '#ffffff' }, shadow: { blur: 30, color: 'rgba(0,0,0,0.45)', dx: 0, dy: 16 } }));
+      L.push(txt({ text: 'CHOC CHIP COOKIES', font: 'archivo', size: 92, x: 640, y: 590, maxWidth: 1180, fill: { kind: 'solid', color: '#111111' }, stroke: { width: 0, color: DARK }, effect: 'box', box: { color: '#ffd60a', padding: 26, radius: 6 }, rotation: -2, shadow: { blur: 24, color: 'rgba(0,0,0,0.5)', dx: 0, dy: 10 } }));
+      L.push(txt({ text: 'the best ones ever', font: 'caveat', size: 92, uppercase: false, x: 300, y: 450, rotation: -5, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 9, color: DARK }, shadow: SOFT }));
+      L.push(stk('sparkles', { x: 1130, y: 120, w: 170, color: '#ffe14d', rotation: 8 }));
+      L.push(stk('heart', { x: 1170, y: 440, w: 120, rotation: 14, color: '#ff2d55' }));
+      return design('cooking', 'cook-band', 'Choc chip cookies', { kind: me.dishId ? 'image' : 'scene', imageId: me.dishId, scene: 'wood-board', slotHint: 'your food photo' }, L);
     } },
     { id: 'cook-vs', theme: 'cooking', name: 'Cheap vs Fancy', blurb: '$5 vs $50 split with price tags', make: function () {
       return design('cooking', 'cook-vs', 'Cheap vs fancy', { kind: 'color', color: '#111111' }, [
-        img({ x: 320, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'wood-board', placeholder: 'Cheap version', shadow: NOSH }),
-        img({ x: 960, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'marble', placeholder: 'Fancy version', shadow: NOSH }),
+        img({ x: 320, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'wood-board', fill: 'food:burger', placeholder: 'Cheap version', slotHint: 'the cheap one', shadow: NOSH }),
+        img({ x: 960, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'marble', fill: 'food:burger', placeholder: 'Fancy version', slotHint: 'the fancy one', shadow: NOSH }),
         stk('divider', { x: 640, y: 360, w: 120, color: '#ffd60a', shadow: SOFT }),
         txt({ text: '$5', font: 'bowlby', size: 170, x: 190, y: 130, rotation: -7, fill: { kind: 'gradient', color: '#7dff6b', color2: '#18b34a' }, stroke: { width: 14, color: DARK }, effect: 'extrude', effectColor: '#0a4d1b', effectSize: 10 }),
         txt({ text: '$50', font: 'bowlby', size: 170, x: 1080, y: 130, rotation: 6, fill: { kind: 'gradient', color: '#fff36b', color2: '#ffb000' }, stroke: { width: 14, color: DARK }, effect: 'extrude', effectColor: '#7a3b00', effectSize: 10 }),
@@ -2197,20 +2406,19 @@
       ]);
     } },
     /* ---------------- Donut SMP ---------------- */
-    { id: 'smp-money', theme: 'smp', name: 'Big money', blurb: '"$10,000,000" + title + your skin', make: function () {
-      return design('smp', 'smp-money', 'Big money', { kind: 'scene', scene: 'blocky-day' }, [
-        img({ x: 1065, y: 455, w: 420, aspect: 0.8, shape: 'none', placeholder: 'Your face / skin', outline: { width: 8, color: '#ffffff' }, glow: { size: 34, color: '#39ff5a' }, shadow: { blur: 24, color: 'rgba(0,0,0,0.5)', dx: 0, dy: 10 } }),
-        stk('px-money', { x: 140, y: 600, w: 210, rotation: -10 }),
-        stk('px-moneybag', { x: 720, y: 600, w: 170, rotation: 8 }),
+    { id: 'smp-money', theme: 'smp', name: 'Big money', blurb: '"$10,000,000" + title + your skin', make: function (o) {
+      var me = meOf(o);
+      return design('smp', 'smp-money', 'Big money', shotBg(me, 'blocky-day', 'stash-chests', 'center'), [
+        skn({ x: 1070, y: 440, h: 580, pose: 'stand', facing: 'left', imageId: me.skinId, glow: { size: 34, color: '#39ff5a' } }),
+        stk('px-money', { x: 140, y: 610, w: 210, rotation: -10 }),
         txt({ text: '$10,000,000', font: 'lilita', size: 128, x: 450, y: 330, rotation: -4, maxWidth: 1100, fill: { kind: 'gradient', color: '#9dff7a', color2: '#1fbf3a' }, stroke: { width: 13, color: '#04260c' }, effect: 'extrude', effectColor: '#0a5a1c', effectSize: 13, shadow: { blur: 24, color: 'rgba(0,0,0,0.55)', dx: 0, dy: 10 } }),
-        txt({ text: 'IN ONE DAY', font: 'pixelify', size: 92, x: 380, y: 140, rotation: -2, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 9, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 8, shadow: NOSH }),
-        stk('px-coin', { x: 560, y: 520, w: 90, rotation: 12, shadow: undefined })
+        txt({ text: 'IN ONE DAY', font: 'pixelify', size: 92, x: 380, y: 140, rotation: -2, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 9, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 8, shadow: NOSH })
       ]);
     } },
     { id: 'smp-days', theme: 'smp', name: 'Day 1 vs Day 100', blurb: 'Two screenshots, before vs after', make: function () {
       return design('smp', 'smp-days', 'Day 1 vs Day 100', { kind: 'color', color: '#0a0a0a' }, [
-        img({ x: 320, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'blocky-night', placeholder: 'Day 1 screenshot', shadow: NOSH }),
-        img({ x: 960, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'blocky-day', placeholder: 'Day 100 screenshot', shadow: NOSH }),
+        img({ x: 320, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'blocky-night', fill: 'scene:blocky-night:dirt-hut', placeholder: 'Day 1 screenshot', slotHint: 'your day 1 screenshot', shadow: NOSH }),
+        img({ x: 960, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'blocky-day', fill: 'scene:blocky-day:base-house', placeholder: 'Day 100 screenshot', slotHint: 'your day 100 screenshot', shadow: NOSH }),
         stk('divider', { x: 640, y: 360, w: 116, color: '#ffffff', shadow: SOFT }),
         txt({ text: 'DAY 1', font: 'lilita', size: 140, x: 260, y: 120, rotation: -4, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 12, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 10, shadow: NOSH }),
         txt({ text: 'DAY 100', font: 'lilita', size: 136, x: 980, y: 120, rotation: 3, fill: { kind: 'gradient', color: '#fff36b', color2: '#ffb000' }, stroke: { width: 12, color: DARK }, effect: 'extrude', effectColor: '#7a3b00', effectSize: 11, shadow: NOSH }),
@@ -2218,57 +2426,64 @@
         stk('px-crown', { x: 1150, y: 600, w: 150, rotation: 10 })
       ]);
     } },
-    { id: 'smp-base', theme: 'smp', name: 'Base reveal', blurb: 'Screenshot + red circle + arrow', make: function () {
-      return design('smp', 'smp-base', 'My base', { kind: 'image', imageId: null, scene: 'blocky-day', placeholder: 'Add your screenshot (Background)' }, [
-        stk('circle-ring', { x: 880, y: 400, w: 420, color: '#ff2d2d', rotation: -6 }),
-        stk('arrow-curved', { x: 560, y: 360, w: 230, color: '#ff2d2d', rotation: 10 }),
-        txt({ text: 'MY SECRET\nBASE', font: 'lilita', size: 122, lineHeight: 0.98, x: 360, y: 190, rotation: -4, fill: { kind: 'solid', color: '#ffe100' }, stroke: { width: 12, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 11, shadow: NOSH }),
-        stk('px-chest', { x: 175, y: 590, w: 170, rotation: -8 }),
-        stk('px-diamond', { x: 330, y: 610, w: 120, rotation: 8 })
+    { id: 'smp-base', theme: 'smp', name: 'Base reveal', blurb: 'Screenshot + red circle + arrow', make: function (o) {
+      var me = meOf(o);
+      return design('smp', 'smp-base', 'My base', shotBg(me, 'blocky-day', 'base-house', 'right'), [
+        stk('circle-ring', { x: 900, y: 420, w: 520, color: '#ff2d2d', rotation: -6 }),
+        stk('arrow-curved', { x: 560, y: 380, w: 230, color: '#ff2d2d', rotation: 10 }),
+        skn({ x: 180, y: 520, h: 400, pose: 'point', facing: 'right', imageId: me.skinId }),
+        txt({ text: 'MY SECRET\nBASE', font: 'lilita', size: 122, lineHeight: 0.98, x: 380, y: 170, rotation: -4, fill: { kind: 'solid', color: '#ffe100' }, stroke: { width: 12, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 11, shadow: NOSH }),
+        stk('px-diamond', { x: 400, y: 640, w: 120, rotation: 8 })
       ]);
     } },
-    { id: 'smp-shocked', theme: 'smp', name: 'Shocked reaction', blurb: 'Your face/skin + huge text', make: function () {
-      return design('smp', 'smp-shocked', 'I got trapped', { kind: 'scene', scene: 'nether' }, [
-        img({ x: 330, y: 450, w: 580, aspect: 0.8, shape: 'none', placeholder: 'Your face / skin', outline: { width: 9, color: '#ffffff' }, glow: { size: 40, color: '#ff3b1f' }, shadow: { blur: 24, color: 'rgba(0,0,0,0.5)', dx: 0, dy: 10 } }),
-        txt({ text: 'I GOT', font: 'luckiest', size: 120, x: 905, y: 175, rotation: 4, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 13, color: DARK }, shadow: { blur: 20, color: 'rgba(0,0,0,0.6)', dx: 0, dy: 8 } }),
-        txt({ text: 'TRAPPED', font: 'luckiest', size: 165, x: 900, y: 345, rotation: 4, fill: { kind: 'gradient', color: '#ff5a4a', color2: '#c40000' }, stroke: { width: 14, color: DARK }, effect: 'extrude', effectColor: '#3a0000', effectSize: 12 }),
-        stk('px-alert', { x: 1150, y: 560, w: 120, rotation: 12, color: '#ff2a2a' }),
-        stk('px-trap', { x: 820, y: 580, w: 150, rotation: -8 }),
-        emo('😱', { x: 600, y: 160, size: 120, rotation: -10 })
+    { id: 'smp-shocked', theme: 'smp', name: 'Shocked reaction', blurb: 'Your face/skin + huge text', make: function (o) {
+      var me = meOf(o);
+      return design('smp', 'smp-shocked', 'I got trapped', shotBg(me, 'nether', 'trap-lava', 'right'), [
+        skn({ x: 300, y: 430, h: 600, pose: 'shock', facing: 'right', imageId: me.skinId, outline: { width: 9, color: '#ffffff' }, glow: { size: 40, color: '#ff3b1f' } }),
+        txt({ text: 'I GOT', font: 'luckiest', size: 120, x: 905, y: 130, rotation: 4, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 13, color: DARK }, shadow: { blur: 20, color: 'rgba(0,0,0,0.6)', dx: 0, dy: 8 } }),
+        txt({ text: 'TRAPPED', font: 'luckiest', size: 165, x: 900, y: 290, rotation: 4, fill: { kind: 'gradient', color: '#ff5a4a', color2: '#c40000' }, stroke: { width: 14, color: DARK }, effect: 'extrude', effectColor: '#3a0000', effectSize: 12 }),
+        stk('px-alert', { x: 1180, y: 600, w: 110, rotation: 12, color: '#ff2a2a' }),
+        emo('😱', { x: 590, y: 150, size: 120, rotation: -10 })
       ]);
     } },
-    { id: 'smp-rank', theme: 'smp', name: '#1 Top rank', blurb: 'Gold "#1" + crown + title', make: function () {
-      return design('smp', 'smp-rank', 'Richest player', { kind: 'scene', scene: 'blocky-night' }, [
-        img({ x: 1000, y: 455, w: 500, aspect: 0.8, shape: 'none', placeholder: 'Your face / skin', outline: { width: 8, color: '#ffffff' }, glow: { size: 36, color: '#ffd21f' }, shadow: { blur: 24, color: 'rgba(0,0,0,0.5)', dx: 0, dy: 10 } }),
+    { id: 'smp-rank', theme: 'smp', name: '#1 Top rank', blurb: 'Gold "#1" + crown + title', make: function (o) {
+      var me = meOf(o);
+      return design('smp', 'smp-rank', 'Richest player', shotBg(me, 'blocky-night', null), [
+        skn({ x: 1000, y: 440, h: 590, pose: 'stand', facing: 'left', imageId: me.skinId, glow: { size: 36, color: '#ffd21f' } }),
         txt({ text: '#1', font: 'bungee', size: 300, x: 300, y: 300, rotation: -6, fill: { kind: 'gradient', color: '#fff36b', color2: '#ff9d00' }, stroke: { width: 14, color: DARK }, effect: 'extrude', effectColor: '#7a3b00', effectSize: 18, shadow: { blur: 30, color: 'rgba(0,0,0,0.6)', dx: 0, dy: 12 } }),
         stk('px-crown', { x: 250, y: 105, w: 200, rotation: -12 }),
         txt({ text: 'RICHEST PLAYER', font: 'pixelify', size: 84, x: 360, y: 575, maxWidth: 640, rotation: -3, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 8, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 7, shadow: NOSH })
       ]);
     } },
-    { id: 'smp-vs', theme: 'smp', name: 'VS / PvP', blurb: 'Two players, slanted split, giant VS', make: function () {
+    { id: 'smp-vs', theme: 'smp', name: 'VS / PvP', blurb: 'Two players, slanted split, giant VS', make: function (o) {
+      var me = meOf(o);
       return design('smp', 'smp-vs', 'PvP fight', { kind: 'color', color: '#0a0a0a' }, [
-        img({ x: 320, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'nether', placeholder: 'Player 1', shadow: NOSH }),
-        img({ x: 960, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'blocky-night', placeholder: 'Player 2', shadow: NOSH }),
+        img({ x: 320, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'nether', fill: 'scene:nether', placeholder: 'Player 1', slotHint: 'a screenshot', shadow: NOSH }),
+        img({ x: 960, y: 360, w: 640, aspect: 640 / 720, shape: 'square', scene: 'blocky-night', fill: 'scene:blocky-night', placeholder: 'Player 2', slotHint: 'a screenshot', shadow: NOSH }),
+        skn({ x: 300, y: 450, h: 520, pose: 'point', facing: 'right', imageId: me.skinId, glow: { size: 30, color: '#ff3b1f' } }),
+        skn({ x: 980, y: 450, h: 520, pose: 'point', facing: 'left', variant: 'rival', slotHint: 'the other player', glow: { size: 30, color: '#3fa0ff' } }),
         stk('divider', { x: 640, y: 360, w: 120, color: '#ffffff', shadow: SOFT }),
         stk('px-sword', { x: 640, y: 360, w: 330, rotation: 0 }),
         stk('px-sword', { x: 640, y: 360, w: 330, rotation: 0, flipX: true }),
         txt({ text: 'VS', font: 'bungee', size: 230, x: 640, y: 380, rotation: -6, fill: { kind: 'gradient', color: '#fff36b', color2: '#ff7a00' }, stroke: { width: 14, color: DARK }, effect: 'extrude', effectColor: '#5a1d00', effectSize: 14, shadow: { blur: 30, color: 'rgba(0,0,0,0.7)', dx: 0, dy: 12 } }),
-        txt({ text: '1V1 FOR $1M', font: 'pixelify', size: 76, x: 640, y: 640, fill: { kind: 'solid', color: '#7dff6b' }, stroke: { width: 8, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 7, shadow: NOSH })
+        txt({ text: '1V1 FOR $1M', font: 'pixelify', size: 76, x: 640, y: 655, fill: { kind: 'solid', color: '#7dff6b' }, stroke: { width: 8, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 7, shadow: NOSH })
       ]);
     } },
-    { id: 'smp-trap', theme: 'smp', name: 'Trap reveal', blurb: 'Screenshot of the trap + arrow + "I TRAPPED HIM"', make: function () {
-      return design('smp', 'smp-trap', 'Trap base', { kind: 'image', imageId: null, scene: 'cave', placeholder: 'Add your trap screenshot (Background)' }, [
-        stk('circle-ring', { x: 900, y: 450, w: 380, color: '#ff2d2d', rotation: 8 }),
-        stk('arrow-curved', { x: 600, y: 470, w: 220, color: '#ff2d2d', rotation: 30 }),
-        txt({ text: 'I TRAPPED\nHIM', font: 'lilita', size: 130, lineHeight: 0.98, x: 320, y: 220, rotation: -4, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 12, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 11, shadow: NOSH }),
-        txt({ text: '+$250M', font: 'lilita', size: 110, x: 1050, y: 120, rotation: 5, fill: { kind: 'gradient', color: '#9dff7a', color2: '#1fbf3a' }, stroke: { width: 11, color: '#04260c' }, effect: 'extrude', effectColor: '#0a5a1c', effectSize: 10, shadow: NOSH }),
-        stk('px-trap', { x: 210, y: 560, w: 160, rotation: -8 }),
-        stk('px-skull', { x: 375, y: 600, w: 100, rotation: 10 })
+    { id: 'smp-trap', theme: 'smp', name: 'Trap reveal', blurb: 'Screenshot of the trap + arrow + "I TRAPPED HIM"', make: function (o) {
+      var me = meOf(o);
+      return design('smp', 'smp-trap', 'Trap base', shotBg(me, 'cave', 'trap-lava', 'right'), [
+        stk('circle-ring', { x: 920, y: 470, w: 460, color: '#ff2d2d', rotation: 8 }),
+        stk('arrow-curved', { x: 590, y: 470, w: 220, color: '#ff2d2d', rotation: 30 }),
+        skn({ x: 175, y: 520, h: 390, pose: 'point', facing: 'right', imageId: me.skinId }),
+        txt({ text: 'I TRAPPED\nHIM', font: 'lilita', size: 130, lineHeight: 0.98, x: 330, y: 190, rotation: -4, fill: { kind: 'solid', color: '#ffffff' }, stroke: { width: 12, color: DARK }, effect: 'pixel', effectColor: '#000000', effectSize: 11, shadow: NOSH }),
+        txt({ text: '+$250M', font: 'lilita', size: 110, x: 1050, y: 110, rotation: 5, fill: { kind: 'gradient', color: '#9dff7a', color2: '#1fbf3a' }, stroke: { width: 11, color: '#04260c' }, effect: 'extrude', effectColor: '#0a5a1c', effectSize: 10, shadow: NOSH }),
+        stk('px-skull', { x: 400, y: 630, w: 100, rotation: 10 })
       ]);
     } },
-    { id: 'smp-0to1b', theme: 'smp', name: '$0 → $1B', blurb: 'The money jump: red $0 to green $1B', make: function () {
-      return design('smp', 'smp-0to1b', '$0 to $1B', { kind: 'scene', scene: 'blocky-sunset' }, [
-        img({ x: 1040, y: 470, w: 440, aspect: 0.8, shape: 'none', placeholder: 'Your face / skin', outline: { width: 8, color: '#ffffff' }, glow: { size: 30, color: '#ffd21f' }, shadow: { blur: 24, color: 'rgba(0,0,0,0.5)', dx: 0, dy: 10 } }),
+    { id: 'smp-0to1b', theme: 'smp', name: '$0 → $1B', blurb: 'The money jump: red $0 to green $1B', make: function (o) {
+      var me = meOf(o);
+      return design('smp', 'smp-0to1b', '$0 to $1B', shotBg(me, 'blocky-sunset', null), [
+        skn({ x: 1060, y: 450, h: 560, pose: 'stand', facing: 'left', imageId: me.skinId, glow: { size: 30, color: '#ffd21f' } }),
         txt({ text: '$0', font: 'lilita', size: 190, x: 170, y: 250, rotation: -6, fill: { kind: 'gradient', color: '#ff6a5a', color2: '#d10000' }, stroke: { width: 13, color: DARK }, effect: 'extrude', effectColor: '#3a0000', effectSize: 12, shadow: NOSH }),
         stk('px-arrow', { x: 385, y: 270, w: 170, color: '#ffffff', rotation: -4 }),
         txt({ text: '$1B', font: 'lilita', size: 230, x: 640, y: 270, rotation: -4, fill: { kind: 'gradient', color: '#9dff7a', color2: '#1fbf3a' }, stroke: { width: 14, color: '#04260c' }, effect: 'extrude', effectColor: '#0a5a1c', effectSize: 15, shadow: { blur: 26, color: 'rgba(0,0,0,0.55)', dx: 0, dy: 10 } }),
@@ -2304,6 +2519,9 @@
     layerBox: layerBox,
     hitTest: hitTest,
     exportBlob: exportBlob,
+    foods: FOODS.slice(),
+    foodKind: foodKind,
+    drawFood: function (ctx, dish, x, y, w, h) { ctx.save(); ctx.translate(x - w / 2, y - h / 2); drawFood(ctx, dish, w, h, 1); ctx.restore(); },
     defaultsFor: defaultsFor,
     clearCache: clearCache,
     invalidate: invalidate,
