@@ -123,6 +123,7 @@ export function createGame(canvas, opts = {}) {
   }
 
   // ---------- anime faces ----------
+  // Face decal is projected flat from the front: canvas x 0..256 <-> head x -0.12..0.12, canvas y 0..256 <-> head y 0.2..-0.04.
   const faceCache = new Map();
   function faceTexture(f, emo) {
     const key = f.id + '|' + emo; if (faceCache.has(key)) return faceCache.get(key);
@@ -132,43 +133,48 @@ export function createGame(canvas, opts = {}) {
   function drawFace(x, f, emo) {
     const ink = '#1a1020', cx = 128;
     if (f.type === 'mask') { drawMask(x, f, emo); return; }
-    const ey = 112, ex = 40, eh = f.eyeH || 20;
-    // blush
-    if (emo === 'smile' || emo === 'shocked') { x.fillStyle = 'rgba(255,110,140,0.35)'; x.beginPath(); x.ellipse(cx - 52, ey + 34, 16, 7, 0, 0, TAU); x.ellipse(cx + 52, ey + 34, 16, 7, 0, 0, TAU); x.fill(); }
+    const ey = 114, hs = (f.eyeH || 20) / 20;
+    x.lineJoin = 'round'; x.lineCap = 'round';
+    if (emo === 'smile' || emo === 'shocked') { x.fillStyle = 'rgba(255,110,140,0.32)'; x.beginPath(); x.ellipse(cx - 52, ey + 30, 15, 6, 0, 0, TAU); x.ellipse(cx + 52, ey + 30, 15, 6, 0, 0, TAU); x.fill(); x.strokeStyle = 'rgba(220,70,100,0.5)'; x.lineWidth = 1.5; for (const s of [-1, 1]) for (let i = 0; i < 3; i++) { x.beginPath(); x.moveTo(cx + s * (44 + i * 6), ey + 27); x.lineTo(cx + s * (41 + i * 6), ey + 33); x.stroke(); } }
     for (const s of [-1, 1]) {
-      const exx = cx + s * ex; x.lineCap = 'round'; x.strokeStyle = ink; x.fillStyle = ink;
-      if (emo === 'blink') { x.lineWidth = 5; x.beginPath(); x.moveTo(exx - 17, ey + 4); x.quadraticCurveTo(exx, ey + 12, exx + 17, ey + 4); x.stroke(); }
-      else if (emo === 'smile') { x.lineWidth = 6; x.beginPath(); x.moveTo(exx - 16, ey + 8); x.quadraticCurveTo(exx, ey - 10, exx + 16, ey + 8); x.stroke(); }
-      else if (emo === 'hurt') { x.lineWidth = 5; x.beginPath(); x.moveTo(exx - s * 16, ey - 10); x.lineTo(exx + s * 10, ey + 2); x.lineTo(exx - s * 16, ey + 12); x.stroke(); }
+      const ex = cx + s * 47;
+      // strong angular brows
+      const bi = { angry: 14, determined: 8, shocked: -9, smile: -5, hurt: 5 }[emo] || 0, bo = { angry: -5, determined: -2, shocked: -12, smile: -7, hurt: -9 }[emo] || 0, by = ey - 31;
+      x.fillStyle = f.brow || ink; x.beginPath();
+      x.moveTo(ex - s * 23, by + bi + 5); x.lineTo(ex - s * 21, by + bi - 4);
+      x.quadraticCurveTo(ex + s * 4, by + (bi + bo) / 2 - 10, ex + s * 31, by + bo - 3);
+      x.quadraticCurveTo(ex + s * 6, by + (bi + bo) / 2 - 1, ex - s * 23, by + bi + 5); x.fill();
+      x.strokeStyle = ink; x.fillStyle = ink;
+      if (emo === 'blink') { x.lineWidth = 6; x.beginPath(); x.moveTo(ex - s * 22, ey + 3); x.quadraticCurveTo(ex, ey + 10, ex + s * 27, ey - 1); x.stroke(); }
+      else if (emo === 'smile') { x.lineWidth = 7; x.beginPath(); x.moveTo(ex - s * 21, ey + 7); x.quadraticCurveTo(ex, ey - 14, ex + s * 24, ey + 4); x.stroke(); }
+      else if (emo === 'hurt') { x.lineWidth = 6; x.beginPath(); x.moveTo(ex - s * 18, ey - 11); x.lineTo(ex + s * 14, ey); x.lineTo(ex - s * 18, ey + 11); x.stroke(); }
       else {
-        const h = emo === 'shocked' ? eh + 4 : eh, w = 15, ir = emo === 'shocked' ? 0.65 : 1;
-        x.save(); x.beginPath(); x.ellipse(exx, ey, w, h, 0, 0, TAU); x.fillStyle = '#ffffff'; x.fill(); x.clip();
-        const g = x.createLinearGradient(0, ey - h, 0, ey + h); g.addColorStop(0, f.eyeDark || '#241a5a'); g.addColorStop(1, f.eye || '#8a7cff');
-        x.fillStyle = g; x.beginPath(); x.ellipse(exx - s * 1, ey + 3, 11 * ir, 16 * ir, 0, 0, TAU); x.fill();
-        x.fillStyle = '#120a20'; x.beginPath(); x.ellipse(exx - s, ey + 4, 5 * ir, 8 * ir, 0, 0, TAU); x.fill();
-        x.fillStyle = '#fff'; x.beginPath(); x.arc(exx - 4, ey - 5, 4.5, 0, TAU); x.fill(); x.beginPath(); x.arc(exx + 4, ey + 9, 2, 0, TAU); x.fill();
-        if (emo === 'angry' || emo === 'determined') { x.fillStyle = f.skin || '#ffe0cc'; x.beginPath(); const d = emo === 'angry' ? 14 : 7; x.moveTo(exx - 20, ey - h - 2); x.lineTo(exx + 20, ey - h - 2); x.lineTo(exx + 20, ey - h + (s < 0 ? d * 0.4 : d * 1.6)); x.lineTo(exx - 20, ey - h + (s < 0 ? d * 1.6 : d * 0.4)); x.fill(); }
+        const top = (emo === 'shocked' ? 22 : emo === 'angry' ? 11 : emo === 'determined' ? 14 : 17) * hs, bot = (emo === 'shocked' ? 16 : 12) * hs;
+        const drop = emo === 'angry' ? 7 : emo === 'determined' ? 4 : 0, ir = emo === 'shocked' ? 0.6 : 1;
+        const lid = () => { x.moveTo(ex - s * 22, ey + 2 + drop); x.quadraticCurveTo(ex - s * 6, ey - top - 2 + drop * 0.6, ex + s * 17, ey - top * 0.92); x.lineTo(ex + s * 26, ey - 3); };
+        x.save(); x.beginPath(); lid(); x.quadraticCurveTo(ex + s * 9, ey + bot + 2, ex - s * 22, ey + 2 + drop); x.closePath();
+        x.fillStyle = '#ffffff'; x.fill(); x.clip();
+        const g = x.createLinearGradient(0, ey - 15, 0, ey + 16); g.addColorStop(0, f.eyeDark || '#241a5a'); g.addColorStop(0.55, f.eye || '#8a7cff'); g.addColorStop(1, f.eyeLight || '#d8d0ff');
+        x.fillStyle = g; x.beginPath(); x.ellipse(ex + s * 1, ey + 1, 12.5 * ir, 15.5 * ir, 0, 0, TAU); x.fill();
+        x.lineWidth = 2; x.strokeStyle = f.eyeDark || '#241a5a'; x.stroke();
+        x.fillStyle = '#100818'; x.beginPath(); x.ellipse(ex + s * 1, ey + 2, 5.5 * ir, 8.5 * ir, 0, 0, TAU); x.fill();
+        x.fillStyle = 'rgba(0,0,0,0.28)'; x.beginPath(); x.ellipse(ex, ey - top + 4, 30, 8, 0, 0, TAU); x.fill();
+        x.fillStyle = '#fff'; x.beginPath(); x.ellipse(ex - 5, ey - 6, 4.5, 5.5, -0.4, 0, TAU); x.fill(); x.beginPath(); x.arc(ex + 5, ey + 8, 2.2, 0, TAU); x.fill();
         x.restore();
-        // lashes
-        x.lineWidth = 6; x.beginPath();
-        if (emo === 'angry' || emo === 'determined') { const d = emo === 'angry' ? 14 : 7; x.moveTo(exx - 17, ey - h + (s < 0 ? d * 0.4 : d * 1.6)); x.lineTo(exx + 17, ey - h + (s < 0 ? d * 1.6 : d * 0.4)); }
-        else x.ellipse(exx, ey, w + 1, h + 1, 0, Math.PI * 1.08, Math.PI * 1.92);
-        x.stroke(); x.lineWidth = 4; x.beginPath(); x.moveTo(exx + s * 14, ey - h * 0.6); x.lineTo(exx + s * 21, ey - h * 0.85); x.stroke();
-        x.lineWidth = 2; x.beginPath(); x.ellipse(exx, ey, w, h, 0, Math.PI * 0.25, Math.PI * 0.75); x.stroke();
+        // sharp upper lash line with a flick, thin lower lid
+        x.strokeStyle = ink; x.lineWidth = 7; x.beginPath(); lid(); x.lineTo(ex + s * 32, ey - 9); x.stroke();
+        x.lineWidth = 2.5; x.beginPath(); x.moveTo(ex + s * 24, ey); x.quadraticCurveTo(ex + s * 8, ey + bot + 3, ex - s * 10, ey + bot - 3); x.stroke();
       }
-      // brows
-      x.lineWidth = 6; x.strokeStyle = f.brow || ink; x.beginPath();
-      const bi = { angry: 10, determined: 4, shocked: -10, smile: -6 }[emo] || 0, bo = { angry: -6, determined: -2, shocked: -12, smile: -6 }[emo] || 0;
-      x.moveTo(cx + s * 22, ey - eh - 10 + bi); x.quadraticCurveTo(cx + s * 40, ey - eh - 18 + (bi + bo) / 2, cx + s * 58, ey - eh - 12 + bo); x.stroke();
     }
-    x.strokeStyle = 'rgba(120,60,60,0.6)'; x.lineWidth = 2; x.beginPath(); x.moveTo(cx + 3, 158); x.lineTo(cx, 164); x.stroke();
-    x.lineWidth = 3; x.strokeStyle = ink; x.fillStyle = '#7a1a2a'; const my = 186;
-    if (emo === 'smile') { x.beginPath(); x.moveTo(cx - 14, my); x.quadraticCurveTo(cx, my + 24, cx + 14, my); x.closePath(); x.fill(); x.stroke(); }
-    else if (emo === 'shocked') { x.beginPath(); x.ellipse(cx, my + 6, 7, 10, 0, 0, TAU); x.fill(); x.stroke(); }
-    else if (emo === 'angry') { x.fillStyle = '#fff'; x.beginPath(); x.rect(cx - 15, my - 2, 30, 11); x.fill(); x.stroke(); x.beginPath(); x.moveTo(cx - 15, my + 3.5); x.lineTo(cx + 15, my + 3.5); x.stroke(); }
-    else if (emo === 'hurt') { x.beginPath(); x.moveTo(cx - 12, my + 4); x.lineTo(cx - 4, my); x.lineTo(cx + 4, my + 4); x.lineTo(cx + 12, my); x.stroke(); }
-    else if (emo === 'determined') { x.beginPath(); x.moveTo(cx - 10, my + 2); x.lineTo(cx + 10, my); x.stroke(); }
-    else { x.beginPath(); x.moveTo(cx - 8, my); x.quadraticCurveTo(cx, my + 3, cx + 8, my); x.stroke(); }
+    // nose
+    x.strokeStyle = 'rgba(150,70,70,0.75)'; x.lineWidth = 2.5; x.beginPath(); x.moveTo(cx + 2, 148); x.lineTo(cx - 4, 162); x.lineTo(cx + 3, 164); x.stroke();
+    x.lineWidth = 3; x.strokeStyle = ink; x.fillStyle = '#6a1424'; const my = 190;
+    if (emo === 'smile') { x.beginPath(); x.moveTo(cx - 17, my - 3); x.quadraticCurveTo(cx, my + 1, cx + 17, my - 3); x.quadraticCurveTo(cx + 2, my + 22, cx - 17, my - 3); x.closePath(); x.fill(); x.stroke(); x.fillStyle = '#fff'; x.fillRect(cx - 11, my - 2, 22, 4); }
+    else if (emo === 'shocked') { x.beginPath(); x.ellipse(cx, my + 4, 7, 10, 0, 0, TAU); x.fill(); x.stroke(); }
+    else if (emo === 'angry') { x.beginPath(); x.moveTo(cx - 17, my - 4); x.lineTo(cx + 17, my - 4); x.lineTo(cx + 11, my + 11); x.lineTo(cx - 11, my + 11); x.closePath(); x.fill(); x.stroke(); x.fillStyle = '#fff'; x.fillRect(cx - 15, my - 3, 30, 5); x.beginPath(); x.moveTo(cx - 13, my - 4); x.lineTo(cx - 9, my + 3); x.lineTo(cx - 6, my - 4); x.moveTo(cx + 13, my - 4); x.lineTo(cx + 9, my + 3); x.lineTo(cx + 6, my - 4); x.fill(); }
+    else if (emo === 'hurt') { x.fillStyle = '#fff'; x.beginPath(); x.rect(cx - 14, my - 3, 28, 9); x.fill(); x.stroke(); x.beginPath(); x.moveTo(cx - 14, my + 1.5); x.lineTo(cx + 14, my + 1.5); for (let i = -1; i <= 1; i++) { x.moveTo(cx + i * 7, my - 3); x.lineTo(cx + i * 7, my + 6); } x.stroke(); }
+    else if (emo === 'determined') { x.beginPath(); x.moveTo(cx - 13, my + 1); x.quadraticCurveTo(cx + 2, my + 4, cx + 14, my - 5); x.stroke(); }
+    else { x.beginPath(); x.moveTo(cx - 10, my); x.quadraticCurveTo(cx, my + 3, cx + 10, my - 1); x.stroke(); }
   }
   function drawMask(x, f, emo) {
     const cx = 128;
@@ -182,6 +188,100 @@ export function createGame(canvas, opts = {}) {
       x.strokeStyle = f.lines || '#d81a3a'; x.lineWidth = 5; x.beginPath(); x.moveTo(cx + s * 34, 134); x.lineTo(cx + s * 30, 176); x.stroke();
     }
     x.fillStyle = '#0a0410'; x.beginPath(); x.moveTo(cx - 26, 196); for (let i = 0; i <= 6; i++) x.lineTo(cx - 26 + i * 52 / 6, 196 + (i % 2 ? 10 : 0)); x.lineTo(cx + 26, 204); x.lineTo(cx - 26, 204); x.fill();
+  }
+
+  // ---------- sculpted geometry toolkit ----------
+  // loft(): a smooth tube around +Y built from rings [y, rx, rz, cz=0, n=2, cx=0] (n>2 = boxier superellipse; y may be fn(theta, k)).
+  // List rings so the OUTER surface runs bottom -> top; that gives outward normals. Shared seam vertices keep normals smooth.
+  const geoCache = new Map();
+  function cachedGeo(key, fn) { let g = geoCache.get(key); if (!g) { g = fn(); geoCache.set(key, g); } return g; }
+  function loft(rings, seg = 14, o = {}) {
+    const a0 = o.a0 || 0, al = o.al || TAU, full = !o.al, cols = full ? seg : seg + 1, pos = [], uv = [], idx = [];
+    rings.forEach((r, i) => {
+      const [y, rx, rz, cz = 0, n = 2, cx = 0] = r, e = 2 / n;
+      for (let k = 0; k < cols; k++) {
+        const th = a0 + al * k / seg, s = Math.sin(th), c = Math.cos(th);
+        pos.push(cx + rx * Math.sign(s) * Math.abs(s) ** e, typeof y === 'function' ? y(th, k) : y, cz + rz * Math.sign(c) * Math.abs(c) ** e);
+        uv.push(k / seg, i / (rings.length - 1));
+      }
+    });
+    for (let i = 0; i < rings.length - 1; i++) for (let k = 0; k < seg; k++) {
+      const k2 = full ? (k + 1) % seg : k + 1, a = i * cols + k, b = i * cols + k2, c = (i + 1) * cols + k, d = (i + 1) * cols + k2;
+      idx.push(a, b, c, b, d, c);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+    g.computeVertexNormals(); return g;
+  }
+  const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
+  function xf(p, r, s) { _e.set(r ? r[0] : 0, r ? r[1] : 0, r ? r[2] : 0); _q.setFromEuler(_e); return new THREE.Matrix4().compose(new THREE.Vector3(p ? p[0] : 0, p ? p[1] : 0, p ? p[2] : 0), _q, typeof s === 'number' ? new THREE.Vector3(s, s, s) : new THREE.Vector3(s ? s[0] : 1, s ? s[1] : 1, s ? s[2] : 1)); }
+  // basis: local +Y along dir, local +Z bent towards curl
+  function orient(p, dir, curl) {
+    const Y = new THREE.Vector3(...dir).normalize(), c = new THREE.Vector3(...curl);
+    const Z = c.addScaledVector(Y, -c.dot(Y)); if (Z.lengthSq() < 1e-6) Z.set(0, 0, 1).addScaledVector(Y, -Y.z); Z.normalize();
+    const X = new THREE.Vector3().crossVectors(Y, Z);
+    return new THREE.Matrix4().makeBasis(X, Y, Z).setPosition(p[0], p[1], p[2]);
+  }
+  function mergeGeos(list) {
+    let nv = 0, ni = 0;
+    for (const [g] of list) { nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
+    const P = new Float32Array(nv * 3), N = new Float32Array(nv * 3), I = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
+    let vo = 0, io = 0; const v = new THREE.Vector3(), nm = new THREE.Matrix3();
+    for (const [g, m] of list) {
+      const p = g.attributes.position, n = g.attributes.normal; if (m) nm.getNormalMatrix(m);
+      for (let i = 0; i < p.count; i++) {
+        v.fromBufferAttribute(p, i); if (m) v.applyMatrix4(m); P[(vo + i) * 3] = v.x; P[(vo + i) * 3 + 1] = v.y; P[(vo + i) * 3 + 2] = v.z;
+        v.fromBufferAttribute(n, i); if (m) v.applyMatrix3(nm).normalize(); N[(vo + i) * 3] = v.x; N[(vo + i) * 3 + 1] = v.y; N[(vo + i) * 3 + 2] = v.z;
+      }
+      if (g.index) for (let i = 0; i < g.index.count; i++) I[io++] = g.index.getX(i) + vo; else for (let i = 0; i < p.count; i++) I[io++] = i + vo;
+      vo += p.count;
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.BufferAttribute(N, 3)); g.setIndex(new THREE.BufferAttribute(I, 1));
+    return g;
+  }
+  // a curved, flattened hair spike / blade along +Y that bends towards +Z
+  function spikeGeo(len, w, th = 0.62, bend = 0.35) {
+    return cachedGeo('spk' + [len, w, th, bend].map((v) => v.toFixed(3)).join(','), () => {
+      const g = loft([[-0.035, w * 0.75, w * th * 0.75], [0, w, w * th], [len * 0.28, w * 0.86, w * th * 0.86], [len * 0.6, w * 0.52, w * th * 0.52], [len * 0.85, w * 0.2, w * th * 0.22], [len, 0.002, 0.002]], 7);
+      const p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) { const t = Math.max(0, p.getY(i) / len); p.setZ(i, p.getZ(i) + bend * len * t * t); }
+      g.computeVertexNormals(); return g;
+    });
+  }
+  // anime head: rounded skull, cheeks tapering to a slightly pointed chin. [y, rx, rz, cz]
+  const HEAD = [[-0.04, 0.004, 0.004, 0.07], [-0.032, 0.02, 0.016, 0.066], [-0.014, 0.046, 0.038, 0.052], [0.012, 0.074, 0.07, 0.03], [0.045, 0.097, 0.095, 0.013], [0.085, 0.11, 0.11, 0.003], [0.13, 0.115, 0.118, -0.006], [0.17, 0.11, 0.115, -0.01], [0.205, 0.088, 0.095, -0.014], [0.228, 0.052, 0.06, -0.016], [0.24, 0.004, 0.004, -0.016]];
+  function headAt(y) { for (let i = 1; i < HEAD.length; i++) if (y <= HEAD[i][0] || i === HEAD.length - 1) { const a = HEAD[i - 1], b = HEAD[i], t = clamp((y - a[0]) / (b[0] - a[0]), 0, 1); return [lerp(a[1], b[1], t), lerp(a[2], b[2], t), lerp(a[3], b[3], t)]; } }
+  // hair cap hugging the skull; hairline low at the back, high at the front
+  function hairCapGeo(front = 0.168, back = 0.03, pad = 0.014) {
+    return cachedGeo('cap' + front + back + pad, () => {
+      const seg = 20, rows = 8, pos = [], idx = [];
+      for (let r = 0; r <= rows; r++) for (let k = 0; k < seg; k++) {
+        const th = k / seg * TAU, yb = back + (front - back) * ((1 + Math.cos(th)) / 2) ** 0.6, y = lerp(yb, 0.24 + pad, Math.sin(r / rows * Math.PI / 2));
+        const [rx, rz, cz] = headAt(Math.min(y, 0.239)), sc = r === rows ? 0 : 1;
+        pos.push((rx + pad) * Math.sin(th) * sc, y, cz + (rz + pad) * Math.cos(th) * sc);
+      }
+      for (let r = 0; r < rows; r++) for (let k = 0; k < seg; k++) { const a = r * seg + k, b = r * seg + (k + 1) % seg, c = a + seg, d = b + seg; idx.push(a, b, c, b, d, c); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+    });
+  }
+  function meshOf(parent, geo, mat, outline = OUT) { const m = new THREE.Mesh(geo, mat); parent.add(m); if (outline) addOutline(m, outline); return m; }
+  function hairCap(J, mat, front, back) { return meshOf(J.head, hairCapGeo(front, back), mat); }
+  // spikes: [az deg (0 = front, 90 = character's left), el deg, len, w, kind]. kind 0 swept back+up, 1 fringe (down over the face), 2 side lock, 3 straight out/back
+  const HC = [0, 0.125, -0.02];
+  function hairSpikes(J, mat, arr, key) {
+    const build = () => {
+      const list = [];
+      for (const [az0, el0, len, w, kind = 0, sw = 1] of arr) {
+        const az = az0 * Math.PI / 180, el = el0 * Math.PI / 180, r = [Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)];
+        let dir, curl, root, bend = 0.35;
+        if (kind === 1) { root = [HC[0] + r[0] * 0.11, 0.2 - Math.abs(r[0]) * 0.03, HC[2] + r[2] * 0.105]; dir = [r[0] * 0.45, -1, 0.3]; curl = [r[0], 0, 1]; bend = 0.3; }
+        else if (kind === 2) { root = [HC[0] + r[0] * 0.11, 0.15, HC[2] + r[2] * 0.11]; dir = [r[0] * 0.25, -1, 0.12]; curl = [r[0], 0, 0.3]; bend = 0.25; }
+        else { root = [HC[0] + r[0] * 0.085, HC[1] + r[1] * 0.085, HC[2] + r[2] * 0.085]; const s = kind === 3 ? 0.35 : 0.9 * sw; dir = [r[0], r[1] + 0.55 * s, r[2] - 0.85 * s]; curl = [0, 1, 0.2]; }
+        list.push([spikeGeo(len, w, kind === 1 ? 0.5 : 0.62, bend), orient(root, dir, curl)]);
+      }
+      return mergeGeos(list);
+    };
+    return meshOf(J.head, key ? cachedGeo('hair' + key, build) : build(), mat);
   }
 
   // ---------- character rig ----------
@@ -200,40 +300,101 @@ export function createGame(canvas, opts = {}) {
     j('shR', J.chest, -shx, 0.24, 0); j('elR', J.shR, 0, -0.27, 0); j('haR', J.elR, 0, -0.25, 0);
     j('hipL', J.hips, 0.095 * bw, -0.04, 0); j('knL', J.hipL, 0, -0.43, 0); j('ftL', J.knL, 0, -0.43, 0);
     j('hipR', J.hips, -0.095 * bw, -0.04, 0); j('knR', J.hipR, 0, -0.43, 0); j('ftR', J.knR, 0, -0.43, 0);
-    // body
-    part(J.hips, G.sphere, bot, [0, 0, 0], [0.15 * bw, 0.1, 0.11]);
-    part(J.spine, G.cyl, top, [0, 0.06, 0], [0.125 * bw, 0.18, 0.09]);
-    const chestM = part(J.chest, new THREE.CylinderGeometry(0.17, 0.125, 0.36, 14), top, [0, 0.12, 0], [bw, 1, 0.64]);
-    part(J.chest, G.sphere, top, [shx * 0.92, 0.24, 0], [0.075 * bw, 0.07, 0.075]); part(J.chest, G.sphere, top, [-shx * 0.92, 0.24, 0], [0.075 * bw, 0.07, 0.075]);
-    if (cfg.trim) part(J.chest, G.box, acc, [0, 0.1, 0.105], [0.025, 0.34, 0.02], null, null);
-    if (cfg.hem !== false) part(J.hips, G.cyl, toon(cfg.hemColor || C.top), [0, -0.06, 0], [0.165 * bw, 0.26, 0.12], null);
-    part(J.neck, G.cyl, skin, [0, 0.02, 0], [0.045, 0.1, 0.045]);
-    if (cfg.collar) part(J.chest, G.cyl, toon(cfg.collar), [0, 0.3, 0], [0.075, 0.06, 0.07]);
-    // head
-    const headM = part(J.head, G.sphere, skin, [0, 0.11, 0], [0.112, 0.125, 0.115]);
-    part(J.head, G.cone12, skin, [0, 0.025, 0.018], [0.085, 0.09, 0.08], [Math.PI, 0, 0]);
-    part(J.head, G.sphere, skin, [0.108, 0.1, -0.005], [0.022, 0.035, 0.02]); part(J.head, G.sphere, skin, [-0.108, 0.1, -0.005], [0.022, 0.035, 0.02]);
-    const fmat = new THREE.MeshToonMaterial({ gradientMap: GRAD, map: faceTexture(cfg.face, 'neutral'), transparent: true, alphaTest: 0.4 });
-    const faceM = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16, Math.PI / 2 - 0.45 * Math.PI, 0.9 * Math.PI, 0.3 * Math.PI, 0.48 * Math.PI), fmat);
-    faceM.position.set(0, 0.11, 0); faceM.scale.set(0.114, 0.127, 0.118); J.head.add(faceM);
-    // arms
-    for (const [sh, el, ha] of [['shL', 'elL', 'haL'], ['shR', 'elR', 'haR']]) {
-      part(J[sh], capsule(0.052 * lr * bw, 0.3), top, [0, -0.13, 0]);
-      part(J[el], capsule(0.046 * lr * bw, 0.27), cfg.sleeve === false ? skin : top, [0, -0.12, 0]);
-      if (cfg.cuff) part(J[el], G.cyl, toon(cfg.cuff), [0, -0.22, 0], [0.05 * lr * bw, 0.04, 0.05 * lr * bw], null, null);
-      part(J[ha], G.sphere, toon(C.hand || C.skin || 0xffe0cc), [0, -0.035, 0.01], [0.048 * lr * bw, 0.06, 0.04 * lr]);
+    // Body parts are collected per joint + material, then merged into one mesh each (few draw calls).
+    const bag = new Map();
+    const put = (jn, mat, geo, m, outline = true) => { const k = jn + '|' + mat.uuid + '|' + (outline ? 1 : 0); if (!bag.has(k)) bag.set(k, { jn, mat, outline, list: [] }); bag.get(k).list.push([geo, m || null]); };
+    const a = lr * bw, L = lr * bw;
+    // hips / trousers seat + belt + flared jacket hem
+    put('hips', bot, loft([[-0.135, 0.09 * bw, 0.075, 0.0], [-0.11, 0.14 * bw, 0.098], [-0.03, 0.155 * bw, 0.105], [0.05, 0.142 * bw, 0.096], [0.1, 0.13 * bw, 0.088]], 16));
+    put('hips', toon(cfg.belt || 0x2a1e2a), loft([[0.025, 0.16 * bw, 0.109, 0, 2.3], [0.065, 0.153 * bw, 0.104, 0, 2.3]], 16));
+    if (cfg.trim) put('hips', acc, loft([[0.028, 0.03, 0.012, 0.11, 3], [0.062, 0.03, 0.012, 0.106, 3]], 8), null, false);
+    if (cfg.hem !== false) {
+      const hm = toon(cfg.hemColor || C.top, { side: THREE.DoubleSide }), hl = cfg.hemLen || 0.2;
+      put('hips', hm, loft([[0.08, 0.142 * bw, 0.097], [-hl, 0.18 * bw, 0.13, -0.008], [-hl - 0.016, 0.188 * bw, 0.137, -0.008], [-hl, 0.196 * bw, 0.144, -0.008], [0.09, 0.15 * bw, 0.104]], 18, { a0: 0.42, al: TAU - 0.84 }));
     }
+    // abdomen
+    put('spine', top, loft([[-0.09, 0.13 * bw, 0.088], [0.0, 0.128 * bw, 0.09, 0.005], [0.08, 0.137 * bw, 0.096, 0.009], [0.17, 0.15 * bw, 0.1, 0.012]], 16));
+    // V-shaped chest: broad shoulders, narrow waist
+    put('chest', top, loft([[-0.06, 0.135 * bw, 0.092, 0.008, 2.2], [0.05, 0.156 * bw, 0.104, 0.014, 2.3], [0.14, 0.184 * bw, 0.114, 0.016, 2.5], [0.21, 0.202 * bw, 0.112, 0.01, 2.8], [0.26, 0.19 * bw, 0.1, 0, 2.8], [0.295, 0.14 * bw, 0.085, -0.005, 2.4], [0.315, 0.07, 0.055, 0], [0.325, 0.02, 0.02]], 18));
+    // open collar: inner shirt V + lapels
+    const vneck = cfg.vneck ?? !!cfg.collar;
+    if (vneck) {
+      const tilt = [-0.3, 0, 0];
+      const vs = new THREE.Shape([new THREE.Vector2(-0.062, 0.16), new THREE.Vector2(0.062, 0.16), new THREE.Vector2(0, 0)]);
+      put('chest', toon(cfg.collar || 0xf4f4ff), new THREE.ExtrudeGeometry(vs, { depth: 0.006, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 1 }), xf([0, 0.135, 0.118], tilt));
+      for (const sd of [-1, 1]) {
+        const ls = new THREE.Shape([new THREE.Vector2(0, -0.012), new THREE.Vector2(sd * 0.072, 0.168), new THREE.Vector2(sd * 0.118, 0.15), new THREE.Vector2(sd * 0.034, -0.018)]);
+        put('chest', toon(cfg.lapel || C.top), new THREE.ExtrudeGeometry(ls, { depth: 0.008, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 1 }), xf([0, 0.135, 0.124], tilt));
+      }
+      if (cfg.trim) put('chest', acc, loft([[-0.06, 0.012, 0.01, 0.1, 3], [0.135, 0.012, 0.01, 0.124, 3]], 8), null, false);
+    } else if (cfg.trim) put('chest', acc, loft([[-0.06, 0.014, 0.01, 0.1, 3], [0.2, 0.014, 0.01, 0.124, 3]], 8), null, false);
+    if (cfg.collar && !vneck) put('chest', toon(cfg.collar), loft([[0.27, 0.085, 0.075], [0.345, 0.07, 0.062]], 14));
+    // neck + head
+    put('neck', skin, loft([[-0.07, 0.048, 0.046, -0.004], [0.03, 0.041, 0.04, -0.008], [0.11, 0.04, 0.038, -0.014]], 12));
+    put('head', skin, loft(HEAD, 24));
+    for (const sd of [-1, 1]) put('head', skin, loft([[-0.028, 0.006, 0.01], [-0.016, 0.011, 0.019], [0.012, 0.012, 0.021, -0.003], [0.034, 0.006, 0.012, -0.01], [0.042, 0.002, 0.002, -0.013]], 8), xf([sd * 0.106, 0.078, -0.004], [0, 0, -sd * 0.12]));
+    const fgeo = cachedGeo('facedecal', () => {
+      const step = TAU / 24, g = loft(HEAD.map((r) => [r[0], r[1] + 0.0018, r[2] + 0.0018, r[3]]), 10, { a0: -5 * step, al: 10 * step });
+      const p = g.attributes.position, uv = g.attributes.uv;
+      for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i) + 0.12) / 0.24, (p.getY(i) + 0.04) / 0.24);
+      return g;
+    });
+    const fmat = new THREE.MeshToonMaterial({ gradientMap: GRAD, map: faceTexture(cfg.face, 'neutral'), transparent: true, alphaTest: 0.4, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    const faceM = new THREE.Mesh(fgeo, fmat); J.head.add(faceM);
+    // arms: deltoid-capped upper arm, sleeved forearm with cuff, mitt hand with thumb
+    const sleeve = cfg.sleeve === false ? skin : top, hand = toon(C.hand || C.skin || 0xffe0cc);
+    for (const [sh, el, ha, sd] of [['shL', 'elL', 'haL', 1], ['shR', 'elR', 'haR', -1]]) {
+      put(sh, top, cachedGeo('uarm' + a, () => loft([[-0.295, 0.004, 0.004], [-0.29, 0.04 * a, 0.042 * a], [-0.24, 0.046 * a, 0.048 * a], [-0.14, 0.053 * a, 0.055 * a, 0.003], [-0.04, 0.061 * a, 0.062 * a], [0.02, 0.068 * a, 0.066 * a], [0.055, 0.058 * a, 0.056 * a], [0.08, 0.03 * a, 0.03 * a], [0.088, 0.004, 0.004]], 14)));
+      put(el, sleeve, cachedGeo('farm' + a, () => loft([[-0.215, 0.004, 0.004], [-0.212, 0.054 * a, 0.05 * a], [-0.19, 0.055 * a, 0.051 * a], [-0.12, 0.049 * a, 0.048 * a, 0.004], [-0.02, 0.047 * a, 0.046 * a], [0.03, 0.04 * a, 0.04 * a], [0.045, 0.004, 0.004]], 14)));
+      if (cfg.cuff) put(el, toon(cfg.cuff), cachedGeo('cuff' + a, () => loft([[-0.222, 0.05 * a, 0.047 * a], [-0.218, 0.059 * a, 0.055 * a], [-0.175, 0.058 * a, 0.054 * a], [-0.17, 0.05 * a, 0.047 * a]], 14)));
+      put(el, skin, cachedGeo('wrist' + a, () => loft([[-0.26, 0.026 * a, 0.03 * a], [-0.2, 0.03 * a, 0.034 * a]], 10)), null, false);
+      put(ha, hand, cachedGeo('mitt' + a + sd, () => loft([[-0.112, 0.004, 0.004, 0.004, 2, -sd * 0.01], [-0.105, 0.014 * a, 0.024 * a, 0.004, 2.6, -sd * 0.01], [-0.085, 0.021 * a, 0.037 * a, 0.002, 3, -sd * 0.005], [-0.05, 0.024 * a, 0.041 * a, 0, 3], [-0.015, 0.024 * a, 0.038 * a, 0, 3], [0.005, 0.021 * a, 0.03 * a], [0.03, 0.019 * a, 0.024 * a], [0.04, 0.004, 0.004]], 12)));
+      put(ha, hand, cachedGeo('thumb' + a, () => loft([[-0.004, 0.012 * a, 0.012 * a], [0.03 * a, 0.011 * a, 0.01 * a], [0.045 * a, 0.006, 0.006], [0.05 * a, 0.002, 0.002]], 8)), orient([-sd * 0.006, -0.03, 0.026 * a], [-sd * 0.3, -0.55, 0.8], [-sd, 0, 0]));
+    }
+    // legs: tapered thighs, calves, chunky boots
+    const bootTop = cfg.boots ? -0.04 : -0.2;
     for (const [hp, kn, ft] of [['hipL', 'knL', 'ftL'], ['hipR', 'knR', 'ftR']]) {
-      part(J[hp], capsule(0.072 * lr * bw, 0.46), bot, [0, -0.2, 0]);
-      part(J[kn], capsule(0.058 * lr * bw, 0.45), cfg.boots ? shoe : bot, [0, -0.21, 0]);
-      part(J[ft], G.box, shoe, [0, -0.025, 0.04], [0.095 * bw, 0.07, 0.21]);
-      if (cfg.sole) part(J[ft], G.box, toon(cfg.sole), [0, -0.058, 0.04], [0.1 * bw, 0.022, 0.215], null, null);
+      put(hp, bot, cachedGeo('thigh' + L, () => loft([[-0.47, 0.004, 0.004], [-0.46, 0.056 * L, 0.058 * L, 0.004], [-0.38, 0.063 * L, 0.066 * L, 0.008], [-0.2, 0.077 * L, 0.082 * L, 0.01], [-0.05, 0.087 * L, 0.09 * L, 0.006], [0.03, 0.085 * L, 0.085 * L], [0.07, 0.05, 0.05], [0.08, 0.004, 0.004]], 14)));
+      put(kn, bot, cachedGeo('shin' + L, () => loft([[-0.3, 0.05 * L, 0.052 * L], [-0.13, 0.058 * L, 0.064 * L, -0.008], [0.0, 0.058 * L, 0.06 * L], [0.04, 0.045 * L, 0.045 * L], [0.05, 0.004, 0.004]], 14)));
+      put(kn, shoe, cachedGeo('boot' + L + bootTop, () => loft([[-0.445, 0.058 * L, 0.062 * L, 0.004], [-0.33, 0.062 * L, 0.068 * L, -0.004], [bootTop - 0.02, 0.066 * L, 0.071 * L, -0.002], [bootTop, 0.072 * L, 0.077 * L, 0.002], [bootTop + 0.008, 0.07 * L, 0.075 * L, 0.002], [bootTop + 0.004, 0.05 * L, 0.05 * L]], 14)));
+      const bootR = [[-0.08, 0.04, 0.035, 0.032], [-0.065, 0.05, 0.05, 0.018], [0.0, 0.056, 0.058, 0.01], [0.06, 0.058, 0.044, 0.022], [0.13, 0.055, 0.035, 0.032], [0.165, 0.046, 0.03, 0.037], [0.18, 0.022, 0.02, 0.045], [0.186, 0.004, 0.004, 0.06]];
+      put(ft, shoe, cachedGeo('foot' + bw, () => loft(bootR.map(([f, rx, h, c]) => [f, rx * bw, h, c, 3]), 14).rotateX(Math.PI / 2)));
+      if (cfg.sole) put(ft, toon(cfg.sole), cachedGeo('sole' + bw, () => loft([[-0.082, 0.04 * bw, 0.01, 0.062, 3], [-0.07, 0.054 * bw, 0.012, 0.062, 3], [0.13, 0.06 * bw, 0.012, 0.062, 3], [0.18, 0.04 * bw, 0.012, 0.06, 3], [0.19, 0.01, 0.006, 0.06, 3]], 12).rotateX(Math.PI / 2)), null, false);
+    }
+    for (const b of bag.values()) {
+      const geo = cachedGeo('rig|' + cfg.face.id + '|' + b.jn + '|' + b.mat.uuid + '|' + b.outline, () => mergeGeos(b.list));
+      meshOf(J[b.jn], geo, b.mat, b.outline ? OUT : null);
     }
     const rig = { root, pivot, model, J, cfg, face: faceM, emo: 'neutral', baseEmo: 'neutral', blinkT: rand(1, 3), tails: [], anim: 'idle', animT: 0, spin: 0, flip: 0, t: rand(0, 10), speed: 0, fwdSpeed: 0, vy: 0, fight: false, blend: 16, T: {}, hy: 0 };
     for (const n of JN) rig.T[n] = [0, 0, 0];
     if (cfg.hair) cfg.hair(rig, J, part);
     if (cfg.extra) cfg.extra(rig, J, part);
     return rig;
+  }
+  // Short cape / half-robe on the chest joint. Bent on the CPU each frame by a spring (see animate()).
+  function addCape(rig, mat, o = {}) {
+    const bw = rig.cfg.bulk || 1, a0 = 0.38 * Math.PI, al = 1.24 * Math.PI, seg = 18, len = o.len || 0.27;
+    const hem = (th, k) => { const t = Math.abs(th - Math.PI) / (al / 2); return -len + (len + 0.14) * t ** 1.7 + (k % 2 ? 0.045 : 0) * (1 - t * 0.6); };
+    const yAt = (f) => (th, k) => lerp(0.25, hem(th, k), f);
+    const R = [[hem, 0.25 * bw, 0.152, -0.03], [yAt(0.6), 0.256 * bw, 0.142, -0.025], [yAt(0.25), 0.266 * bw, 0.132, -0.016], [0.25, 0.268 * bw, 0.126, -0.01], [0.3, 0.205 * bw, 0.112, -0.008], [0.335, 0.112, 0.088, -0.005]];
+    const shrink = (r, d) => [r[0], r[1] - d, r[2] - d, r[3]];
+    const rim = [(th, k) => hem(th, k) - 0.008, R[0][1] - 0.006, R[0][2] - 0.006, R[0][3]];
+    const lip = [0.345, 0.106, 0.082, -0.005];
+    const rings = [...R.slice().reverse().map((r) => shrink(r, 0.012)), rim, ...R, lip];
+    const geo = loft(rings, seg, { a0, al });
+    const m = meshOf(rig.J.chest, geo, mat); m.frustumCulled = false; m.children[0].frustumCulled = false;
+    rig.cape = { geo, rest: Float32Array.from(geo.attributes.position.array), a: 0.1, v: 0, sway: 0, mesh: m };
+    return m;
+  }
+  function bendCape(c) {
+    const P = c.geo.attributes.position, A = P.array, R = c.rest, yp = 0.22, zp = -0.12, k = c.a / 0.45;
+    for (let i = 0; i < A.length; i += 3) {
+      const y = R[i + 1], z = R[i + 2], d = yp - y;
+      if (d <= 0 || Math.abs(k) < 1e-4) { A[i] = R[i]; A[i + 1] = y; A[i + 2] = z; continue; }
+      const ph = k * d, sn = Math.sin(ph), cs = Math.cos(ph), dz = z - zp;
+      A[i] = R[i] + c.sway * d; A[i + 1] = yp - sn / k - dz * sn; A[i + 2] = zp - (1 - cs) / k + dz * cs;
+    }
+    P.needsUpdate = true;
   }
   function addTail(rig, parent, pos, segs, segLen, mkSeg, opts = {}) {
     let p = parent; const chain = [];
@@ -244,38 +405,45 @@ export function createGame(canvas, opts = {}) {
     rig.tails.push({ chain, base: opts.base || 0.1, lift: opts.lift || 1, ph: rand(0, 6), side: opts.side || 0 });
   }
   function setEmotion(rig, emo) { rig.baseEmo = emo; rig.emo = emo; rig.face.material.map = faceTexture(rig.cfg.face, emo); }
+  // legacy spike list [dx, dy, dz, r, h] -> curved swept spikes merged into one mesh
   function spikes(J, mat, list, outline = OUT) {
+    const g = [];
     for (const [dx, dy, dz, r, h] of list) {
       const d = new THREE.Vector3(dx, dy, dz).normalize();
-      const m = new THREE.Mesh(G.cone, mat); m.scale.set(r, h, r);
-      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
-      m.position.set(0, 0.12, -0.01).addScaledVector(d, 0.1 + h * 0.35); J.head.add(m); addOutline(m, outline);
+      g.push([spikeGeo(h * 1.2, r * 1.15), orient([d.x * 0.085, 0.12 + d.y * 0.085, -0.01 + d.z * 0.085], [d.x, d.y + 0.25, d.z - 0.35], [0, 1, 0.3])]);
     }
+    return meshOf(J.head, mergeGeos(g), mat, outline);
   }
 
   // ---------- character definitions ----------
-  const REN_FACE = { id: 'ren', eye: '#8f7dff', eyeDark: '#2a1f6a', skin: '#ffe3d0' };
+  const REN_FACE = { id: 'ren', eye: '#8f7dff', eyeDark: '#2a1f6a', eyeLight: '#e4dcff', skin: '#ffe3d0', brow: '#1c1e34' };
   function makeRen() {
     return buildRig({
-      face: REN_FACE, trim: true, collar: 0xf4f4ff, cuff: 0xf2c14e, sole: 0xe8333f,
-      colors: { skin: 0xffe3d0, top: 0x232a58, bottom: 0x1a1d36, shoe: 0xf4f4fa, accent: 0xf2c14e },
+      face: REN_FACE, trim: true, collar: 0xf4f4ff, lapel: 0x34408c, cuff: 0xf2c14e, sole: 0xe8333f, belt: 0x3a2a24, hemLen: 0.19,
+      colors: { skin: 0xffe3d0, top: 0x232a58, bottom: 0x1a1d36, shoe: 0x2a2236, accent: 0xf2c14e },
       hair(rig, J) {
-        const blk = toon(0x2a2d48), wht = toon(0xf4f4ff);
-        part(J.head, G.sphere, blk, [0, 0.145, -0.022], [0.124, 0.115, 0.122]);
-        spikes(J, blk, [[0, 1, 0.1, 0.05, 0.2], [0.5, 0.8, -0.2, 0.05, 0.2], [-0.5, 0.8, -0.2, 0.05, 0.2], [0.2, 0.6, -0.8, 0.055, 0.24], [-0.2, 0.6, -0.8, 0.055, 0.24], [0, 0.2, -1, 0.055, 0.22], [0.8, 0.3, -0.5, 0.045, 0.18], [-0.8, 0.3, -0.5, 0.045, 0.18], [0.6, -0.4, -0.6, 0.045, 0.17], [-0.6, -0.4, -0.6, 0.045, 0.17], [0, -0.5, -1, 0.05, 0.18],
-          [0.95, -0.3, 0.1, 0.035, 0.14], [-0.95, -0.3, 0.1, 0.035, 0.14]]);
-        spikes(J, wht, [[0.15, 1, 0.45, 0.045, 0.2], [-0.3, 0.9, 0.3, 0.04, 0.17], [0.4, 0.5, -0.9, 0.04, 0.17]]);
-        // bangs
-        for (const [x, rz, w, col] of [[0.0, 0.1, 0.04, wht], [0.055, -0.35, 0.035, blk], [-0.055, 0.35, 0.035, blk], [0.09, -0.55, 0.03, blk], [-0.09, 0.6, 0.03, blk]]) {
-          const m = part(J.head, G.cone, col, [x, 0.17, 0.095], [w, 0.12, 0.025], [Math.PI + 0.35, 0, rz]);
-        }
+        const blk = toon(0x262840), str = toon(0x8f9cff);
+        hairCap(J, blk);
+        const sp = [];
+        for (const [el, azs, len, w, sw] of [[64, [-24, 24], 0.2, 0.056, 1.5], [48, [-62, 0, 62], 0.24, 0.06, 1.35], [36, [-112, -158, 112, 158], 0.27, 0.062, 1.05], [12, [-82, -126, 180, 126, 82], 0.25, 0.06, 1.0], [-12, [-102, -146, 146, 102], 0.2, 0.052, 0.8], [-36, [-156, 180, 156], 0.15, 0.046, 0.55]])
+          azs.forEach((az, i) => sp.push([az, el, len * (1 + 0.12 * Math.sin(az * 0.7 + el)), w, 0, sw]));
+        [[-40, 0.115], [-18, 0.14], [3, 0.15], [24, 0.13], [44, 0.11]].forEach(([az, len]) => sp.push([az, 0, len, 0.036, 1]));
+        sp.push([-80, 0, 0.13, 0.03, 2], [80, 0, 0.13, 0.03, 2]);
+        hairSpikes(J, blk, sp, 'ren');
+        hairSpikes(J, str, [[40, 52, 0.22, 0.044, 0, 1.3], [-86, 30, 0.25, 0.044, 0, 1.05], [140, 22, 0.25, 0.046, 0, 1], [-28, 0, 0.13, 0.03, 1]], 'ren2');
       },
       extra(rig, J) {
-        const red = toon(0xe8333f);
-        part(J.chest, G.torus, red, [0, 0.29, 0], [0.085, 0.085, 0.14], [Math.PI / 2, 0, 0]);
-        for (const sx of [0.045, -0.035]) addTail(rig, J.chest, [sx, 0.29, -0.09], 4, 0.14, (jn, i) => part(jn, G.box, red, [0, -0.07, 0], [0.085 - i * 0.008, 0.15, 0.022]), { base: 0.25, lift: 1.3 });
-        part(J.shL, G.cyl, red, [0, -0.1, 0], [0.058, 0.05, 0.058], null, null);
-        for (const sx of [0.07, -0.07]) addTail(rig, J.hips, [sx, -0.16, -0.09], 2, 0.15, (jn) => part(jn, G.box, toon(0x232a58), [0, -0.07, 0], [0.13, 0.16, 0.025]), { base: 0.1, lift: 0.7 });
+        const red = toon(0xc8283a, { side: THREE.DoubleSide }), gold = toon(0xf2c14e, { em: 0x403000, ei: 1 });
+        addCape(rig, red);
+        // clasp: gold studs on the cape edges, cords to a gem clasp on the chest
+        const th0 = 0.38 * Math.PI, cl = [0, 0.262, 0.122], g = [];
+        for (const sd of [-1, 1]) {
+          const st = [sd * 0.205 * Math.sin(th0), 0.3, -0.008 + 0.112 * Math.cos(th0) + 0.01], d = [cl[0] - st[0], cl[1] - st[1], cl[2] - st[2]], ln = Math.hypot(...d);
+          g.push([cachedGeo('stud', () => loft([[-0.012, 0.004, 0.004], [-0.008, 0.016, 0.016], [0.008, 0.016, 0.016], [0.012, 0.004, 0.004]], 8)), orient(st, [-sd * 0.6, 0, 0.8], [0, 1, 0])]);
+          g.push([loft([[0, 0.006, 0.006], [ln, 0.006, 0.006]], 6), orient(st, d, [0, 1, 0])]);
+        }
+        g.push([cachedGeo('gem', () => loft([[-0.035, 0.003, 0.003], [0, 0.026, 0.012, 0, 2], [0.035, 0.003, 0.003]], 4)), xf(cl)]);
+        meshOf(J.chest, mergeGeos(g), gold);
         // aura shell
         rig.aura = makeAura(0x8a6cff, 0x4fc3ff); rig.model.add(rig.aura);
       },
@@ -287,9 +455,8 @@ export function createGame(canvas, opts = {}) {
       colors: { skin: 0xf6d6c0, top: 0x1f8a7a, bottom: 0x1a2a30, shoe: 0x20262e, accent: 0xffffff },
       hair(rig, J) {
         const h = toon(0xdfe6f4);
-        part(J.head, G.sphere, h, [0, 0.15, -0.025], [0.122, 0.11, 0.12]);
-        spikes(J, h, [[0, 0.7, -0.7, 0.05, 0.2], [0.4, 0.6, -0.7, 0.05, 0.18], [-0.4, 0.6, -0.7, 0.05, 0.18], [0.85, 0.1, -0.4, 0.04, 0.16], [-0.85, 0.1, -0.4, 0.04, 0.16], [0, 1, -0.2, 0.05, 0.16]]);
-        for (const [x, rz] of [[0.04, -0.4], [-0.06, 0.5], [0.09, -0.7]]) part(J.head, G.cone, h, [x, 0.18, 0.095], [0.035, 0.12, 0.022], [Math.PI + 0.3, 0, rz]);
+        hairCap(J, h);
+        hairSpikes(J, h, [[0, 56, 0.17, 0.052, 0, 1.6], [-48, 44, 0.2, 0.052], [48, 44, 0.2, 0.052], [-108, 28, 0.21, 0.052], [108, 28, 0.21, 0.052], [180, 30, 0.18, 0.05], [-148, 2, 0.17, 0.05], [148, 2, 0.17, 0.05], [-32, 0, 0.1, 0.034, 1], [-10, 0, 0.13, 0.036, 1], [16, 0, 0.12, 0.034, 1], [38, 0, 0.1, 0.03, 1], [-80, 0, 0.16, 0.03, 2], [80, 0, 0.16, 0.03, 2]], 'kaze');
         addTail(rig, J.head, [0, 0.16, -0.12], 4, 0.12, (jn, i) => part(jn, G.cone, h, [0, -0.06, 0], [0.04 - i * 0.006, 0.14, 0.04], [Math.PI, 0, 0]), { base: 0.4, lift: 1 });
       },
       extra(rig, J) {
@@ -308,7 +475,7 @@ export function createGame(canvas, opts = {}) {
       colors: { skin: 0xe8d0c8, top: 0x1a1022, bottom: 0x120a18, shoe: 0x2a0a14, accent: 0xc2183a, hand: 0x1a1022 },
       hair(rig, J) {
         const h = toon(0xa8102e);
-        part(J.head, G.sphere, h, [0, 0.15, -0.025], [0.124, 0.115, 0.122]);
+        hairCap(J, h);
         spikes(J, h, [[0, 1, -0.3, 0.05, 0.22], [0.6, 0.6, -0.5, 0.05, 0.2], [-0.6, 0.6, -0.5, 0.05, 0.2], [0, 0.3, -1, 0.06, 0.26], [0.7, -0.2, -0.7, 0.045, 0.2], [-0.7, -0.2, -0.7, 0.045, 0.2]]);
       },
       extra(rig, J) {
@@ -343,7 +510,7 @@ export function createGame(canvas, opts = {}) {
       colors: { skin: 0xf4f0ff, top: 0xeae6ff, bottom: 0x1a1428, shoe: 0x1a1428, accent: 0xf5c542 }, trim: true, cuff: 0xf5c542,
       hair(rig, J) {
         const h = toon(0xf8f6ff);
-        part(J.head, G.sphere, h, [0, 0.15, -0.025], [0.124, 0.115, 0.122]);
+        hairCap(J, h);
         spikes(J, h, [[0, 1, -0.2, 0.05, 0.18], [0.5, 0.7, -0.6, 0.05, 0.2], [-0.5, 0.7, -0.6, 0.05, 0.2], [0.9, 0, -0.3, 0.04, 0.16], [-0.9, 0, -0.3, 0.04, 0.16]]);
         for (const sx of [0.06, -0.06]) addTail(rig, J.head, [sx, 0.1, -0.11], 4, 0.14, (jn) => part(jn, G.box, h, [0, -0.07, 0], [0.07, 0.15, 0.03]), { base: 0.2, lift: 1 });
         const halo = new THREE.Mesh(G.torus, toon(0xf5c542, { em: 0xf5a020, ei: 0.8 })); halo.scale.set(0.2, 0.2, 0.3); halo.position.set(0, 0.16, -0.2); J.head.add(halo); rig.halo = halo;
@@ -802,6 +969,10 @@ export function createGame(canvas, opts = {}) {
         c.v += (140 * (target - c.a) - 12 * c.v) * dt; c.a += c.v * dt; c.a = clamp(c.a, -0.6, 1.7);
         c.j.rotation.x = c.a; c.j.rotation.z = Math.sin(t * 5 + i + tl.ph) * 0.05;
       });
+    }
+    if (rig.cape) {
+      const c = rig.cape, tgt = 0.1 + lift * 0.55 + Math.sin(t * 7 + 1) * 0.035 * (0.3 + Math.abs(lift)) + (A === 'dodge' || A === 'flip' ? 0.5 : 0);
+      c.v += (90 * (tgt - c.a) - 10 * c.v) * dt; c.a = clamp(c.a + c.v * dt, -0.25, 1.5); c.sway = Math.sin(t * 2.3) * 0.05 - J.chest.rotation.y * 0.12; bendCape(c);
     }
     // blink
     rig.blinkT -= dt;
@@ -1634,6 +1805,8 @@ export function createGame(canvas, opts = {}) {
       boss() { const n = state.chapter || 1; startChapter(n, { fromCheckpoint: 2, powers: CHAPTERS.slice(0, n).map((c) => c.power.id) }); },
       killAll() { for (const e of enemies.slice()) if (!e.dead) { if (e.boss) { e.hp = 1; damageEnemy(e, 999, { heavy: true }); } else killEnemy(e); } },
       skip() { api.skipScene(); },
+      view(p, l, fov = 40) { if (!p) { cam.mode = 'follow'; return; } cam.mode = 'fixed'; const o = player ? player.pos : new THREE.Vector3(); cam.pos.set(o.x + p[0], o.y + p[1], o.z + p[2]); cam.look.set(o.x + l[0], o.y + l[1], o.z + l[2]); cam.fov = fov; },
+      pose(anim, emo, yaw) { if (!player) return; if (anim) play(player.rig, anim, 99); if (emo) setEmotion(player.rig, emo); if (yaw != null) player.yaw = yaw; },
       teleport(z) { if (player) { player.pos.z = z; player.pos.y = groundAt(0, z, 10); player.pos.x = 0; } },
     },
   };
