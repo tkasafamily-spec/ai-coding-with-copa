@@ -96,28 +96,35 @@ h1 {
 .hint { max-width: 1240px; margin: 0 auto; padding: 8px 24px 32px; color: #fff; font-size: 1rem; text-shadow: var(--glow); }
 
 /* ── grid ───────────────────────────────────────────── */
+/* one thumbnail per screen */
+html { scroll-snap-type: y proximity; }
 .grid {
-  list-style: none; margin: 0 auto; padding: 0 24px 96px; max-width: 1240px;
-  display: grid; gap: 36px 32px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  list-style: none; margin: 0; padding: 0 24px;
+  display: block;
 }
-.tile:first-child { grid-column: 1 / -1; }
+.tile {
+  min-height: 86vh; min-height: 86svh;
+  display: flex; align-items: center; justify-content: center;
+  scroll-snap-align: center;
+}
+.tile-wrap {
+  width: min(1100px, 100%, calc(74vh * 16 / 9));
+  filter: drop-shadow(8px 8px 0 #2B2F3D);
+}
+.tile-wrap:hover { filter: drop-shadow(8px 8px 0 var(--duck)); }
 .tile button {
-  --step: 8px;
+  --step: 12px;
   display: block; width: 100%; padding: 0; border: 0; cursor: zoom-in;
   background: var(--panel); aspect-ratio: 16 / 9;
 }
-.tile:first-child button { --step: 12px; }
 .tile img { width: 100%; height: 100%; object-fit: cover; }
-.tile-wrap { filter: drop-shadow(6px 6px 0 #2B2F3D); }
-.tile-wrap:hover { filter: drop-shadow(6px 6px 0 var(--duck)); }
 
-/* ── pop in as you scroll to it ─────────────────────── */
+/* ── slides up and stops as you scroll to it ────────── */
 @media (prefers-reduced-motion: no-preference) {
   .js .pop {
     opacity: 0;
-    transform: translateY(40px) scale(.88);
-    transition: opacity .35s ease-out, transform .55s cubic-bezier(.34, 1.56, .64, 1);
+    transform: translateY(140px) scale(.9);
+    transition: opacity .4s ease-out, transform .75s cubic-bezier(.3, 1.45, .55, 1);
   }
   .js .pop.in { opacity: 1; transform: none; }
 }
@@ -166,7 +173,10 @@ h2 {
 @media (max-width: 860px) {
   .top { padding: 36px 16px 8px; }
   .hint { padding: 8px 16px 24px; }
-  .grid { grid-template-columns: 1fr; gap: 28px; padding: 0 16px 64px; }
+  .grid { padding: 0 16px; }
+  .tile { min-height: 72vh; min-height: 72svh; }
+  .tile-wrap { filter: drop-shadow(6px 6px 0 #2B2F3D); }
+  .tile button { --step: 8px; }
   .contact { width: calc(100% - 32px); padding: 56px 0 64px; }
   .foot { padding: 0 16px 32px; }
 }

@@ -55,9 +55,9 @@
 
   list.forEach((t, i) => {
     const li = document.createElement("li");
-    li.className = "tile pop";
+    li.className = "tile";
     const wrap = document.createElement("div");
-    wrap.className = "tile-wrap";
+    wrap.className = "tile-wrap pop";
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "frame";
@@ -85,7 +85,7 @@
           io.unobserve(e.target);
         }
       });
-    }, { threshold: 0.2, rootMargin: "0px 0px -40px 0px" });
+    }, { threshold: 0.15, rootMargin: "0px 0px -12% 0px" });
     pops.forEach(el => io.observe(el));
   } else {
     pops.forEach(el => el.classList.add("in"));
