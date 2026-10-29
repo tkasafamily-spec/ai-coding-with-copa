@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Oreok's Thumbnails</title>
+  <meta name="description" content="YouTube thumbnails made by Oreok.">
+  <meta property="og:title" content="Oreok's Thumbnails">
+  <meta property="og:description" content="YouTube thumbnails made by Oreok.">
+  <meta property="og:image" content="thumbnails/duck-float.jpg">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Crect width='8' height='8' fill='%23000'/%3E%3Crect x='3' y='1' width='2' height='6' fill='%23FFC83D'/%3E%3Crect x='1' y='3' width='6' height='2' fill='%23FFC83D'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="stars" aria-hidden="true"></canvas>
+  <div id="sparkles" aria-hidden="true"></div>
+
+  <main>
+    <header class="top">
+      <h1>Oreok's work</h1>
+      <div class="top-actions">
+        <div class="size-toggle" role="group" aria-label="Thumbnail size">
+          <button type="button" data-size="big" aria-pressed="true">Full size</button>
+          <button type="button" data-size="feed" aria-pressed="false">Feed size</button>
+        </div>
+        <a class="btn" href="#contact">Hire me</a>
+      </div>
+    </header>
+
+    <p class="hint" id="size-hint">Tap a thumbnail to see it full screen.</p>
+    <ul class="grid" id="grid"></ul>
+
+    <section class="contact" id="contact" aria-labelledby="contact-title">
+      <h2 id="contact-title">Want a thumbnail?</h2>
+      <p>Email me your video idea and I’ll make one for it.</p>
+      <div class="actions" id="contact-links">
+        <a class="btn" href="mailto:oreoktkasa@gmail.com?subject=Thumbnail%20request">Email me</a>
+        <!-- When you have a Discord username, swap this line for:
+             <a class="btn btn-ghost" href="https://discord.com/users/YOUR-ID">Discord: yourname</a> -->
+        <span class="btn btn-ghost btn-soon" aria-disabled="true">Discord coming soon</span>
+      </div>
+      <p class="email-line">oreoktkasa@gmail.com</p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>Every thumbnail here was made by Oreok.</p>
+  </footer>
+
+  <dialog class="viewer" id="viewer" aria-label="Thumbnail viewer">
+    <img id="viewer-img" alt="">
+    <div class="viewer-bar">
+      <button type="button" class="vbtn" id="prev" aria-label="Previous thumbnail">‹</button>
+      <p id="viewer-title"></p>
+      <button type="button" class="vbtn" id="next" aria-label="Next thumbnail">›</button>
+      <button type="button" class="vbtn" id="close" aria-label="Close">✕</button>
+    </div>
+  </dialog>
+
+  <script src="thumbnails.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
