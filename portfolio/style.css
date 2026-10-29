@@ -96,17 +96,17 @@ h1 {
 .hint { max-width: 1240px; margin: 0 auto; padding: 8px 24px 32px; color: #fff; font-size: 1rem; text-shadow: var(--glow); }
 
 /* ── grid ───────────────────────────────────────────── */
-/* one thumbnail per screen */
-html { scroll-snap-type: y proximity; }
+/* one thumbnail per screen (free scrolling, no snapping) */
 .grid {
   list-style: none; margin: 0; padding: 0 24px;
   display: block;
 }
 .tile {
-  min-height: 86vh; min-height: 86svh;
+  min-height: 100vh; min-height: 100svh;
   display: flex; align-items: center; justify-content: center;
-  scroll-snap-align: center;
 }
+/* first one sits right under the title */
+.tile:first-child { min-height: 0; padding: 0 0 22vh; }
 .tile-wrap {
   width: min(1100px, 100%, calc(74vh * 16 / 9));
   filter: drop-shadow(8px 8px 0 #2B2F3D);
@@ -174,7 +174,8 @@ h2 {
   .top { padding: 36px 16px 8px; }
   .hint { padding: 8px 16px 24px; }
   .grid { padding: 0 16px; }
-  .tile { min-height: 72vh; min-height: 72svh; }
+  .tile { min-height: 85vh; min-height: 85svh; }
+  .tile:first-child { min-height: 0; padding: 0 0 18vh; }
   .tile-wrap { filter: drop-shadow(6px 6px 0 #2B2F3D); }
   .tile button { --step: 8px; }
   .contact { width: calc(100% - 32px); padding: 56px 0 64px; }
