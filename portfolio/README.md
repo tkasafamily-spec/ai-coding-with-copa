@@ -13,7 +13,7 @@ Everything for the portfolio lives in this `portfolio` folder. Nothing outside i
    { title: "My new video", image: "thumbnails/my-new-video.png" },
    ```
 
-   The `image` must match the file name you uploaded exactly (capital letters count).
+   The `image` must match the file name you uploaded exactly (capital letters count). The title is not shown on the site.
    The **first** line in the list is the one shown big at the top of the page.
 3. **Commit changes**. The site updates by itself in about a minute.
 

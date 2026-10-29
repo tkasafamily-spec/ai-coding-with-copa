@@ -51,58 +51,52 @@
   const grid = document.getElementById("grid");
   const viewer = document.getElementById("viewer");
   const viewerImg = document.getElementById("viewer-img");
-  const viewerTitle = document.getElementById("viewer-title");
   let current = 0;
 
   list.forEach((t, i) => {
     const li = document.createElement("li");
-    li.className = "tile";
+    li.className = "tile pop";
     const wrap = document.createElement("div");
     wrap.className = "tile-wrap";
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "frame";
-    btn.setAttribute("aria-label", `Open ${t.title || "thumbnail"}`);
+    btn.setAttribute("aria-label", `Open thumbnail ${i + 1} full screen`);
     const img = document.createElement("img");
     // first one is shown big, so use the full-quality image
     img.src = i === 0 ? t.image : (t.small || t.image);
-    img.alt = t.title ? `Thumbnail: ${t.title}` : "Thumbnail";
+    img.alt = t.title ? `Thumbnail: ${t.title}` : `Thumbnail ${i + 1}`;
     img.width = 960; img.height = 540;
     img.decoding = "async";
-    if (i > 1) img.loading = "lazy";
     btn.appendChild(img);
     btn.addEventListener("click", () => open(i));
     wrap.appendChild(btn);
     li.appendChild(wrap);
-    if (t.title) {
-      const h = document.createElement("h3");
-      h.textContent = t.title;
-      li.appendChild(h);
-    }
     grid.appendChild(li);
   });
 
-  // ── Full size / Feed size ──────────────────────────
-  const hint = document.getElementById("size-hint");
-  document.querySelectorAll(".size-toggle button").forEach(b => {
-    b.addEventListener("click", () => {
-      const feed = b.dataset.size === "feed";
-      grid.classList.toggle("feed", feed);
-      document.querySelectorAll(".size-toggle button").forEach(x =>
-        x.setAttribute("aria-pressed", String(x === b)));
-      hint.textContent = feed
-        ? "This is about how big they look on the YouTube home page."
-        : "Tap a thumbnail to see it full screen.";
-    });
-  });
+  // ── Pop in as you scroll to it ─────────────────────
+  const pops = document.querySelectorAll(".pop");
+  if ("IntersectionObserver" in window) {
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add("in");
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.2, rootMargin: "0px 0px -40px 0px" });
+    pops.forEach(el => io.observe(el));
+  } else {
+    pops.forEach(el => el.classList.add("in"));
+  }
 
   // ── Viewer ─────────────────────────────────────────
   function show(i) {
     current = (i + list.length) % list.length;
     const t = list[current];
     viewerImg.src = t.image;
-    viewerImg.alt = t.title ? `Thumbnail: ${t.title}` : "Thumbnail";
-    viewerTitle.textContent = t.title || "";
+    viewerImg.alt = t.title ? `Thumbnail: ${t.title}` : `Thumbnail ${current + 1}`;
   }
   function open(i) {
     show(i);
