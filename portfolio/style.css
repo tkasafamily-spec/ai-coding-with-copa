@@ -3,7 +3,9 @@
   --panel: #12141B;
   --line: #262A36;
   --ink: #FFFFFF;
-  --muted: #B4BAC8;
+  --muted: #FFFFFF;
+  --glow: 0 0 4px rgb(255 255 255 / .9), 0 0 12px rgb(255 255 255 / .55);
+  --glow-big: 0 0 6px #fff, 0 0 18px rgb(255 255 255 / .85), 0 0 42px rgb(255 255 255 / .55), 0 0 80px rgb(255 255 255 / .3);
   --duck: #FFC83D;
   --duck-dark: #C98F00;
   --cyan: #45D6E5;
@@ -73,7 +75,7 @@ a { color: var(--cyan); }
 .btn:hover { transform: translateY(-2px); }
 .btn:active { transform: translateY(2px); box-shadow: inset 0 -2px 0 var(--duck-dark); }
 .btn-ghost { background: var(--panel); color: var(--ink); box-shadow: inset 0 -6px 0 var(--line); }
-.btn-soon { color: var(--muted); cursor: default; }
+.btn-soon { color: #fff; cursor: default; text-shadow: var(--glow); }
 .btn-soon:hover { transform: none; }
 .actions { display: flex; flex-wrap: wrap; gap: 12px; }
 
@@ -89,11 +91,9 @@ h1 {
   line-height: .95; letter-spacing: .01em;
   margin: 0;
   color: #fff;
-  -webkit-text-stroke: 3px #000;
-  paint-order: stroke fill;
-  text-shadow: 0 6px 0 var(--duck), 0 10px 0 var(--duck-dark);
+  text-shadow: var(--glow-big);
 }
-.hint { max-width: 1240px; margin: 0 auto; padding: 8px 24px 32px; color: var(--muted); font-size: 1rem; }
+.hint { max-width: 1240px; margin: 0 auto; padding: 8px 24px 32px; color: #fff; font-size: 1rem; text-shadow: var(--glow); }
 
 /* ── grid ───────────────────────────────────────────── */
 .grid {
@@ -131,11 +131,13 @@ h2 {
   font-family: var(--chunky); font-weight: 400;
   font-size: clamp(2rem, 4vw, 3rem); line-height: 1.05;
   margin: 0 0 10px;
+  color: #fff;
+  text-shadow: var(--glow-big);
 }
-.contact p { color: var(--muted); margin: 0 0 24px; max-width: 46ch; }
-.contact .email-line { margin: 20px 0 0; color: var(--ink); user-select: all; }
+.contact p { color: #fff; margin: 0 0 24px; max-width: 46ch; text-shadow: var(--glow); }
+.contact .email-line { margin: 20px 0 0; color: #fff; user-select: all; text-shadow: var(--glow); }
 
-.foot { max-width: 1240px; margin: 0 auto; padding: 0 24px 40px; color: var(--muted); font-size: .9375rem; }
+.foot { max-width: 1240px; margin: 0 auto; padding: 0 24px 40px; color: #fff; font-size: .9375rem; text-shadow: var(--glow); }
 
 /* ── viewer ─────────────────────────────────────────── */
 .viewer {
@@ -163,7 +165,6 @@ h2 {
 /* ── phones / tablets ───────────────────────────────── */
 @media (max-width: 860px) {
   .top { padding: 36px 16px 8px; }
-  h1 { -webkit-text-stroke: 2px #000; text-shadow: 0 4px 0 var(--duck), 0 7px 0 var(--duck-dark); }
   .hint { padding: 8px 16px 24px; }
   .grid { grid-template-columns: 1fr; gap: 28px; padding: 0 16px 64px; }
   .contact { width: calc(100% - 32px); padding: 56px 0 64px; }
