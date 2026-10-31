@@ -129,6 +129,84 @@ h1 {
   .js .pop.in { opacity: 1; transform: none; }
 }
 
+/* ── feedback ───────────────────────────────────────── */
+.top-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.feedback {
+  width: min(1192px, calc(100% - 48px)); margin: 0 auto; padding: 72px 0 24px;
+  border-top: 4px solid var(--line);
+}
+.feedback .sub { color: #fff; margin: 0 0 28px; max-width: 46ch; text-shadow: var(--glow); }
+.feedback .empty { color: #fff; margin: 0 0 24px; text-shadow: var(--glow); }
+
+.reviews[hidden] { display: none; }
+.reviews {
+  list-style: none; margin: 0 0 36px; padding: 0;
+  display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.review {
+  --step: 8px;
+  background: rgb(18 20 27 / .9); padding: 20px 22px 18px;
+  clip-path: polygon(
+    0 var(--step), var(--step) var(--step), var(--step) 0,
+    calc(100% - var(--step)) 0, calc(100% - var(--step)) var(--step), 100% var(--step),
+    100% calc(100% - var(--step)), calc(100% - var(--step)) calc(100% - var(--step)), calc(100% - var(--step)) 100%,
+    var(--step) 100%, var(--step) calc(100% - var(--step)), 0 calc(100% - var(--step)));
+}
+.review .rstars { display: flex; gap: 4px; margin-bottom: 10px; }
+.review blockquote { margin: 0 0 14px; color: #fff; font-size: 1.0625rem; line-height: 1.5; }
+.review .who { color: var(--duck); font-family: var(--chunky); font-size: 1.125rem; }
+.review .which { color: #B4BAC8; font-size: .9375rem; }
+
+/* pixel star (used for display and the rating picker) */
+.pstar {
+  width: 22px; height: 22px; display: inline-block; background: #3A3F4C;
+  -webkit-mask: var(--star) center / contain no-repeat; mask: var(--star) center / contain no-repeat;
+}
+.pstar.on { background: var(--duck); }
+:root {
+  --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9' shape-rendering='crispEdges'%3E%3Cpath d='M4 0h1v2h1v1h3v1h-1v1h-1v1h1v3h-1v-1h-1v-1h-1v-1h-1v1h-1v1h-1v1h-1v-3h1v-1h-1v-1h-1v-1h3v-1h1z'/%3E%3C/svg%3E");
+}
+
+.fb-form {
+  --step: 10px;
+  max-width: 640px; background: rgb(18 20 27 / .92); padding: 26px 26px 22px;
+  clip-path: polygon(
+    0 var(--step), var(--step) var(--step), var(--step) 0,
+    calc(100% - var(--step)) 0, calc(100% - var(--step)) var(--step), 100% var(--step),
+    100% calc(100% - var(--step)), calc(100% - var(--step)) calc(100% - var(--step)), calc(100% - var(--step)) 100%,
+    var(--step) 100%, var(--step) calc(100% - var(--step)), 0 calc(100% - var(--step)));
+}
+.field { display: block; margin: 0 0 18px; border: 0; padding: 0; min-width: 0; }
+.field > span, .field legend { display: block; color: #fff; margin: 0 0 8px; font-size: 1rem; padding: 0; }
+.field em { color: #B4BAC8; font-style: normal; }
+.field input[type=text], .field textarea {
+  width: 100%; box-sizing: border-box;
+  font: 800 1rem/1.4 var(--body); color: #fff;
+  background: #000; border: 3px solid var(--line); border-radius: 0;
+  padding: 12px 14px;
+}
+.field textarea { resize: vertical; min-height: 110px; }
+.field input[type=text]:focus, .field textarea:focus { outline: none; border-color: var(--duck); }
+.honey { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* rating picker: inputs are in 5..1 order and the row is reversed, so ~ fills the stars to the left */
+.stars { display: inline-flex; flex-direction: row-reverse; gap: 6px; }
+.stars input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.stars label {
+  width: 40px; height: 40px; cursor: pointer; background: #3A3F4C;
+  -webkit-mask: var(--star) center / contain no-repeat; mask: var(--star) center / contain no-repeat;
+}
+.stars label:hover, .stars label:hover ~ label,
+.stars input:checked ~ label { background: var(--duck); }
+.stars input:focus-visible + label { outline: 3px solid var(--cyan); outline-offset: 3px; }
+.fb-form .btn { border: 0; cursor: pointer; margin-top: 4px; }
+.fb-form .fine { color: #B4BAC8; font-size: .875rem; margin: 14px 0 0; }
+
+.fb-thanks { max-width: 640px; }
+.fb-thanks h3 { font-family: var(--chunky); font-weight: 400; font-size: 1.75rem; color: var(--duck); margin: 0 0 6px; }
+.fb-thanks p { color: #fff; margin: 0; text-shadow: var(--glow); }
+
 /* ── contact ────────────────────────────────────────── */
 .contact {
   width: min(1192px, calc(100% - 48px)); margin: 0 auto; padding: 72px 0 88px;
@@ -179,5 +257,8 @@ h2 {
   .tile-wrap { filter: drop-shadow(6px 6px 0 #2B2F3D); }
   .tile button { --step: 8px; }
   .contact { width: calc(100% - 32px); padding: 56px 0 64px; }
+  .feedback { width: calc(100% - 32px); padding: 56px 0 16px; }
+  .fb-form { padding: 20px 16px 18px; }
+  .stars label { width: 44px; height: 44px; }
   .foot { padding: 0 16px 32px; }
 }

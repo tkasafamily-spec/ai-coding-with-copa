@@ -75,6 +75,47 @@
     grid.appendChild(li);
   });
 
+  // ── Feedback ───────────────────────────────────────
+  const reviews = (typeof FEEDBACK !== "undefined" ? FEEDBACK : []).filter(r => r && r.text);
+  const rlist = document.getElementById("reviews");
+  reviews.forEach(r => {
+    const li = document.createElement("li");
+    li.className = "review pop";
+    const stars = document.createElement("div");
+    stars.className = "rstars";
+    const n = Math.max(1, Math.min(5, Math.round(r.stars || 5)));
+    stars.setAttribute("aria-label", `${n} out of 5 stars`);
+    for (let k = 0; k < 5; k++) {
+      const st = document.createElement("span");
+      st.className = "pstar" + (k < n ? " on" : "");
+      stars.appendChild(st);
+    }
+    const q = document.createElement("blockquote");
+    q.textContent = r.text;
+    const who = document.createElement("div");
+    who.className = "who";
+    who.textContent = r.name || "Anonymous";
+    li.append(stars, q, who);
+    if (r.thumbnail) {
+      const w = document.createElement("div");
+      w.className = "which";
+      w.textContent = `Thumbnail: ${r.thumbnail}`;
+      li.appendChild(w);
+    }
+    rlist.appendChild(li);
+  });
+  if (!reviews.length) {
+    rlist.hidden = true;
+    document.getElementById("reviews-empty").hidden = false;
+  }
+  // send people back here after the form is submitted
+  const here = location.href.split("#")[0].split("?")[0];
+  document.getElementById("fb-next").value = here + "?thanks=1#feedback";
+  if (new URLSearchParams(location.search).has("thanks")) {
+    document.getElementById("fb-form").hidden = true;
+    document.getElementById("fb-thanks").hidden = false;
+  }
+
   // ── Pop in as you scroll to it ─────────────────────
   const pops = document.querySelectorAll(".pop");
   if ("IntersectionObserver" in window) {

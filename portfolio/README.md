@@ -20,3 +20,19 @@ Everything for the portfolio lives in this `portfolio` folder. Nothing outside i
 ## Add your Discord later
 
 In `portfolio/index.html`, find the line that says `Discord coming soon` and follow the note right above it.
+
+## Feedback
+
+People fill in the form in the **Feedback** section and it gets emailed to oreoktkasa@gmail.com.
+
+**The very first time** someone sends feedback, you'll get an email from FormSubmit asking you to confirm. Click **Activate Form** in it. After that, feedback arrives in your inbox like normal.
+
+Nothing shows on the site until you add it, so nobody can post spam or mean stuff. To show a review:
+
+1. Open `portfolio/feedback.js` → tap the ✏️ pencil.
+2. Copy the example line, remove the `//` at the start, and fill it in:
+
+   ```js
+   { name: "CoolGamer", stars: 5, text: "Got way more clicks!", thumbnail: "Pool day" },
+   ```
+3. **Commit changes.** It shows on the site in about a minute.
