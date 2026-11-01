@@ -23,16 +23,7 @@ In `portfolio/index.html`, find the line that says `Discord coming soon` and fol
 
 ## Feedback
 
-People fill in the form in the **Feedback** section and it gets emailed to oreoktkasa@gmail.com.
+Feedback is stored in a Google Sheet called **"Oreok's thumbnail feedback"** in your Google Drive, and shows on the site straight away.
 
-**The very first time** someone sends feedback, you'll get an email from FormSubmit asking you to confirm. Click **Activate Form** in it. After that, feedback arrives in your inbox like normal.
-
-Nothing shows on the site until you add it, so nobody can post spam or mean stuff. To show a review:
-
-1. Open `portfolio/feedback.js` → tap the ✏️ pencil.
-2. Copy the example line, remove the `//` at the start, and fill it in:
-
-   ```js
-   { name: "CoolGamer", stars: 5, text: "Got way more clicks!", thumbnail: "Pool day" },
-   ```
-3. **Commit changes.** It shows on the site in about a minute.
+- **To hide a review:** open the sheet and untick its **Show** box (or delete the row). It disappears from the site on the next refresh.
+- The backend code is `portfolio/feedback-backend.gs` (it runs in Google Apps Script). The site finds it through the address in `portfolio/feedback.js`.

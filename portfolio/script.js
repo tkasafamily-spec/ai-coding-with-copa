@@ -75,15 +75,21 @@
     grid.appendChild(li);
   });
 
-  // ── Feedback ───────────────────────────────────────
-  const reviews = (typeof FEEDBACK !== "undefined" ? FEEDBACK : []).filter(r => r && r.text);
+  // ── Feedback (live, stored in Oreok's Google Sheet) ──
+  const API = (typeof FEEDBACK_API !== "undefined" ? FEEDBACK_API : "").trim();
   const rlist = document.getElementById("reviews");
-  reviews.forEach(r => {
+  const rstatus = document.getElementById("reviews-status");
+  const form = document.getElementById("fb-form");
+  const formMsg = document.getElementById("fb-msg");
+  const openBtn = document.getElementById("fb-open");
+
+  function reviewEl(r) {
     const li = document.createElement("li");
-    li.className = "review pop";
+    li.className = "review";
     const stars = document.createElement("div");
     stars.className = "rstars";
-    const n = Math.max(1, Math.min(5, Math.round(r.stars || 5)));
+    const n = Math.max(1, Math.min(5, Math.round(Number(r.stars) || 5)));
+    stars.setAttribute("role", "img");
     stars.setAttribute("aria-label", `${n} out of 5 stars`);
     for (let k = 0; k < 5; k++) {
       const st = document.createElement("span");
@@ -102,19 +108,76 @@
       w.textContent = `Thumbnail: ${r.thumbnail}`;
       li.appendChild(w);
     }
-    rlist.appendChild(li);
+    return li;
+  }
+  function setStatus(text) {
+    rstatus.textContent = text;
+    rstatus.hidden = !text;
+  }
+  function showReviews(list) {
+    rlist.replaceChildren(...list.map(reviewEl));
+    rlist.hidden = !list.length;
+    setStatus(list.length ? "" : "No reviews yet. Be the first to leave one.");
+  }
+  function loadReviews() {
+    if (!API) { showReviews([]); return; }
+    setStatus("Loading feedback…");
+    const done = new AbortController();
+    const timer = setTimeout(() => done.abort(), 12000);
+    fetch(API, { signal: done.signal })
+      .then(r => r.json())
+      .then(d => showReviews(Array.isArray(d.reviews) ? d.reviews : []))
+      .catch(() => setStatus("Couldn't load feedback right now. Refresh the page to try again."))
+      .finally(() => clearTimeout(timer));
+  }
+  loadReviews();
+
+  openBtn.addEventListener("click", () => {
+    const open = form.hidden;
+    form.hidden = !open;
+    openBtn.setAttribute("aria-expanded", String(open));
+    openBtn.textContent = open ? "Close" : "Leave feedback";
+    if (open) form.querySelector("input[name=name]").focus();
   });
-  if (!reviews.length) {
-    rlist.hidden = true;
-    document.getElementById("reviews-empty").hidden = false;
-  }
-  // send people back here after the form is submitted
-  const here = location.href.split("#")[0].split("?")[0];
-  document.getElementById("fb-next").value = here + "?thanks=1#feedback";
-  if (new URLSearchParams(location.search).has("thanks")) {
-    document.getElementById("fb-form").hidden = true;
-    document.getElementById("fb-thanks").hidden = false;
-  }
+
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const review = {
+      name: String(fd.get("name") || "").trim(),
+      stars: Number(fd.get("stars")),
+      thumbnail: String(fd.get("thumbnail") || "").trim(),
+      text: String(fd.get("text") || "").trim(),
+      website: String(fd.get("website") || ""),
+    };
+    if (!review.name || !review.text || !review.stars) {
+      formMsg.textContent = "Fill in your name, a star rating and your feedback.";
+      return;
+    }
+    if (!API) { formMsg.textContent = "Feedback isn't switched on yet."; return; }
+    const btn = form.querySelector("button[type=submit]");
+    btn.disabled = true; btn.textContent = "Posting…"; formMsg.textContent = "";
+    fetch(API, { method: "POST", body: JSON.stringify(review) })   // plain text body: no CORS preflight
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) throw new Error(d.error || "failed");
+        rlist.prepend(reviewEl(review));
+        rlist.hidden = false; setStatus("");
+        form.reset(); form.hidden = true;
+        openBtn.textContent = "Leave feedback"; openBtn.setAttribute("aria-expanded", "false");
+        formMsg.textContent = "";
+        const thanks = document.getElementById("fb-thanks");
+        thanks.hidden = false;
+        setTimeout(() => { thanks.hidden = true; }, 6000);
+        rlist.firstElementChild.scrollIntoView({ behavior: "smooth", block: "center" });
+      })
+      .catch(err => {
+        formMsg.textContent = String(err.message) === "busy"
+          ? "Lots of feedback right now. Try again in a bit."
+          : "Couldn't post that. Check your internet and try again.";
+      })
+      .finally(() => { btn.disabled = false; btn.textContent = "Post feedback"; });
+  });
 
   // ── Pop in as you scroll to it ─────────────────────
   const pops = document.querySelectorAll(".pop");

@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="style.css?v=11">
   <script>document.documentElement.classList.add("js");</script>
 </head>
 <body>
@@ -23,7 +23,7 @@
     <header class="top">
       <h1>Oreok's work</h1>
       <div class="top-actions">
-        <a class="btn btn-ghost" href="#feedback">Feedback</a>
+        <a class="btn btn-ghost" href="#feedback">See feedback</a>
         <a class="btn" href="#contact">Hire me</a>
       </div>
     </header>
@@ -32,17 +32,16 @@
     <ul class="grid" id="grid"></ul>
 
     <section class="feedback" id="feedback" aria-labelledby="feedback-title">
-      <h2 id="feedback-title">Feedback</h2>
-      <p class="sub">Bought a thumbnail from me? Tell me what you thought.</p>
+      <div class="fb-head">
+        <div>
+          <h2 id="feedback-title">Feedback</h2>
+          <p class="sub">What people who bought a thumbnail said.</p>
+        </div>
+        <button class="btn" type="button" id="fb-open" aria-expanded="false" aria-controls="fb-form">Leave feedback</button>
+      </div>
 
-      <ul class="reviews" id="reviews"></ul>
-      <p class="empty" id="reviews-empty" hidden>No reviews yet. Be the first to leave one.</p>
-
-      <form class="fb-form pop" id="fb-form" action="https://formsubmit.co/oreoktkasa@gmail.com" method="POST">
-        <input type="hidden" name="_subject" value="New feedback on your thumbnail site">
-        <input type="hidden" name="_template" value="table">
-        <input type="hidden" name="_next" id="fb-next" value="">
-        <input type="text" name="_honey" class="honey" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <form class="fb-form" id="fb-form" hidden novalidate>
+        <input type="text" name="website" class="honey" tabindex="-1" autocomplete="off" aria-hidden="true">
 
         <label class="field">
           <span>Your name or channel</span>
@@ -67,17 +66,17 @@
 
         <label class="field">
           <span>Your feedback</span>
-          <textarea name="feedback" required maxlength="500" rows="4"></textarea>
+          <textarea name="text" required maxlength="500" rows="4"></textarea>
         </label>
 
-        <button class="btn" type="submit">Send feedback</button>
-        <p class="fine">Your feedback goes to Oreok first. Good ones get added to this page.</p>
+        <button class="btn" type="submit">Post feedback</button>
+        <p class="fb-msg" id="fb-msg" role="alert"></p>
+        <p class="fine">Your feedback shows on this page straight away.</p>
       </form>
 
-      <div class="fb-thanks" id="fb-thanks" hidden>
-        <h3>Feedback sent</h3>
-        <p>Thanks! Oreok will read it soon.</p>
-      </div>
+      <p class="fb-thanks" id="fb-thanks" role="status" hidden>Thanks! Your feedback is up.</p>
+      <p class="empty" id="reviews-status" role="status">Loading feedback…</p>
+      <ul class="reviews" id="reviews" hidden></ul>
     </section>
 
     <section class="contact pop" id="contact" aria-labelledby="contact-title">
@@ -107,8 +106,8 @@
     </div>
   </dialog>
 
-  <script src="thumbnails.js?v=10"></script>
-  <script src="feedback.js?v=10"></script>
-  <script src="script.js?v=10"></script>
+  <script src="thumbnails.js?v=11"></script>
+  <script src="feedback.js?v=11"></script>
+  <script src="script.js?v=11"></script>
 </body>
 </html>

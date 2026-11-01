@@ -135,8 +135,15 @@ h1 {
   width: min(1192px, calc(100% - 48px)); margin: 0 auto; padding: 72px 0 24px;
   border-top: 4px solid var(--line);
 }
-.feedback .sub { color: #fff; margin: 0 0 28px; max-width: 46ch; text-shadow: var(--glow); }
+.feedback .sub { color: #fff; margin: 0; max-width: 46ch; text-shadow: var(--glow); }
+.fb-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px 24px; margin: 0 0 28px; }
+.fb-head .btn { border: 0; cursor: pointer; }
+.fb-form { margin: 0 0 32px; }
+.fb-form[hidden] { display: none; }
+.fb-msg { color: #FF8A8A; margin: 12px 0 0; min-height: 1.2em; }
+.fb-msg:empty { display: none; }
 .feedback .empty { color: #fff; margin: 0 0 24px; text-shadow: var(--glow); }
+.feedback .empty[hidden] { display: none; }
 
 .reviews[hidden] { display: none; }
 .reviews {
@@ -203,9 +210,11 @@ h1 {
 .fb-form .btn { border: 0; cursor: pointer; margin-top: 4px; }
 .fb-form .fine { color: #B4BAC8; font-size: .875rem; margin: 14px 0 0; }
 
-.fb-thanks { max-width: 640px; }
-.fb-thanks h3 { font-family: var(--chunky); font-weight: 400; font-size: 1.75rem; color: var(--duck); margin: 0 0 6px; }
-.fb-thanks p { color: #fff; margin: 0; text-shadow: var(--glow); }
+.fb-thanks {
+  display: inline-block; margin: 0 0 24px; padding: 12px 18px;
+  font-family: var(--chunky); font-size: 1.25rem; color: #000; background: var(--duck);
+}
+.fb-thanks[hidden] { display: none; }
 
 /* ── contact ────────────────────────────────────────── */
 .contact {
