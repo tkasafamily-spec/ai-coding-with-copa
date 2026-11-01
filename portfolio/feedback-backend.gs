@@ -79,3 +79,9 @@ function doPost(e) {
   }
   return json_({ ok: true });
 }
+
+// Run this once from the editor: it asks for permission and makes the sheet.
+function setup() {
+  const sh = sheet_();
+  Logger.log('Feedback sheet: ' + sh.getParent().getUrl());
+}
