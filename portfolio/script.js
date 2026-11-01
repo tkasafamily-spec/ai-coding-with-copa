@@ -119,15 +119,18 @@
   // ── Pop in as you scroll to it ─────────────────────
   const pops = document.querySelectorAll(".pop");
   if ("IntersectionObserver" in window) {
-    const io = new IntersectionObserver(entries => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          e.target.classList.add("in");
-          io.unobserve(e.target);
-        }
-      });
+    // pops in when you scroll to it
+    const show = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add("in"); });
     }, { threshold: 0.15, rootMargin: "0px 0px -12% 0px" });
-    pops.forEach(el => io.observe(el));
+    // resets once it's gone back off the bottom of the screen (you scrolled up past it),
+    // so it pops in again next time you scroll down
+    const reset = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (!e.isIntersecting && e.boundingClientRect.top > 0) e.target.classList.remove("in");
+      });
+    }, { threshold: 0 });
+    pops.forEach(el => { show.observe(el); reset.observe(el); });
   } else {
     pops.forEach(el => el.classList.add("in"));
   }
