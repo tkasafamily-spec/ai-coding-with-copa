@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────
 
 const THUMBNAILS = [
+  { title: "$500M", image: "thumbnails/500m-buckets.jpg", small: "thumbnails/500m-buckets-sm.webp" },
   { title: "Pool day", image: "thumbnails/duck-float.jpg", small: "thumbnails/duck-float-sm.webp" },
   { title: "Down the shaft", image: "thumbnails/the-fall.jpg", small: "thumbnails/the-fall-sm.webp" },
   { title: "The trap", image: "thumbnails/jettism-pit.jpg", small: "thumbnails/jettism-pit-sm.webp" },
