@@ -62,6 +62,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: smp-terminal-mod
       - uses: actions/download-artifact@v4
         with:
           path: out
@@ -80,4 +82,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A dist logs
           git commit -m "Build output [skip ci]" || exit 0
-          for i in 1 2 3; do git pull --rebase origin smp-terminal-mod && git push origin HEAD:smp-terminal-mod && break; sleep 5; done
+          git push origin HEAD:smp-terminal-mod
