@@ -32,6 +32,6 @@ Cannot remap modifiers because it does not exist in any of the targets [] or the
 > Task :assemble
 > Task :build
 
-BUILD SUCCESSFUL in 20s
+BUILD SUCCESSFUL in 28s
 5 actionable tasks: 5 executed
 Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.8.2/userguide/configuration_cache_enabling.html
