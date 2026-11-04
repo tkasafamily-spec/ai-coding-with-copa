@@ -45,6 +45,8 @@ public final class Config {
 	// Prices
 	public Map<String, Double> priceOverrides = new HashMap<>();
 	public boolean tooltips = true;
+	/** Thick clean font in menus and HUD (off = Minecraft font). */
+	public boolean cleanFont = true;
 	/** Read prices off auction / order menus you open. */
 	public boolean learnPrices = true;
 	public List<String> ahTitles = new ArrayList<>(List.of("auction", "/ah"));

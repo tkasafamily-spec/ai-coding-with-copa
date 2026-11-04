@@ -16,7 +16,11 @@ public final class Hud {
 	public static final String[] CORNERS = {"Top left", "Top right", "Left middle", "Right middle"};
 
 	private static Component b(String s) {
-		return Component.literal(s).withStyle(ChatFormatting.BOLD);
+		return Txt.b(s);
+	}
+
+	private static void draw(GuiGraphics g, Font font, String s, int x, int y, int color) {
+		g.drawString(font, b(s), x, y, color, !Config.C.cleanFont);
 	}
 
 	public static void render(GuiGraphics g) {
@@ -46,17 +50,17 @@ public final class Hud {
 			int color = Timers.colorOf(t);
 			String clock = Fmt.clock(left);
 			g.fill(x, ty - 2, x + 2, ty + 13, color);
-			g.drawString(font, b(t.name), x + 6, ty, 0xFFDDE1F5);
-			g.drawString(font, b(clock), x + boxW - 5 - font.width(b(clock)), ty, Colors.timeColor(color, left));
+			draw(g, font, t.name, x + 6, ty, 0xFFDDE1F5);
+			draw(g, font, clock, x + boxW - 5 - font.width(b(clock)), ty, Colors.timeColor(color, left));
 			double done = t.length > 0 ? 1 - Math.max(0, left) / (double) t.length : 1;
 			Colors.bar(g, x + 6, ty + 10, boxW - 11, 3, done, color, left <= 60_000);
 			ty += 17;
 		}
 		if (profit) {
 			g.fill(x, ty - 2, x + 2, ty + 9, 0xFF7A8BFF);
-			g.drawString(font, b("AH today"), x + 6, ty, 0xFFB8BEE0);
+			draw(g, font, "AH today", x + 6, ty, 0xFFB8BEE0);
 			String v = Fmt.signed(net);
-			g.drawString(font, b(v), x + boxW - 5 - font.width(b(v)), ty, net >= 0 ? 0xFF3DDC97 : 0xFFFF6B8A);
+			draw(g, font, v, x + boxW - 5 - font.width(b(v)), ty, net >= 0 ? 0xFF3DDC97 : 0xFFFF6B8A);
 		}
 	}
 }

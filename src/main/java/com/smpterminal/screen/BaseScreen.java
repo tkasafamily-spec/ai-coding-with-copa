@@ -1,5 +1,8 @@
 package com.smpterminal.screen;
 
+import com.smpterminal.Config;
+import com.smpterminal.Txt;
+
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -68,15 +71,14 @@ public abstract class BaseScreen extends Screen {
 		g.pose().pushMatrix();
 		g.pose().translate(px + 10, py + 9);
 		g.pose().scale(1.5f, 1.5f);
-		g.drawString(font, Component.literal(title.getString()).withStyle(ChatFormatting.BOLD), 0, 0, TEXT);
+		g.drawString(font, Txt.b(title.getString()), 0, 0, TEXT, false);
 		g.pose().popMatrix();
 		draw(g, mouseX, mouseY);
 	}
 
 	/** Main text is bold; grey hint text stays regular. */
 	protected Component styled(String s, int color) {
-		Component c = Component.literal(s);
-		return color == MUTED ? c : c.copy().withStyle(ChatFormatting.BOLD);
+		return color == MUTED ? Txt.r(s) : Txt.b(s);
 	}
 
 	protected int width(String s, int color) {
@@ -86,11 +88,11 @@ public abstract class BaseScreen extends Screen {
 	// ---------- helpers ----------
 
 	protected Button button(String label, int x, int y, int w, Button.OnPress onPress) {
-		return addRenderableWidget(Button.builder(Component.literal(label).withStyle(ChatFormatting.BOLD), onPress).bounds(x, y, w, 20).build());
+		return addRenderableWidget(Button.builder(Txt.b(label), onPress).bounds(x, y, w, 20).build());
 	}
 
 	protected Button button(String label, String tip, int x, int y, int w, Button.OnPress onPress) {
-		return addRenderableWidget(Button.builder(Component.literal(label).withStyle(ChatFormatting.BOLD), onPress).bounds(x, y, w, 20)
+		return addRenderableWidget(Button.builder(Txt.b(label), onPress).bounds(x, y, w, 20)
 			.tooltip(Tooltip.create(Component.literal(tip))).build());
 	}
 
@@ -103,11 +105,11 @@ public abstract class BaseScreen extends Screen {
 	}
 
 	protected void text(GuiGraphics g, String s, int x, int y, int color) {
-		g.drawString(font, styled(s, color), x, y, color);
+		g.drawString(font, styled(s, color), x, y, color, !Config.C.cleanFont);
 	}
 
 	protected void textRight(GuiGraphics g, String s, int right, int y, int color) {
-		g.drawString(font, styled(s, color), right - width(s, color), y, color);
+		g.drawString(font, styled(s, color), right - width(s, color), y, color, !Config.C.cleanFont);
 	}
 
 	protected void line(GuiGraphics g, int y) {

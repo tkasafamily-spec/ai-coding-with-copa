@@ -33,8 +33,10 @@ public class SettingsScreen extends BaseScreen {
 		button("Prices in tooltips: " + onOff(c.tooltips), x1, y, colW, b -> { c.tooltips = !c.tooltips; save(); });
 		button("Profit resets at " + String.format("%02d:00", c.profit.resetHour), x2, y, colW, b -> { c.profit.resetHour = (c.profit.resetHour + 1) % 24; save(); });
 		y += 24;
-		button("Learn prices from /ah: " + onOff(c.learnPrices), "Reads prices off auction and order menus you open", x1, y, colW, b -> { c.learnPrices = !c.learnPrices; save(); });
-		button(confirmForget ? "Click again to forget" : "Forget learned prices (" + PriceBook.size() + ")", x2, y, colW, b -> {
+		button("Font: " + (c.cleanFont ? "Clean bold" : "Minecraft"), "Switch between the thick clean font and Minecraft's font", x1, y, colW, b -> { c.cleanFont = !c.cleanFont; save(); });
+		button("Learn prices from /ah: " + onOff(c.learnPrices), "Reads prices off auction and order menus you open", x2, y, colW, b -> { c.learnPrices = !c.learnPrices; save(); });
+		y += 24;
+		button(confirmForget ? "Click again to forget" : "Forget learned prices (" + PriceBook.size() + ")", x1, y, colW, b -> {
 			if (confirmForget) { PriceBook.clear(); confirmForget = false; } else { confirmForget = true; }
 			rebuildWidgets();
 		});
@@ -49,7 +51,7 @@ public class SettingsScreen extends BaseScreen {
 
 	@Override
 	protected void draw(GuiGraphics g, int mouseX, int mouseY) {
-		int y = py + 34 + 30 + 24 * 4 + 6;
+		int y = py + 34 + 30 + 24 * 5 + 6;
 		line(g, y);
 		y += 8;
 		text(g, "Default key: ] opens the Terminal. Every tool also has its own", px + 10, y, MUTED);

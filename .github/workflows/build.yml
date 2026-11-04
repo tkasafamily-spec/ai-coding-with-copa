@@ -47,6 +47,13 @@ jobs:
           chmod +x gradlew
           set -o pipefail
           ./gradlew build --no-daemon 2>&1 | tee build-${{ matrix.mc }}.log
+      - name: Font API info
+        if: failure()
+        run: |
+          J=$(find ~/.gradle/caches .gradle -name 'minecraft-*merged*.jar' -o -name 'minecraft-*client*.jar' 2>/dev/null | grep -v sources | head -1)
+          echo "jar: $J" >> build-${{ matrix.mc }}.log
+          javap -cp "$J" net.minecraft.network.chat.Style 2>&1 | grep -i font >> build-${{ matrix.mc }}.log || true
+          javap -cp "$J" net.minecraft.network.chat.FontDescription 2>&1 | head -20 >> build-${{ matrix.mc }}.log || true
       - name: Upload
         if: always()
         uses: actions/upload-artifact@v4
