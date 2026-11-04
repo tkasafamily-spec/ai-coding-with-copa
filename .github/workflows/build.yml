@@ -1,0 +1,83 @@
+name: Build SMP Terminal mod
+
+on:
+  push:
+    branches: [smp-terminal-mod]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: smp-terminal-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { mc: "1.21.8",  fapi: "0.136.1+1.21.8",  compat: "1.21.8",  range: "1.21.8" }
+          - { mc: "1.21.10", fapi: "0.138.4+1.21.10", compat: "1.21.10", range: ">=1.21.9 <=1.21.10" }
+          - { mc: "1.21.11", fapi: "0.141.6+1.21.11", compat: "1.21.11", range: "1.21.11" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - name: Set up Minecraft ${{ matrix.mc }}
+        run: |
+          cp versions/${{ matrix.compat }}/Compat.java src/main/java/com/smpterminal/Compat.java
+          cp versions/build-121.gradle build.gradle
+          {
+            echo "org.gradle.jvmargs=-Xmx3G"
+            echo "minecraft_version=${{ matrix.mc }}"
+            echo "loader_version=0.20.1"
+            echo "loom_version=1.19-SNAPSHOT"
+            echo "fabric_api_version=${{ matrix.fapi }}"
+            echo "mod_version=1.0.0"
+            echo "mc_range=${{ matrix.range }}"
+          } > gradle.properties
+      - name: Build
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew build --no-daemon 2>&1 | tee build-${{ matrix.mc }}.log
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: out-${{ matrix.mc }}
+          path: |
+            build/libs/*.jar
+            build-*.log
+
+  publish:
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Commit jars and build logs
+        run: |
+          rm -rf dist logs
+          mkdir -p dist logs
+          find out -name '*.jar' ! -name '*-sources.jar' -exec cp {} dist/ \;
+          for f in $(find out -name 'build-*.log'); do
+            n=$(basename "$f" .log)
+            grep -n -B2 -A6 "error:\|FAILURE\|What went wrong" "$f" | head -400 > "logs/$n-errors.txt" || true
+            tail -n 60 "$f" > "logs/$n-tail.txt"
+          done
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A dist logs
+          git commit -m "Build output [skip ci]" || exit 0
+          for i in 1 2 3; do git pull --rebase origin smp-terminal-mod && git push origin HEAD:smp-terminal-mod && break; sleep 5; done

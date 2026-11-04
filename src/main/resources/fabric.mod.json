@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "smpterminal",
+  "version": "${version}",
+  "name": "SMP Terminal",
+  "description": "DonutSMP toolkit: auction timer, AH profit tracker, price check, inventory value, chat alerts, flip calculator and notes. Press ] to open.",
+  "authors": ["tkasafamily-spec"],
+  "license": "MIT",
+  "icon": "assets/smpterminal/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.smpterminal.SmpTerminal"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "${mc_range}",
+    "fabric-api": "*",
+    "java": ">=21"
+  }
+}
