@@ -24,14 +24,13 @@ public class TerminalScreen extends BaseScreen {
 		tool(x1, y, colW, "Auction Timer" + (n > 0 ? " (" + n + ")" : ""), "Start a countdown. Saved times on the same menu.", () -> new TimerScreen(this));
 		tool(x2, y, colW, "Profit: " + Fmt.signed(Profit.net()), "AH profit tracker. Resets every day.", () -> new ProfitScreen(this));
 		y += 26;
-		tool(x1, y, colW, "Price Check", "Look up and set item prices.", () -> new PriceScreen(this));
-		tool(x2, y, colW, "Inventory Value", "What everything you're carrying is worth.", () -> new InventoryValueScreen(this));
+		tool(x1, y, colW, "Inventory Value", "What everything you're carrying is worth.", () -> new InventoryValueScreen(this));
+		tool(x2, y, colW, "Chat Alerts", "Ping when chat mentions your keywords.", () -> new AlertsScreen(this));
 		y += 26;
-		tool(x1, y, colW, "Chat Alerts", "Ping when chat mentions your keywords.", () -> new AlertsScreen(this));
-		tool(x2, y, colW, "Flip Calculator", "Buy order vs. auction profit.", () -> new FlipScreen(this));
+		tool(x1, y, colW, "Flip Calculator", "Buy order vs. auction profit.", () -> new FlipScreen(this));
+		tool(x2, y, colW, "Notes", "Quick notes that stay saved.", () -> new NotesScreen(this));
 		y += 26;
-		tool(x1, y, colW, "Notes", "Quick notes that stay saved.", () -> new NotesScreen(this));
-		tool(x2, y, colW, "Settings & Keybinds", "HUD, tooltips, reset time and keybinds.", () -> new SettingsScreen(this));
+		tool(x1, y, pw - 20, "Settings & Keybinds", "HUD, tooltips, reset time and keybinds.", () -> new SettingsScreen(this));
 	}
 
 	private void tool(int x, int y, int w, String label, String tip, Supplier<Screen> open) {
@@ -40,7 +39,7 @@ public class TerminalScreen extends BaseScreen {
 
 	@Override
 	protected void draw(GuiGraphics g, int mouseX, int mouseY) {
-		text(g, "DonutSMP toolkit", px + 10, py + 27, MUTED);
+		text(g, "DonutSMP toolkit", px + 10, py + 28, MUTED);
 		int y = py + 46 + 26 * 4 + 6;
 		line(g, y);
 		y += 8;

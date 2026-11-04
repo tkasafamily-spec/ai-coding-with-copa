@@ -1,5 +1,6 @@
 package com.smpterminal.screen;
 
+import com.smpterminal.Colors;
 import com.smpterminal.Config;
 import com.smpterminal.Fmt;
 import com.smpterminal.Profit;
@@ -78,7 +79,7 @@ public class ProfitScreen extends BaseScreen {
 		text(g, bal == null ? "Balance change: waiting for the sidebar Money line" : "Balance change today: " + Fmt.signed(bal), x, y, bal == null ? MUTED : (bal >= 0 ? UP : DOWN));
 		y += 16;
 
-		// last 7 days + today as bars
+		// last 7 days + today as a line chart
 		List<Config.DayTotal> days = new ArrayList<>(p.history);
 		java.util.Collections.reverse(days);
 		Config.DayTotal today = new Config.DayTotal();
@@ -86,21 +87,9 @@ public class ProfitScreen extends BaseScreen {
 		today.net = net;
 		days.add(today);
 		while (days.size() > 8) days.remove(0);
-		double max = 1;
-		for (Config.DayTotal d : days) max = Math.max(max, Math.abs(d.net));
-		int chartH = 44, mid = y + chartH / 2, cw = pw - 20;
-		g.fill(x, mid, x + cw, mid + 1, LINE);
-		int slot = cw / 8;
-		for (int i = 0; i < days.size(); i++) {
-			Config.DayTotal d = days.get(i);
-			int bh = (int) Math.round(Math.abs(d.net) / max * (chartH / 2 - 2));
-			int bx = x + i * slot + slot / 4, bw = slot / 2;
-			if (d.net >= 0) g.fill(bx, mid - bh, bx + bw, mid, UP);
-			else g.fill(bx, mid + 1, bx + bw, mid + 1 + bh, DOWN);
-			String lab = d.day.equals("Today") ? "Today" : d.day.substring(5);
-			g.drawString(font, lab, bx + bw / 2 - font.width(lab) / 2, y + chartH + 2, MUTED);
-		}
-		y += chartH + 16;
+		int chartH = 58;
+		lineChart(g, x, y, pw - 20, chartH, days);
+		y += chartH + 14;
 		line(g, y);
 		y += 6;
 
@@ -120,5 +109,70 @@ public class ProfitScreen extends BaseScreen {
 			}
 		}
 		if (!error.isEmpty()) text(g, error, x, bottom() - 11, DOWN);
+	}
+
+	/** Line chart of daily profit: green fill above $0, red below, a dot per day. */
+	private void lineChart(GuiGraphics g, int x, int y, int w, int h, List<Config.DayTotal> days) {
+		double max = 1, min = 0;
+		for (Config.DayTotal d : days) { max = Math.max(max, d.net); min = Math.min(min, d.net); }
+		double pad = (max - min) * 0.12;
+		max += pad;
+		if (min < 0) min -= pad;
+		final double hi = max, lo = min;
+		int n = days.size();
+		int plotH = h - 12;
+		java.util.function.DoubleToIntFunction yOf = v -> y + (int) Math.round((hi - v) / (hi - lo) * plotH);
+		int zero = yOf.applyAsInt(0);
+		int[] px0 = new int[n], py0 = new int[n];
+		for (int i = 0; i < n; i++) {
+			px0[i] = n == 1 ? x + w / 2 : x + 6 + (int) Math.round(i * (w - 12) / (double) (n - 1));
+			py0[i] = yOf.applyAsInt(days.get(i).net);
+		}
+		// grid + zero line
+		g.fill(x, y, x + w, y + 1, 0x14FFFFFF);
+		g.fill(x, y + plotH / 2, x + w, y + plotH / 2 + 1, 0x10FFFFFF);
+		g.fill(x, zero, x + w, zero + 1, LINE);
+		// area under the line
+		for (int i = 0; i + 1 < n; i++) {
+			for (int cx = px0[i]; cx < px0[i + 1]; cx++) {
+				double t = (cx - px0[i]) / (double) (px0[i + 1] - px0[i]);
+				int cy = (int) Math.round(py0[i] + (py0[i + 1] - py0[i]) * t);
+				if (cy < zero) g.fill(cx, cy, cx + 1, zero, 0x303DDC97);
+				else if (cy > zero) g.fill(cx, zero + 1, cx + 1, cy, 0x30FF6B8A);
+			}
+		}
+		// the line (2px), blue to violet
+		for (int i = 0; i + 1 < n; i++) {
+			int steps = Math.max(Math.abs(px0[i + 1] - px0[i]), Math.abs(py0[i + 1] - py0[i]));
+			for (int k = 0; k <= steps; k++) {
+				double t = steps == 0 ? 0 : k / (double) steps;
+				int cx = (int) Math.round(px0[i] + (px0[i + 1] - px0[i]) * t);
+				int cy = (int) Math.round(py0[i] + (py0[i + 1] - py0[i]) * t);
+				int col = Colors.mix(ACCENT, ACCENT2, (i + (float) t) / Math.max(1, n - 1));
+				g.fill(cx - 1, cy - 1, cx + 1, cy + 1, col);
+			}
+		}
+		// dots + labels
+		for (int i = 0; i < n; i++) {
+			Config.DayTotal d = days.get(i);
+			boolean last = i == n - 1;
+			int r = last ? 3 : 2;
+			int col = d.net >= 0 ? UP : DOWN;
+			g.fill(px0[i] - r - 1, py0[i] - r - 1, px0[i] + r + 1, py0[i] + r + 1, PANEL | 0xFF000000);
+			g.fill(px0[i] - r, py0[i] - r, px0[i] + r, py0[i] + r, col);
+			String lab = d.day.equals("Today") ? "Today" : d.day.substring(5);
+			int lw = width(lab, last ? TEXT : MUTED);
+			int lx = Math.max(x, Math.min(x + w - lw, px0[i] - lw / 2));
+			text(g, lab, lx, y + h - 8, last ? TEXT : MUTED);
+		}
+		// value tag on today
+		int li = n - 1;
+		String v = Fmt.signed(days.get(li).net);
+		int vw = width(v, TEXT) + 6;
+		int tx = Math.max(x, Math.min(x + w - vw, px0[li] - vw - 6));
+		int ty = Math.max(y, Math.min(y + plotH - 10, py0[li] - 5));
+		int tagCol = days.get(li).net >= 0 ? UP : DOWN;
+		g.fill(tx, ty, tx + vw, ty + 11, Colors.alpha(tagCol, 0.25f));
+		text(g, v, tx + 3, ty + 2, tagCol);
 	}
 }

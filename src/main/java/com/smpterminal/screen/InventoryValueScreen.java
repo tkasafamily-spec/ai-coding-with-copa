@@ -81,6 +81,6 @@ public class InventoryValueScreen extends BaseScreen {
 			text(g, fit(r.name(), pw - 150), px + 40, y, TEXT);
 			textRight(g, r.each() == null ? "no price" : Fmt.money(r.value()), px + pw - 10, y, r.each() == null ? MUTED : TEXT);
 		}
-		text(g, "Set missing prices in Price Check.", px + (pageCount(rows.size(), per) > 1 ? 60 : 10), bottom() + 6, MUTED);
+		text(g, "Open /ah to learn missing prices.", px + (pageCount(rows.size(), per) > 1 ? 60 : 10), bottom() + 6, MUTED);
 	}
 }

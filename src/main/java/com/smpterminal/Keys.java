@@ -4,7 +4,6 @@ import com.smpterminal.screen.AlertsScreen;
 import com.smpterminal.screen.FlipScreen;
 import com.smpterminal.screen.InventoryValueScreen;
 import com.smpterminal.screen.NotesScreen;
-import com.smpterminal.screen.PriceScreen;
 import com.smpterminal.screen.ProfitScreen;
 import com.smpterminal.screen.SettingsScreen;
 import com.smpterminal.screen.TerminalScreen;
@@ -22,13 +21,12 @@ public final class Keys {
 	private Keys() {}
 
 	private static final int NONE = -1;
-	public static KeyMapping OPEN, TIMER, PROFIT, PRICE, INVENTORY, ALERTS, FLIP, NOTES, SETTINGS, RESTART, HUD;
+	public static KeyMapping OPEN, TIMER, PROFIT, INVENTORY, ALERTS, FLIP, NOTES, SETTINGS, RESTART, HUD;
 
 	public static void init() {
 		OPEN = reg("open", GLFW.GLFW_KEY_RIGHT_BRACKET);
 		TIMER = reg("timer", NONE);
 		PROFIT = reg("profit", NONE);
-		PRICE = reg("price", NONE);
 		INVENTORY = reg("inventory", NONE);
 		ALERTS = reg("alerts", NONE);
 		FLIP = reg("flip", NONE);
@@ -46,7 +44,6 @@ public final class Keys {
 		while (OPEN.consumeClick()) mc.setScreen(new TerminalScreen(null));
 		while (TIMER.consumeClick()) mc.setScreen(new TimerScreen(null));
 		while (PROFIT.consumeClick()) mc.setScreen(new ProfitScreen(null));
-		while (PRICE.consumeClick()) mc.setScreen(new PriceScreen(null));
 		while (INVENTORY.consumeClick()) mc.setScreen(new InventoryValueScreen(null));
 		while (ALERTS.consumeClick()) mc.setScreen(new AlertsScreen(null));
 		while (FLIP.consumeClick()) mc.setScreen(new FlipScreen(null));

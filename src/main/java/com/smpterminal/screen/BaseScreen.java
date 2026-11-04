@@ -64,18 +64,33 @@ public abstract class BaseScreen extends Screen {
 	@Override
 	public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
 		super.render(g, mouseX, mouseY, delta);
-		g.drawString(font, Component.literal(title.getString()).withStyle(ChatFormatting.BOLD), px + 10, py + 13, TEXT);
+		// big bold title
+		g.pose().pushMatrix();
+		g.pose().translate(px + 10, py + 9);
+		g.pose().scale(1.5f, 1.5f);
+		g.drawString(font, Component.literal(title.getString()).withStyle(ChatFormatting.BOLD), 0, 0, TEXT);
+		g.pose().popMatrix();
 		draw(g, mouseX, mouseY);
+	}
+
+	/** Main text is bold; grey hint text stays regular. */
+	protected Component styled(String s, int color) {
+		Component c = Component.literal(s);
+		return color == MUTED ? c : c.copy().withStyle(ChatFormatting.BOLD);
+	}
+
+	protected int width(String s, int color) {
+		return font.width(styled(s, color));
 	}
 
 	// ---------- helpers ----------
 
 	protected Button button(String label, int x, int y, int w, Button.OnPress onPress) {
-		return addRenderableWidget(Button.builder(Component.literal(label), onPress).bounds(x, y, w, 20).build());
+		return addRenderableWidget(Button.builder(Component.literal(label).withStyle(ChatFormatting.BOLD), onPress).bounds(x, y, w, 20).build());
 	}
 
 	protected Button button(String label, String tip, int x, int y, int w, Button.OnPress onPress) {
-		return addRenderableWidget(Button.builder(Component.literal(label), onPress).bounds(x, y, w, 20)
+		return addRenderableWidget(Button.builder(Component.literal(label).withStyle(ChatFormatting.BOLD), onPress).bounds(x, y, w, 20)
 			.tooltip(Tooltip.create(Component.literal(tip))).build());
 	}
 
@@ -88,11 +103,11 @@ public abstract class BaseScreen extends Screen {
 	}
 
 	protected void text(GuiGraphics g, String s, int x, int y, int color) {
-		g.drawString(font, s, x, y, color);
+		g.drawString(font, styled(s, color), x, y, color);
 	}
 
 	protected void textRight(GuiGraphics g, String s, int right, int y, int color) {
-		g.drawString(font, s, right - font.width(s), y, color);
+		g.drawString(font, styled(s, color), right - width(s, color), y, color);
 	}
 
 	protected void line(GuiGraphics g, int y) {
@@ -100,8 +115,8 @@ public abstract class BaseScreen extends Screen {
 	}
 
 	protected String fit(String s, int maxWidth) {
-		if (font.width(s) <= maxWidth) return s;
-		while (s.length() > 1 && font.width(s + "…") > maxWidth) s = s.substring(0, s.length() - 1);
+		if (width(s, TEXT) <= maxWidth) return s;
+		while (s.length() > 1 && width(s + "…", TEXT) > maxWidth) s = s.substring(0, s.length() - 1);
 		return s + "…";
 	}
 
