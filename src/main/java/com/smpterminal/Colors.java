@@ -63,10 +63,5 @@ public final class Colors {
 			boolean edge = i == 0 || x2 == x + fw;
 			g.fill(x1, y + (edge ? 1 : 0), x2, y + h - (edge ? 1 : 0), c);
 		}
-		// shine on top
-		g.fill(x + 1, y + 1, x + fw - 1, y + 2, 0x55FFFFFF);
-		// moving sparkle at the tip
-		int tip = x + fw;
-		g.fill(Math.max(x, tip - 2), y - 1, tip, y + h + 1, alpha(0xFFFFFFFF, 0.5f + 0.4f * pulse(0.8f)));
 	}
 }

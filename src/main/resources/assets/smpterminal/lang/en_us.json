@@ -9,5 +9,6 @@
   "key.smpterminal.notes": "Notes",
   "key.smpterminal.settings": "Terminal Settings",
   "key.smpterminal.restart": "Restart Last Timer",
-  "key.smpterminal.hud": "Show/Hide Terminal HUD"
+  "key.smpterminal.hud": "Show/Hide Timer HUD",
+  "key.smpterminal.profit_hud": "Show/Hide Profit HUD"
 }

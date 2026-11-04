@@ -58,8 +58,13 @@ public final class Config {
 	// HUD
 	public boolean hud = true;
 	public boolean hudTimers = true;
-	public boolean hudProfit = true;
-	public int hudCorner = 0;
+	public boolean hudProfit = true;   // old, unused
+	public int hudCorner = 0;          // old, unused
+	/** Timer HUD position (see Hud.SPOTS). 0 = top middle. */
+	public int timerHudSpot = 0;
+	/** The separate "AH today" box. */
+	public boolean profitHud = false;
+	public int profitHudSpot = 1;
 
 	// DonutSMP API (coming later)
 	public String apiKey = "";

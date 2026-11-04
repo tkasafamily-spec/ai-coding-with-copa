@@ -21,7 +21,7 @@ public final class Keys {
 	private Keys() {}
 
 	private static final int NONE = -1;
-	public static KeyMapping OPEN, TIMER, PROFIT, INVENTORY, ALERTS, FLIP, NOTES, SETTINGS, RESTART, HUD;
+	public static KeyMapping OPEN, TIMER, PROFIT, INVENTORY, ALERTS, FLIP, NOTES, SETTINGS, RESTART, HUD, PROFIT_HUD;
 
 	public static void init() {
 		OPEN = reg("open", GLFW.GLFW_KEY_RIGHT_BRACKET);
@@ -34,6 +34,7 @@ public final class Keys {
 		SETTINGS = reg("settings", NONE);
 		RESTART = reg("restart", NONE);
 		HUD = reg("hud", NONE);
+		PROFIT_HUD = reg("profit_hud", NONE);
 	}
 
 	private static KeyMapping reg(String id, int key) {
@@ -53,7 +54,12 @@ public final class Keys {
 		while (HUD.consumeClick()) {
 			Config.C.hud = !Config.C.hud;
 			Config.save();
-			SmpTerminal.actionBar("Terminal HUD " + (Config.C.hud ? "on" : "off"));
+			SmpTerminal.actionBar("Timer HUD " + (Config.C.hud ? "on" : "off"));
+		}
+		while (PROFIT_HUD.consumeClick()) {
+			Config.C.profitHud = !Config.C.profitHud;
+			Config.save();
+			SmpTerminal.actionBar("Profit HUD " + (Config.C.profitHud ? "on" : "off"));
 		}
 		Timers.tick(mc);
 		Profit.tick(mc);

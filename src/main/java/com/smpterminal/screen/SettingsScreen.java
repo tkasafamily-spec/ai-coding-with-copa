@@ -24,11 +24,11 @@ public class SettingsScreen extends BaseScreen {
 		int x1 = px + 10, x2 = x1 + colW + gap, y = py + 34;
 		button("Set keybinds…", "Every Terminal menu has its own keybind here", x1, y, pw - 20, b -> minecraft.setScreen(new KeyBindsScreen(this, minecraft.options)));
 		y += 30;
-		button("HUD: " + onOff(c.hud), x1, y, colW, b -> { c.hud = !c.hud; save(); });
-		button("HUD spot: " + Hud.CORNERS[Math.floorMod(c.hudCorner, Hud.CORNERS.length)], x2, y, colW, b -> { c.hudCorner = (c.hudCorner + 1) % Hud.CORNERS.length; save(); });
+		button("Timer HUD: " + onOff(c.hud), x1, y, colW, b -> { c.hud = !c.hud; save(); });
+		button("Timer HUD: " + Hud.SPOTS[Math.floorMod(c.timerHudSpot, Hud.SPOTS.length)], "Where the timer box shows", x2, y, colW, b -> { c.timerHudSpot = (c.timerHudSpot + 1) % Hud.SPOTS.length; save(); });
 		y += 24;
-		button("Timers on HUD: " + onOff(c.hudTimers), x1, y, colW, b -> { c.hudTimers = !c.hudTimers; save(); });
-		button("Profit on HUD: " + onOff(c.hudProfit), x2, y, colW, b -> { c.hudProfit = !c.hudProfit; save(); });
+		button("Profit HUD: " + onOff(c.profitHud), "A small 'AH today' box", x1, y, colW, b -> { c.profitHud = !c.profitHud; save(); });
+		button("Profit HUD: " + Hud.SPOTS[Math.floorMod(c.profitHudSpot, Hud.SPOTS.length)], "Where the profit box shows", x2, y, colW, b -> { c.profitHudSpot = (c.profitHudSpot + 1) % Hud.SPOTS.length; save(); });
 		y += 24;
 		button("Prices in tooltips: " + onOff(c.tooltips), x1, y, colW, b -> { c.tooltips = !c.tooltips; save(); });
 		button("Profit resets at " + String.format("%02d:00", c.profit.resetHour), x2, y, colW, b -> { c.profit.resetHour = (c.profit.resetHour + 1) % 24; save(); });

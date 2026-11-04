@@ -67,7 +67,7 @@ public class InventoryValueScreen extends BaseScreen {
 	@Override
 	protected void draw(GuiGraphics g, int mouseX, int mouseY) {
 		text(g, "Total", px + 10, py + 32, MUTED);
-		text(g, Fmt.full(total), px + 42, py + 32, UP);
+		text(g, Fmt.money(total), px + 42, py + 32, UP);
 		if (unknown > 0) textRight(g, unknown + " item" + (unknown == 1 ? "" : "s") + " without a price", px + pw - 10, py + 32, MUTED);
 		if (rows.isEmpty()) {
 			text(g, "Your inventory is empty.", px + 10, listTop, MUTED);
