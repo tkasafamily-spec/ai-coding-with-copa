@@ -22,7 +22,13 @@ Built jars are in `dist/` (one per Minecraft version). Needs Fabric Loader and F
 | `smp-terminal-mc1.21.10-*.jar` | 1.21.9 – 1.21.10 |
 | `smp-terminal-mc1.21.11-*.jar` | 1.21.11 |
 
+## Prices without an API
+DonutSMP's API is off, so the mod learns prices itself: open **/ah** (or the orders menu) and it reads
+the price off every listing on screen, keeping the lowest price per item (and the best buy order).
+Tooltips, Price Check and Inventory Value then use those prices, labelled with when you saw them.
+Items you haven't seen yet fall back to a built-in estimate. Learned prices are saved in
+`config/smpterminal-prices.json`; which menus count is set by `ahTitles` / `orderTitles` in `config/smpterminal.json`.
+
 ## Notes
-- Prices are built-in estimates until the DonutSMP API is connected.
 - Chat patterns for the profit tracker live in `config/smpterminal.json` (`salePatterns`, `buyPatterns`) and can be tuned to DonutSMP's exact messages.
 - Version-specific code lives in `versions/<mc>/Compat.java`; GitHub Actions builds every version on push.

@@ -82,7 +82,7 @@ public class PriceScreen extends BaseScreen {
 		next.active = page < pages - 1;
 		int start = page * per;
 		textRight(g, "each", px + pw - 120, listTop - 11, MUTED);
-		textRight(g, "x64", px + pw - 54, listTop - 11, MUTED);
+		textRight(g, "from", px + pw - 54, listTop - 11, MUTED);
 		if (list.isEmpty()) text(g, "No items match that name.", px + 10, listTop, MUTED);
 		for (int r = 0; r < per; r++) {
 			int i = start + r;
@@ -92,17 +92,19 @@ public class PriceScreen extends BaseScreen {
 			int y = listTop + r * 16;
 			Double p = Prices.of(e.id());
 			boolean own = Prices.isCustom(e.id());
+			boolean learned = Prices.isLearned(e.id());
 			boolean sel = selected != null && selected.id().equals(e.id());
+			String src = Prices.source(e.id()).replace("seen ", "").replace("estimate", "estimate");
 			text(g, fit(e.name(), pw - 190), px + 10, y, sel ? ACCENT : own ? GOLD : TEXT);
 			textRight(g, p == null ? "-" : Fmt.money(p), px + pw - 120, y, TEXT);
-			textRight(g, p == null ? "-" : Fmt.money(p * 64), px + pw - 54, y, MUTED);
+			textRight(g, src, px + pw - 54, y, own ? GOLD : learned ? UP : MUTED);
 		}
 		int noteX = pages > 1 ? px + 60 : px + 10;
 		if (selected != null) {
 			if (!error.isEmpty()) text(g, error, px + 10, bottom() - 11, DOWN);
 			else text(g, "Your price for " + selected.name() + ":", px + 10, bottom() - 11, ACCENT);
 		} else {
-			text(g, fit("Gold = your own price. Estimates until the API is connected.", px + pw - 10 - noteX), noteX, bottom() + 6, MUTED);
+			text(g, fit("Open /ah and the prices you see are saved here. Gold = your price.", px + pw - 10 - noteX), noteX, bottom() + 6, MUTED);
 		}
 	}
 }

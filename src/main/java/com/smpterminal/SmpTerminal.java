@@ -17,6 +17,8 @@ public class SmpTerminal implements ClientModInitializer {
 	public void onInitializeClient() {
 		Config.load();
 		Prices.load();
+		PriceBook.load();
+		AhScanner.init();
 		Keys.init();
 		Compat.registerHud();
 		ClientTickEvents.END_CLIENT_TICK.register(Keys::tick);

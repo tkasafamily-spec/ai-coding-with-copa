@@ -46,11 +46,25 @@ public final class Prices {
 		return BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
 	}
 
+	/** Your own price first, then the lowest auction price you've seen, then the built-in estimate. */
 	public static Double of(String id) {
 		Double own = Config.C.priceOverrides.get(id);
 		if (own != null) return own;
+		Double seen = PriceBook.ah(id);
+		if (seen != null) return seen;
 		Entry e = BY_ID.get(id);
 		return e == null ? null : e.price();
+	}
+
+	/** Where the price comes from: "yours", "seen 5m ago" or "estimate". */
+	public static String source(String id) {
+		if (Config.C.priceOverrides.containsKey(id)) return "yours";
+		if (PriceBook.ah(id) != null) return "seen " + PriceBook.ago(PriceBook.get(id).ahAt);
+		return BY_ID.containsKey(id) ? "estimate" : "";
+	}
+
+	public static boolean isLearned(String id) {
+		return !Config.C.priceOverrides.containsKey(id) && PriceBook.ah(id) != null;
 	}
 
 	public static boolean isCustom(String id) {
@@ -86,7 +100,12 @@ public final class Prices {
 		Double p = of(id(stack));
 		if (p == null) return;
 		int n = stack.getCount();
+		String id = id(stack);
 		String text = "≈ " + Fmt.money(p) + " each" + (n > 1 ? "  ·  " + Fmt.money(p * n) + " for " + n : "");
 		lines.add(Component.literal(text).withStyle(ChatFormatting.GOLD));
+		Double order = PriceBook.order(id);
+		String src = source(id);
+		String extra = (order != null ? "Buy order " + Fmt.money(order) + "  ·  " : "") + (src.isEmpty() ? "" : src);
+		if (!extra.isEmpty()) lines.add(Component.literal(extra).withStyle(ChatFormatting.DARK_GRAY));
 	}
 }

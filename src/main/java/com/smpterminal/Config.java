@@ -44,6 +44,10 @@ public final class Config {
 	// Prices
 	public Map<String, Double> priceOverrides = new HashMap<>();
 	public boolean tooltips = true;
+	/** Read prices off auction / order menus you open. */
+	public boolean learnPrices = true;
+	public List<String> ahTitles = new ArrayList<>(List.of("auction", "/ah"));
+	public List<String> orderTitles = new ArrayList<>(List.of("order"));
 
 	// Flip calculator
 	public double fee = 0;
@@ -124,5 +128,7 @@ public final class Config {
 		if (notes == null) notes = d.notes;
 		if (priceOverrides == null) priceOverrides = d.priceOverrides;
 		if (apiKey == null) apiKey = "";
+		if (ahTitles == null) ahTitles = d.ahTitles;
+		if (orderTitles == null) orderTitles = d.orderTitles;
 	}
 }

@@ -2,6 +2,7 @@ package com.smpterminal.screen;
 
 import com.smpterminal.Config;
 import com.smpterminal.Hud;
+import com.smpterminal.PriceBook;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.options.controls.KeyBindsScreen;
@@ -31,7 +32,15 @@ public class SettingsScreen extends BaseScreen {
 		y += 24;
 		button("Prices in tooltips: " + onOff(c.tooltips), x1, y, colW, b -> { c.tooltips = !c.tooltips; save(); });
 		button("Profit resets at " + String.format("%02d:00", c.profit.resetHour), x2, y, colW, b -> { c.profit.resetHour = (c.profit.resetHour + 1) % 24; save(); });
+		y += 24;
+		button("Learn prices from /ah: " + onOff(c.learnPrices), "Reads prices off auction and order menus you open", x1, y, colW, b -> { c.learnPrices = !c.learnPrices; save(); });
+		button(confirmForget ? "Click again to forget" : "Forget learned prices (" + PriceBook.size() + ")", x2, y, colW, b -> {
+			if (confirmForget) { PriceBook.clear(); confirmForget = false; } else { confirmForget = true; }
+			rebuildWidgets();
+		});
 	}
+
+	private boolean confirmForget;
 
 	private void save() {
 		Config.save();
@@ -40,13 +49,13 @@ public class SettingsScreen extends BaseScreen {
 
 	@Override
 	protected void draw(GuiGraphics g, int mouseX, int mouseY) {
-		int y = py + 34 + 30 + 24 * 3 + 6;
+		int y = py + 34 + 30 + 24 * 4 + 6;
 		line(g, y);
 		y += 8;
 		text(g, "Default key: ] opens the Terminal. Every tool also has its own", px + 10, y, MUTED);
 		text(g, "keybind (unset at first) under Controls > SMP Terminal.", px + 10, y + 11, MUTED);
 		y += 28;
-		text(g, "DonutSMP API: not connected yet (coming in the next update).", px + 10, y, MUTED);
+		text(g, "No API needed: prices are learned when you open /ah.", px + 10, y, MUTED);
 		text(g, "Settings file: config/smpterminal.json", px + 10, y + 11, MUTED);
 	}
 }
