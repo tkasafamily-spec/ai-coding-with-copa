@@ -1,0 +1,11 @@
+17-[Incubating] Problems report is available at: file:///home/runner/work/ai-coding-with-copa/ai-coding-with-copa/build/reports/problems/problems-report.html
+18-
+19:FAILURE: Build failed with an exception.
+20-
+21:* What went wrong:
+22-A problem occurred configuring root project 'smp-terminal'.
+23-> Could not resolve all artifacts for configuration 'classpath'.
+24-   > Could not resolve net.fabricmc:fabric-loom:1.19.3.
+25-     Required by:
+26-         buildscript of root project 'smp-terminal' > net.fabricmc.fabric-loom-remap:net.fabricmc.fabric-loom-remap.gradle.plugin:1.19-SNAPSHOT:20261022.150838-3
+27-      > Dependency requires at least JVM runtime version 25. This build uses a Java 21 JVM.
