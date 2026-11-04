@@ -22,6 +22,7 @@ public final class Config {
 	public List<TimerEntry> timers = new ArrayList<>();
 	public String lastTimerName = "";
 	public long lastTimerMs = HOUR;
+	public int nextColor = 0;
 
 	// AH profit tracker
 	public ProfitData profit = new ProfitData();
@@ -65,6 +66,7 @@ public final class Config {
 		public String name;
 		public long endAt;
 		public long length;
+		public int color = -1;
 	}
 
 	public static class ProfitData {

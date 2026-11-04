@@ -13,12 +13,21 @@ public final class Timers {
 	private Timers() {}
 
 	public static void start(String name, long ms) {
+		start(name, ms, Colors.palette(Config.C.nextColor++));
+	}
+
+	public static int colorOf(Config.TimerEntry t) {
+		return t.color == -1 ? Colors.palette(t.name == null ? 0 : t.name.hashCode()) : t.color;
+	}
+
+	public static void start(String name, long ms, int color) {
 		if (ms <= 0) return;
 		Config.TimerEntry t = new Config.TimerEntry();
 		String clean = name == null ? "" : name.trim();
 		t.name = clean.isEmpty() ? Fmt.label(ms) + " timer" : clean;
 		t.length = ms;
 		t.endAt = System.currentTimeMillis() + ms;
+		t.color = color;
 		Config.C.timers.add(t);
 		Config.C.lastTimerMs = ms;
 		Config.C.lastTimerName = clean;

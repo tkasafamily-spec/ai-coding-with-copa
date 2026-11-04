@@ -1,20 +1,25 @@
 package com.smpterminal.screen;
 
+import com.smpterminal.Colors;
 import com.smpterminal.Config;
 import com.smpterminal.Fmt;
 import com.smpterminal.Timers;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Auction timer: type a custom time or click a saved time, then Start. */
+/** Auction timer: type a custom time or click a saved time, then Start. Colorful, smooth bars. */
 public class TimerScreen extends BaseScreen {
 	private String timeText = "", nameText = "", error = "";
 	private boolean editing;
 	private int listTop;
+	private final List<Button> presetButtons = new ArrayList<>();
+	private final List<Integer> presetColors = new ArrayList<>();
+	private static final int ROW = 26;
 
 	public TimerScreen(Screen parent) {
 		super("Auction Timer", parent);
@@ -36,29 +41,39 @@ public class TimerScreen extends BaseScreen {
 		y += 38;
 		button(editing ? "Done" : "Edit", editing ? "Stop removing" : "Remove saved times", px + pw - 54, y - 4, 44, b -> { editing = !editing; rebuildWidgets(); });
 		y += 14;
+		presetButtons.clear();
+		presetColors.clear();
 		List<Long> presets = Config.C.presets;
 		int cellW = 56, cols = Math.max(1, (pw - 20 + 4) / (cellW + 4));
 		for (int i = 0; i < presets.size() && i < cols * 2; i++) {
 			long ms = presets.get(i);
+			int color = Colors.palette(i);
 			int cx = x + (i % cols) * (cellW + 4), cy = y + (i / cols) * 24;
+			Button b;
 			if (editing) {
-				button("× " + Fmt.label(ms), cx, cy, cellW, b -> { Config.C.presets.remove(Long.valueOf(ms)); Config.save(); rebuildWidgets(); });
+				b = button("× " + Fmt.label(ms), cx, cy, cellW, btn -> { Config.C.presets.remove(Long.valueOf(ms)); Config.save(); rebuildWidgets(); });
 			} else {
-				button(Fmt.label(ms), "Start " + Fmt.label(ms) + (nameText.isBlank() ? "" : " · " + nameText.trim()), cx, cy, cellW, b -> { Timers.start(nameText, ms); rebuildWidgets(); });
+				b = button(Fmt.label(ms), "Start " + Fmt.label(ms) + (nameText.isBlank() ? "" : " · " + nameText.trim()), cx, cy, cellW, btn -> { Timers.start(nameText, ms, color); rebuildWidgets(); });
 			}
+			presetButtons.add(b);
+			presetColors.add(color);
 		}
 		int rows = presets.isEmpty() ? 1 : Math.min(2, (presets.size() + cols - 1) / cols);
 		y += rows * 24 + 6;
 
 		// running timers
-		listTop = y + 12;
+		listTop = y + 14;
 		List<Config.TimerEntry> timers = new ArrayList<>(Config.C.timers);
-		int per = Math.max(1, (bottom() - listTop) / 22);
+		int per = perPage();
 		int start = pager(timers.size(), per, bottom() + 2);
 		for (int i = start; i < Math.min(timers.size(), start + per); i++) {
 			Config.TimerEntry t = timers.get(i);
-			button("Stop", px + pw - 54, listTop + (i - start) * 22, 44, b -> { Timers.stop(t); rebuildWidgets(); });
+			button("Stop", px + pw - 54, listTop + (i - start) * ROW, 44, b -> { Timers.stop(t); rebuildWidgets(); });
 		}
+	}
+
+	private int perPage() {
+		return Math.max(1, (bottom() - listTop) / ROW);
 	}
 
 	private void startCustom() {
@@ -90,26 +105,40 @@ public class TimerScreen extends BaseScreen {
 		text(g, "Custom time", px + 10, py + 29, MUTED);
 		if (!error.isEmpty()) text(g, error, px + 10, py + 63, DOWN);
 		text(g, editing ? "Click a time to remove it" : "Saved times (click to start)", px + 10, py + 80, MUTED);
-		text(g, "Running", px + 10, listTop - 12, MUTED);
+
+		// colored strip on each saved-time button
+		for (int i = 0; i < presetButtons.size(); i++) {
+			Button b = presetButtons.get(i);
+			int c = presetColors.get(i);
+			boolean hover = b.isHovered();
+			g.fill(b.getX() + 2, b.getY() + b.getHeight() - 4, b.getX() + b.getWidth() - 2, b.getY() + b.getHeight() - 2, hover ? Colors.mix(c, 0xFFFFFFFF, 0.35f) : c);
+		}
+
+		text(g, "Running", px + 10, listTop - 13, MUTED);
 		List<Config.TimerEntry> timers = Config.C.timers;
 		if (timers.isEmpty()) {
-			text(g, "No timers running.", px + 10, listTop + 6, MUTED);
+			text(g, "No timers running. Pick a saved time or type one above.", px + 10, listTop + 6, MUTED);
 			return;
 		}
-		int per = Math.max(1, (bottom() - listTop) / 22);
-		int start = page * per;
+		int per = perPage(), start = page * per;
 		long now = System.currentTimeMillis();
 		for (int i = start; i < Math.min(timers.size(), start + per); i++) {
 			Config.TimerEntry t = timers.get(i);
-			int y = listTop + (i - start) * 22 + 6;
+			int rowY = listTop + (i - start) * ROW;
+			int y = rowY + 2;
 			long left = t.endAt - now;
-			text(g, fit(t.name, pw - 170), px + 10, y, TEXT);
-			textRight(g, Fmt.clock(left), px + pw - 62, y, left < 60_000 ? GOLD : UP);
-			// progress bar
+			int color = Timers.colorOf(t);
+			boolean urgent = left <= 60_000;
+			// card behind the row
+			g.fill(px + 8, rowY - 2, px + pw - 58, rowY + ROW - 4, Colors.alpha(color, 0.10f));
+			g.fill(px + 8, rowY - 2, px + 10, rowY + ROW - 4, color);
+			text(g, fit(t.name, pw - 190), px + 15, y, TEXT);
+			String clock = Fmt.clock(left);
+			textRight(g, clock, px + pw - 64, y, Colors.timeColor(color, left));
 			double done = t.length > 0 ? 1 - Math.max(0, left) / (double) t.length : 1;
-			int bx = px + 10, bw = pw - 76, by = y + 10;
-			g.fill(bx, by, bx + bw, by + 2, LINE);
-			g.fill(bx, by, bx + (int) (bw * Math.min(1, done)), by + 2, ACCENT);
+			int pct = (int) Math.floor(Math.min(1, done) * 100);
+			textRight(g, pct + "%", px + pw - 70 - font.width(clock) - 6, y, MUTED);
+			Colors.bar(g, px + 15, y + 11, pw - 15 - 70, 5, done, color, urgent);
 		}
 	}
 }

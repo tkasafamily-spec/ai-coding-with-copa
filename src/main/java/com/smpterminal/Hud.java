@@ -7,7 +7,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Small on-screen box with running timers and today's AH profit. */
+/** Small on-screen box with running timers (with colored progress bars) and today's AH profit. */
 public final class Hud {
 	private Hud() {}
 
@@ -17,42 +17,40 @@ public final class Hud {
 		Minecraft mc = Minecraft.getInstance();
 		Config c = Config.C;
 		if (!c.hud || mc.player == null || mc.options.hideGui) return;
-		List<String> left = new ArrayList<>();
-		List<String> right = new ArrayList<>();
-		List<Integer> colors = new ArrayList<>();
 		long now = System.currentTimeMillis();
-		if (c.hudTimers) {
-			int shown = 0;
-			for (Config.TimerEntry t : c.timers) {
-				if (shown++ >= 4) break;
-				long left0 = t.endAt - now;
-				left.add(t.name);
-				right.add(Fmt.clock(left0));
-				colors.add(left0 < 60_000 ? 0xFFFFB347 : 0xFFE8EAF8);
-			}
-		}
-		if (c.hudProfit) {
-			double net = Profit.net();
-			left.add("AH today");
-			right.add(Fmt.signed(net));
-			colors.add(net >= 0 ? 0xFF3DDC97 : 0xFFFF6B8A);
-		}
-		if (left.isEmpty()) return;
+		List<Config.TimerEntry> timers = new ArrayList<>();
+		if (c.hudTimers) for (Config.TimerEntry t : c.timers) if (timers.size() < 4) timers.add(t);
+		boolean profit = c.hudProfit;
+		if (timers.isEmpty() && !profit) return;
 
 		Font font = mc.font;
-		int w = 0;
-		for (int i = 0; i < left.size(); i++) w = Math.max(w, font.width(left.get(i)) + 12 + font.width(right.get(i)));
-		int h = left.size() * 11 + 6;
-		int boxW = w + 10;
+		double net = profit ? Profit.net() : 0;
+		int w = 110;
+		for (Config.TimerEntry t : timers) w = Math.max(w, font.width(t.name) + 14 + font.width(Fmt.clock(t.endAt - now)));
+		if (profit) w = Math.max(w, font.width("AH today") + 14 + font.width(Fmt.signed(net)));
+		int boxW = w + 14;
+		int h = 6 + timers.size() * 17 + (profit ? 12 : 0);
 		int sw = g.guiWidth(), sh = g.guiHeight();
 		int x = (c.hudCorner == 1 || c.hudCorner == 3) ? sw - boxW - 4 : 4;
 		int y = c.hudCorner >= 2 ? (sh - h) / 2 : 4;
 		g.fill(x, y, x + boxW, y + h, 0x90000000);
-		g.fill(x, y, x + 2, y + h, 0xFF7A8BFF);
-		for (int i = 0; i < left.size(); i++) {
-			int ty = y + 4 + i * 11;
-			g.drawString(font, left.get(i), x + 6, ty, 0xFFB8BEE0);
-			g.drawString(font, right.get(i), x + boxW - 4 - font.width(right.get(i)), ty, colors.get(i));
+		int ty = y + 4;
+		for (Config.TimerEntry t : timers) {
+			long left = t.endAt - now;
+			int color = Timers.colorOf(t);
+			String clock = Fmt.clock(left);
+			g.fill(x, ty - 2, x + 2, ty + 13, color);
+			g.drawString(font, t.name, x + 6, ty, 0xFFDDE1F5);
+			g.drawString(font, clock, x + boxW - 5 - font.width(clock), ty, Colors.timeColor(color, left));
+			double done = t.length > 0 ? 1 - Math.max(0, left) / (double) t.length : 1;
+			Colors.bar(g, x + 6, ty + 10, boxW - 11, 3, done, color, left <= 60_000);
+			ty += 17;
+		}
+		if (profit) {
+			g.fill(x, ty - 2, x + 2, ty + 9, 0xFF7A8BFF);
+			g.drawString(font, "AH today", x + 6, ty, 0xFFB8BEE0);
+			String v = Fmt.signed(net);
+			g.drawString(font, v, x + boxW - 5 - font.width(v), ty, net >= 0 ? 0xFF3DDC97 : 0xFFFF6B8A);
 		}
 	}
 }
