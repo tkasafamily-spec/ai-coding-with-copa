@@ -124,7 +124,7 @@ const SCRIPTS = [
         sfx: "Big 'plunk', glugging",
       },
       {
-        say: [["Pip", "Uh… Mo? MO!"], ["Narrator", "Mo was busy."]],
+        say: [["Pip", "Help! Mo, help me!"], ["Narrator", "Mo was busy."]],
         prompt: "[Pip] spins on the giant duck float, yelling and waving his arms. Cut to [Mo] lying on a sun lounger at the pool edge with big headphones on and his eyes closed, totally ignoring him.",
         sfx: "Swirling water, chill music from headphones",
       },
@@ -180,7 +180,7 @@ const SCRIPTS = [
         sfx: "Rising whistle, doors whooshing past",
       },
       {
-        say: [["Narrator", "Then they heard a sound."], ["Granny Volt", "Beep beep!"]],
+        say: [["Narrator", "Then they heard a sound."], ["Granny Volt", "Beep! Beep!"]],
         prompt: "From the bottom of the dark elevator shaft, [Granny Volt] rockets straight up on her red scooter, flames blasting from the rocket booster, her face determined.",
         sfx: "Scooter horn, rocket roar",
       },
@@ -190,7 +190,7 @@ const SCRIPTS = [
         sfx: "Thud, thud, rocket boost",
       },
       {
-        say: [["Granny Volt", "Don't press that button, sweetie."], ["Pip", "…What button?"]],
+        say: [["Granny Volt", "Don't press that button, sweetie."], ["Pip", "Wait. What button?"]],
         prompt: "Back in the bright elevator lobby, [Granny Volt] wags her finger at [Pip], who nods innocently. Then Pip slowly turns his eyes toward an even bigger glowing red button on the wall behind him. [Mo] sighs.",
         sfx: "Sweet music, then a suspense 'dun dun'",
       },

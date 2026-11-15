@@ -187,6 +187,13 @@ ul.hooks em { color: var(--duck); font-style: normal; }
 .progress { height: 12px; background: var(--panel-2); }
 .progress i { display: block; height: 100%; width: 0; background: var(--good); transition: width .3s; }
 
+audio { width: 100%; color-scheme: dark; min-width: 0; }
+.voice { display: grid; gap: 10px; background: var(--panel-2); padding: 14px; }
+.voice-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.voice-row b { font-family: var(--chunky); font-weight: 400; font-size: 1.05rem; }
+.voice-row b small { display: block; font-family: var(--body); font-weight: 800; font-size: .82rem; color: var(--soft); }
+@media (max-width: 560px) { .voice-row { grid-template-columns: minmax(0, 1fr) auto; } .voice-row audio { grid-column: 1 / -1; grid-row: 2; } }
+.trim { font-size: .85rem; font-weight: 900; color: #000; background: var(--cyan); padding: 3px 8px; }
 .toast {
   position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 120px);
   background: var(--good); color: #000; font-family: var(--chunky); font-size: 1.1rem; padding: 12px 18px 14px; z-index: 20;
@@ -224,7 +231,7 @@ ul.hooks em { color: var(--duck); font-style: normal; }
   <!-- HOW -->
   <section id="how">
     <h2>How one Short gets made</h2>
-    <p class="muted">About an hour per Short once you've done it twice. All of these tools have free plans.</p>
+    <p class="muted">About an hour per Short once you've done it twice. Everything here is free: no paid tools needed.</p>
     <div class="steps">
       <div class="frame step">
         <h3>Get a script</h3>
@@ -242,13 +249,13 @@ ul.hooks em { color: var(--duck); font-style: normal; }
         <p class="tool">Tool: <a href="https://labs.google/flow" target="_blank" rel="noopener">labs.google/flow</a></p>
       </div>
       <div class="frame step">
-        <h3>Make the voice</h3>
-        <p>Paste the voiceover. Easiest: one narrator voice for everything. Better: a different voice for each character. Download the audio.</p>
-        <p class="tool">Tool: <a href="https://elevenlabs.io" target="_blank" rel="noopener">ElevenLabs</a>, or CapCut's free text-to-speech</p>
+        <h3>Get the voice</h3>
+        <p><b class="duck">Already done.</b> Every script below has its voiceover ready, with a different voice for each character. Press play, then save the MP3.</p>
+        <p class="tool">Made free with Kokoro, which is OK to use on a channel that makes money.</p>
       </div>
       <div class="frame step">
         <h3>Edit it</h3>
-        <p>CapCut, 9:16. Clips in order, voice on top, trim each clip to its lines. Auto captions, big and bold in the middle. A sound effect on every action. Music quiet underneath.</p>
+        <p>CapCut, 9:16. Clips in order, then add the voiceover MP3. <b>Fast version:</b> trim each clip to the time shown on its scene. <b>Easy version:</b> leave every clip at 8 seconds. Then auto captions, big and bold in the middle, a sound effect on every action, quiet music underneath.</p>
         <p class="tool">Tool: CapCut (phone or iPad)</p>
       </div>
       <div class="frame step">
@@ -262,7 +269,7 @@ ul.hooks em { color: var(--duck); font-style: normal; }
   <!-- SCRIPTS -->
   <section id="scripts">
     <h2>Ready-to-make scripts</h2>
-    <p class="muted">Each scene is one 8-second clip. Tap a script to open it. <b class="duck">Copy prompt</b> gives you the full Google Flow prompt with the characters already described.</p>
+    <p class="muted">Each scene is one 8-second clip. Tap a script to open it. <b class="duck">Copy prompt</b> gives you the full Google Flow prompt with the characters already described. The voiceovers are already made.</p>
     <div class="row small muted" id="madeCount"></div>
     <div class="scripts" id="scriptList"></div>
   </section>
@@ -271,6 +278,7 @@ ul.hooks em { color: var(--duck); font-style: normal; }
   <section id="maker">
     <h2>Script maker</h2>
     <p class="muted">Type an idea, pick who's in it, tap <b class="duck">Copy for Claude</b>, then paste it into Claude. You get back the voiceover, the storyboard and every scene prompt in the same layout as the scripts above.</p>
+    <p class="muted"><b class="duck">Free voice for a new script:</b> paste Claude's script into Claude Code and say "Add this to my Shorts Studio and make the voiceover." It uses the same free voices.</p>
     <div class="frame maker">
       <div style="display:grid; gap:16px; min-width:0;">
         <div>
@@ -317,7 +325,11 @@ ul.hooks em { color: var(--duck); font-style: normal; }
   <!-- CAST -->
   <section id="cast">
     <h2>The cast</h2>
-    <p class="muted">These five are yours: original characters, not copied from any other channel. Make one picture of each with <b class="duck">Copy picture prompt</b> (in Google Flow's image maker or Gemini), save the best one, and add it as an Ingredient whenever that character is in a scene.</p>
+    <p class="muted">These five are yours: original characters, not copied from any other channel. Press play to hear each voice. Make one picture of each with <b class="duck">Copy picture prompt</b> (in Google Flow's image maker or Gemini), save the best one, and add it as an Ingredient whenever that character is in a scene.</p>
+    <div class="frame" style="grid-template-columns:auto minmax(0,1fr);align-items:center;">
+      <h3>Narrator</h3>
+      <audio controls preload="none" src="voiceovers/cast-narrator.mp3"></audio>
+    </div>
     <div class="cast" id="castList"></div>
   </section>
 
@@ -334,7 +346,7 @@ ul.hooks em { color: var(--duck); font-style: normal; }
       <div class="frame"><h3>Same characters, every time</h3><p>When people know Pip, Mo and Quack, they come back for them. That's how you get subscribers, not just views.</p></div>
       <div class="frame"><h3>Big captions</h3><p>2–4 words at a time, in the middle of the screen, with the key word in yellow. Lots of people watch with the sound off.</p></div>
       <div class="frame"><h3>Sound on every action</h3><p>Whoosh, boing, splash, squeak. Sound effects make cheap animation feel expensive.</p></div>
-      <div class="frame"><h3>40–55 seconds</h3><p>Long enough for a story, short enough that most people finish it.</p></div>
+      <div class="frame"><h3>Short and fast wins</h3><p>The fast voiceovers are 20–25 seconds. Most people watch them to the end, and many watch twice. That's the number YouTube cares about most.</p></div>
     </div>
     <div class="frame">
       <h3>Hook bank</h3>
@@ -404,6 +416,8 @@ ul.hooks em { color: var(--duck); font-style: normal; }
 <script>
 (function () {
   const THUMB_DIR = "../portfolio/thumbnails/";
+  const CAN_DOWNLOAD = true;
+  let CUES = {};
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const castBy = Object.fromEntries(CAST.map((c) => [c.name, c]));
@@ -505,6 +519,12 @@ DESCRIPTION: one short sentence + 3 hashtags`;
   function voiceText(s) {
     return s.scenes.map((sc) => sc.say.map(([w, t]) => `${w}: ${t}`).join("\n")).join("\n\n");
   }
+  function voiceRow(id, suffix, label, note) {
+    const src = `voiceovers/${id}${suffix}.mp3`;
+    return `<div class="voice-row"><b>${label}<small>${note}</small></b>
+      <audio controls preload="none" src="${src}"></audio>
+      ${CAN_DOWNLOAD ? `<a class="btn ghost sm" href="${src}" download>Save MP3</a>` : ""}</div>`;
+  }
   function renderScripts() {
     const list = $("#scriptList");
     list.innerHTML = SCRIPTS.map((s, si) => {
@@ -515,7 +535,7 @@ DESCRIPTION: one short sentence + 3 hashtags`;
       const scenes = s.scenes.map((sc, i) => `
         <div class="scene">
           <div class="scene-head">
-            <div class="scene-num">Scene ${i + 1}<span>${time(i)}</span></div>
+            <div class="scene-num">Scene ${i + 1}<span>${time(i)}</span>${CUES[s.id] ? ` <span class="trim" title="Fast version: trim this clip to this length">Fast: ${CUES[s.id][i]}s</span>` : ""}</div>
             <button class="btn sm" type="button" data-copy-scene="${si}:${i}">Copy prompt</button>
           </div>
           <div class="lines">${sc.say.map(([w, t]) => `<div class="line" style="--c:${colorOf(w)}"><b>${esc(w)}:</b> ${esc(t)}</div>`).join("")}</div>
@@ -538,9 +558,14 @@ DESCRIPTION: one short sentence + 3 hashtags`;
         </summary>
         <div class="s-body">
           <div class="row">
-            <button class="btn ghost sm" type="button" data-copy-voice="${si}">Copy voiceover</button>
+            <button class="btn ghost sm" type="button" data-copy-voice="${si}">Copy voiceover words</button>
             <button class="btn ghost sm" type="button" data-copy-all="${si}">Copy whole script</button>
             <button class="btn sm ${made[s.id] ? "done" : ""}" type="button" data-made="${s.id}">${made[s.id] ? "Made it ✓" : "Mark as made"}</button>
+          </div>
+          <div class="voice">
+            <div class="kv"><b>Voiceover (ready to use)</b></div>
+            ${voiceRow(s.id, "", "Fast", CUES[s.id] ? CUES[s.id].reduce((a, b) => a + b, 0).toFixed(0) + " sec · best for views" : "best for views")}
+            ${voiceRow(s.id, "-8s", "Easy", secs + " sec · full 8-sec clips")}
           </div>
           <div class="kv"><b>On-screen hook (first 2 seconds)</b><span class="duck">${esc(s.hook)}</span></div>
           ${scenes}
@@ -564,7 +589,7 @@ DESCRIPTION: one short sentence + 3 hashtags`;
       const [si, i] = b.dataset.copyScene.split(":").map(Number);
       copy(scenePrompt(SCRIPTS[si].scenes[i].prompt), `Scene ${i + 1} copied. Paste it in Google Flow.`);
     } else if (b.dataset.copyVoice) {
-      copy(voiceText(SCRIPTS[+b.dataset.copyVoice]), "Voiceover copied. Paste it in ElevenLabs.");
+      copy(voiceText(SCRIPTS[+b.dataset.copyVoice]), "Voiceover words copied.");
     } else if (b.dataset.copyAll) {
       copy(scriptText(SCRIPTS[+b.dataset.copyAll]), "Whole script copied.");
     } else if (b.dataset.made) {
@@ -607,6 +632,7 @@ Number of scenes: ${scenes} (${scenes * 8} seconds)`;
       <h3>${esc(c.name)}</h3>
       <p>${esc(c.role)}</p>
       <p class="small"><b>Voice:</b> <span class="muted">${esc(c.voice)}</span></p>
+      ${c.name === "Quack" ? `<p class="small muted">No voice. Use a squeaky-toy sound effect in CapCut.</p>` : `<audio controls preload="none" src="voiceovers/cast-${c.name.toLowerCase().replace(". ", "-").replace(" ", "-")}.mp3"></audio>`}
       <p class="look">${esc(c.look)}</p>
       <div class="row"><button class="btn sm" type="button" data-pic="${i}">Copy picture prompt</button></div>
     </div>`).join("");
@@ -704,8 +730,9 @@ When I type an idea, write the full Short in the layout above. If I just say "id
     e.preventDefault(); copy(FOLLOW[+b.dataset.f][1], `"${FOLLOW[+b.dataset.f][0]}" copied.`);
   });
 
-  renderScripts();
   updateMaker();
+  renderScripts();
+  fetch("voiceovers/cues.json").then((r) => r.json()).then((c) => { CUES = c; renderScripts(); }).catch(() => {});
 })();
 </script>
 </body>
