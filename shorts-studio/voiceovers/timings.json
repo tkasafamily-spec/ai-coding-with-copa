@@ -1,0 +1,620 @@
+{
+ "500m-bucket": [
+  {
+   "start": 0.0,
+   "len": 5.526,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Mr. Bucks said: fill this bucket in sixty seconds, and win five hundred million dollars.",
+     "start": 0.05,
+     "end": 5.076
+    }
+   ]
+  },
+  {
+   "start": 5.526,
+   "len": 4.228,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Easy, right? Pip grabbed a cup and ran to the pool.",
+     "start": 5.676,
+     "end": 8.394
+    },
+    {
+     "who": "Pip",
+     "text": "Easy money!",
+     "start": 8.614,
+     "end": 9.304
+    }
+   ]
+  },
+  {
+   "start": 9.754,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "But the bucket had a hole. A big one.",
+     "start": 9.904,
+     "end": 11.781
+    }
+   ]
+  },
+  {
+   "start": 12.354,
+   "len": 3.729,
+   "lines": [
+    {
+     "who": "Mo",
+     "text": "Bad idea, man. Just give up.",
+     "start": 12.504,
+     "end": 14.326
+    },
+    {
+     "who": "Narrator",
+     "text": "Pip did not give up.",
+     "start": 14.546,
+     "end": 15.633
+    }
+   ]
+  },
+  {
+   "start": 16.083,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Then Quack had an idea.",
+     "start": 16.233,
+     "end": 17.436
+    }
+   ]
+  },
+  {
+   "start": 18.683,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Pip filled it with three seconds left!",
+     "start": 18.833,
+     "end": 20.569
+    }
+   ]
+  },
+  {
+   "start": 21.283,
+   "len": 3.792,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Mr. Bucks handed over the money\u2026 to Quack.",
+     "start": 21.433,
+     "end": 23.749
+    },
+    {
+     "who": "Pip",
+     "text": "Wait, WHAT?!",
+     "start": 23.969,
+     "end": 24.625
+    }
+   ]
+  }
+ ],
+ "pool-day": [
+  {
+   "start": 0.0,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Pip found the biggest pool float in the world.",
+     "start": 0.05,
+     "end": 2.122
+    }
+   ]
+  },
+  {
+   "start": 2.6,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Then someone pulled the plug.",
+     "start": 2.75,
+     "end": 4.074
+    }
+   ]
+  },
+  {
+   "start": 5.2,
+   "len": 2.601,
+   "lines": [
+    {
+     "who": "Pip",
+     "text": "Help! Mo, help me!",
+     "start": 5.35,
+     "end": 6.278
+    },
+    {
+     "who": "Narrator",
+     "text": "Mo was busy.",
+     "start": 6.498,
+     "end": 7.351
+    }
+   ]
+  },
+  {
+   "start": 7.801,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "The float got sucked down the drain\u2026",
+     "start": 7.951,
+     "end": 9.62
+    }
+   ]
+  },
+  {
+   "start": 10.401,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "\u2026through the pipes\u2026",
+     "start": 10.551,
+     "end": 11.424
+    }
+   ]
+  },
+  {
+   "start": 13.001,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "\u2026and out of a fountain in the middle of town.",
+     "start": 13.151,
+     "end": 15.112
+    }
+   ]
+  },
+  {
+   "start": 15.601,
+   "len": 4.191,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "He landed right back in the pool.",
+     "start": 15.751,
+     "end": 17.37
+    },
+    {
+     "who": "Mo",
+     "text": "Oh, you're back. Did I miss anything?",
+     "start": 17.59,
+     "end": 19.342
+    }
+   ]
+  }
+ ],
+ "down-the-shaft": [
+  {
+   "start": 0.0,
+   "len": 4.102,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "The elevator had one red button. It said: don't.",
+     "start": 0.05,
+     "end": 2.835
+    },
+    {
+     "who": "Mo",
+     "text": "Don't.",
+     "start": 3.055,
+     "end": 3.652
+    }
+   ]
+  },
+  {
+   "start": 4.102,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Pip pressed it.",
+     "start": 4.252,
+     "end": 5.07
+    }
+   ]
+  },
+  {
+   "start": 6.702,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "The floor dropped away.",
+     "start": 6.852,
+     "end": 8.034
+    }
+   ]
+  },
+  {
+   "start": 9.302,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Down, down, past every floor\u2026",
+     "start": 9.452,
+     "end": 11.228
+    }
+   ]
+  },
+  {
+   "start": 11.902,
+   "len": 3.043,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Then they heard a sound.",
+     "start": 12.052,
+     "end": 13.043
+    },
+    {
+     "who": "Granny Volt",
+     "text": "Beep! Beep!",
+     "start": 13.263,
+     "end": 14.495
+    }
+   ]
+  },
+  {
+   "start": 14.944,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Granny Volt caught them both.",
+     "start": 15.095,
+     "end": 16.565
+    }
+   ]
+  },
+  {
+   "start": 17.544,
+   "len": 3.541,
+   "lines": [
+    {
+     "who": "Granny Volt",
+     "text": "Don't press that button, sweetie.",
+     "start": 17.694,
+     "end": 19.522
+    },
+    {
+     "who": "Pip",
+     "text": "Wait. What button?",
+     "start": 19.742,
+     "end": 20.635
+    }
+   ]
+  }
+ ],
+ "the-trap": [
+  {
+   "start": 0.0,
+   "len": 4.164,
+   "lines": [
+    {
+     "who": "Mr. Bucks",
+     "text": "Walk across this room, and the million dollars is yours!",
+     "start": 0.05,
+     "end": 3.714
+    }
+   ]
+  },
+  {
+   "start": 4.164,
+   "len": 3.761,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Pip took one step.",
+     "start": 4.314,
+     "end": 5.383
+    },
+    {
+     "who": "Narrator",
+     "text": "The tile behind him fell into a pit.",
+     "start": 5.603,
+     "end": 7.475
+    }
+   ]
+  },
+  {
+   "start": 7.925,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Mo",
+     "text": "Bad idea.",
+     "start": 8.075,
+     "end": 8.925
+    },
+    {
+     "who": "Pip",
+     "text": "I KNOW!",
+     "start": 9.145,
+     "end": 9.702
+    }
+   ]
+  },
+  {
+   "start": 10.525,
+   "len": 3.204,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "He jumped tile to tile as they fell behind him.",
+     "start": 10.675,
+     "end": 13.28
+    }
+   ]
+  },
+  {
+   "start": 13.73,
+   "len": 2.786,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "One tile left. But it was way too far.",
+     "start": 13.88,
+     "end": 16.066
+    }
+   ]
+  },
+  {
+   "start": 16.516,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "So Quack became a trampoline.",
+     "start": 16.666,
+     "end": 18.179
+    }
+   ]
+  },
+  {
+   "start": 19.116,
+   "len": 4.173,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "The coins\u2026 were chocolate.",
+     "start": 19.266,
+     "end": 20.517
+    },
+    {
+     "who": "Mr. Bucks",
+     "text": "I never said they were REAL!",
+     "start": 20.737,
+     "end": 22.84
+    }
+   ]
+  }
+ ],
+ "press-the-button": [
+  {
+   "start": 0.0,
+   "len": 3.765,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "A box appeared. Press the button, get one million dollars.",
+     "start": 0.05,
+     "end": 3.315
+    }
+   ]
+  },
+  {
+   "start": 3.765,
+   "len": 4.233,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "But every time you press it, Mo shrinks one inch.",
+     "start": 3.915,
+     "end": 6.478
+    },
+    {
+     "who": "Mo",
+     "text": "Bad idea.",
+     "start": 6.698,
+     "end": 7.548
+    }
+   ]
+  },
+  {
+   "start": 7.998,
+   "len": 3.213,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Pip pressed it. Money rained down. Mo went\u2026 boop.",
+     "start": 8.148,
+     "end": 10.762
+    }
+   ]
+  },
+  {
+   "start": 11.212,
+   "len": 2.866,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "He pressed it again. And again. And again.",
+     "start": 11.362,
+     "end": 13.627
+    }
+   ]
+  },
+  {
+   "start": 14.077,
+   "len": 3.195,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Now Pip was rich\u2026 and Mo was the size of Quack.",
+     "start": 14.227,
+     "end": 16.822
+    }
+   ]
+  },
+  {
+   "start": 17.272,
+   "len": 4.623,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Then Mo found a second button.",
+     "start": 17.422,
+     "end": 18.862
+    },
+    {
+     "who": "Narrator",
+     "text": "Every press: Pip loses a million dollars.",
+     "start": 19.082,
+     "end": 21.445
+    }
+   ]
+  },
+  {
+   "start": 21.895,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Mo",
+     "text": "Bad idea, man.",
+     "start": 22.045,
+     "end": 23.116
+    },
+    {
+     "who": "Pip",
+     "text": "NOOO!",
+     "start": 23.336,
+     "end": 23.822
+    }
+   ]
+  }
+ ],
+ "last-in-the-circle": [
+  {
+   "start": 0.0,
+   "len": 4.338,
+   "lines": [
+    {
+     "who": "Mr. Bucks",
+     "text": "Last one in the circle wins one hundred thousand dollars!",
+     "start": 0.05,
+     "end": 3.888
+    }
+   ]
+  },
+  {
+   "start": 4.338,
+   "len": 4.539,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Hour one. Mr. Bucks offered pizza to leave.",
+     "start": 4.488,
+     "end": 7.121
+    },
+    {
+     "who": "Narrator",
+     "text": "Mo left instantly.",
+     "start": 7.341,
+     "end": 8.427
+    }
+   ]
+  },
+  {
+   "start": 8.877,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Hour five. A thunderstorm.",
+     "start": 9.027,
+     "end": 10.615
+    }
+   ]
+  },
+  {
+   "start": 11.477,
+   "len": 3.315,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Hour ten. He let loose a goose.",
+     "start": 11.627,
+     "end": 13.422
+    },
+    {
+     "who": "Narrator",
+     "text": "Quack ran.",
+     "start": 13.642,
+     "end": 14.342
+    }
+   ]
+  },
+  {
+   "start": 14.792,
+   "len": 3.003,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Hour twenty. Just Pip and Granny left.",
+     "start": 14.942,
+     "end": 17.345
+    }
+   ]
+  },
+  {
+   "start": 17.795,
+   "len": 2.6,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Pip fell asleep\u2026 and rolled out.",
+     "start": 17.945,
+     "end": 19.642
+    }
+   ]
+  },
+  {
+   "start": 20.395,
+   "len": 4.248,
+   "lines": [
+    {
+     "who": "Narrator",
+     "text": "Granny Volt won.",
+     "start": 20.545,
+     "end": 21.572
+    },
+    {
+     "who": "Granny Volt",
+     "text": "I've been sitting still for eighty years, sweetie.",
+     "start": 21.792,
+     "end": 24.193
+    }
+   ]
+  }
+ ]
+}

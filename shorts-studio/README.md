@@ -35,3 +35,19 @@ They're made with [Kokoro](https://github.com/thewh1teagle/kokoro-onnx), a free 
 ```
 
 Character voices are set in `voice-maker/make_voice.py` (`VOICES`).
+
+## Animated videos
+
+`videos/<script>.mp4` are the finished Shorts (1080 × 1920, 30 fps, with voice, captions, sound effects and music).
+
+They're made in code by `animator/`: a Three.js scene for each script (`animator/shorts/<script>.js`) with the toy-style cast from `animator/engine.js`, rendered frame by frame in headless Chrome, with sound effects and music synthesised by `animator/sound.py`. Everything is free and made from scratch.
+
+To re-render one (after `npm install` in `animator/`):
+
+```
+python3 animator/captions.py <script-id>      # word timings for captions
+node animator/render.js <script-id>           # → animator/out/<script-id>.mp4
+node animator/render.js <script-id> --stills 1,5,9   # quick test frames
+```
+
+New script? Ask Claude Code: "Animate my new Short the same way."

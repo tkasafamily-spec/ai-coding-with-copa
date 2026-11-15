@@ -53,14 +53,16 @@ def write_mp3(audio, path):
                     "-ar", "44100", "-ac", "1", "-b:a", "160k", path], check=True)
     os.remove(wav)
 
-cues = {}
+cues, timings = {}, {}
 for s in SCRIPTS:
-    clips = []
+    clips, line_offs = [], []
     for sc in s["scenes"]:
-        parts = []
+        parts, offs, pos = [], [], 0
         for who, text in sc["say"]:
-            parts += [say(who, text), GAP]
-        clips.append(np.concatenate(parts[:-1]))
+            a = say(who, text)
+            offs.append({"who": who, "text": text, "start": pos / SR, "end": (pos + len(a)) / SR})
+            parts += [a, GAP]; pos += len(a) + len(GAP)
+        clips.append(np.concatenate(parts[:-1])); line_offs.append(offs)
     # Easy: each scene starts at the start of its 8-second clip
     easy = np.zeros(int(len(clips) * SCENE * SR), dtype="float32")
     for i, c in enumerate(clips):
@@ -68,17 +70,22 @@ for s in SCRIPTS:
         easy[a:a + len(c)] += c[: len(easy) - a]
     write_mp3(easy, f'{OUT}/{s["id"]}-8s.mp3')
     # Fast: each scene lasts as long as its lines (min 2.6s), clips trimmed to match
-    fast, t, scene_lens = [], 0.0, []
+    fast, t, scene_lens, tl = [], 0.0, [], []
     for i, c in enumerate(clips):
         lead = 0.05 if i == 0 else 0.15
         length = min(SCENE, max(2.6, lead + len(c) / SR + 0.45))
         seg = np.zeros(int(length * SR), dtype="float32")
         a = int(lead * SR); seg[a:a + len(c)] = c[: len(seg) - a]
+        tl.append({"start": round(t, 3), "len": round(len(seg) / SR, 3),
+                   "lines": [dict(l, start=round(t + lead + l["start"], 3), end=round(t + lead + l["end"], 3)) for l in line_offs[i]]})
+        t += len(seg) / SR
         fast.append(seg); scene_lens.append(round(length, 1))
     write_mp3(np.concatenate(fast), f'{OUT}/{s["id"]}.mp3')
     cues[s["id"]] = scene_lens
+    timings[s["id"]] = tl
     print(s["id"], "fast:", round(sum(scene_lens), 1), "s", scene_lens)
 json.dump(cues, open(f"{OUT}/cues.json", "w"))
+json.dump(timings, open(f"{OUT}/timings.json", "w"), indent=1)
 
 SAMPLES = {
     "Narrator": "This is the narrator. Mr. Bucks said: fill this bucket, and win five hundred million dollars.",

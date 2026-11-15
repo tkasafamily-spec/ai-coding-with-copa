@@ -194,6 +194,12 @@ audio { width: 100%; color-scheme: dark; min-width: 0; }
 .voice-row b small { display: block; font-family: var(--body); font-weight: 800; font-size: .82rem; color: var(--soft); }
 @media (max-width: 560px) { .voice-row { grid-template-columns: minmax(0, 1fr) auto; } .voice-row audio { grid-column: 1 / -1; grid-row: 2; } }
 .trim { font-size: .85rem; font-weight: 900; color: #000; background: var(--cyan); padding: 3px 8px; }
+.vids { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 14px; }
+.vid { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.vid video { width: 100%; aspect-ratio: 9 / 16; background: #000; display: block; }
+.vid b { font-family: var(--chunky); font-weight: 400; font-size: 1.1rem; line-height: 1.15; }
+.vid span { color: var(--soft); font-size: .88rem; }
+.s-video { width: min(100%, 280px); aspect-ratio: 9 / 16; background: #000; }
 .toast {
   position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 120px);
   background: var(--good); color: #000; font-family: var(--chunky); font-size: 1.1rem; padding: 12px 18px 14px; z-index: 20;
@@ -211,12 +217,14 @@ audio { width: 100%; color-scheme: dark; min-width: 0; }
     <h1>Pip &amp; Quack</h1>
     <p class="lead">Your whole animated Shorts channel in one place: the cast, six scripts ready to make, a script maker for new ones, and the channel setup. Tap any <b class="duck">Copy</b> button and paste it where it says.</p>
     <div class="row">
-      <a class="btn" href="#scripts">Make my first Short</a>
+      <a class="btn" href="#videos">Watch my Shorts</a>
+      <a class="btn ghost" href="#scripts">Scripts</a>
       <a class="btn ghost" href="#setup">Set up the channel</a>
     </div>
   </header>
 
   <nav class="jump" aria-label="Sections">
+    <a href="#videos">My Shorts</a>
     <a href="#how">How it works</a>
     <a href="#scripts">Scripts</a>
     <a href="#maker">Script maker</a>
@@ -228,10 +236,17 @@ audio { width: 100%; color-scheme: dark; min-width: 0; }
     <a href="#claude">Claude prompts</a>
   </nav>
 
+  <!-- VIDEOS -->
+  <section id="videos">
+    <h2>Your Shorts, ready to upload</h2>
+    <p class="muted">All 6 are fully animated, with voices, bold captions, sound effects and music. Each one is 1080 × 1920, ready for YouTube Shorts. Watch them here, then upload them from the files Claude sent you.</p>
+    <div class="vids" id="vidList"></div>
+  </section>
+
   <!-- HOW -->
   <section id="how">
     <h2>How one Short gets made</h2>
-    <p class="muted">About an hour per Short once you've done it twice. Everything here is free: no paid tools needed.</p>
+    <p class="muted">Your first 6 are already animated for you (see <a href="#videos">Your Shorts</a>). For new ones, you can ask Claude Code to animate them the same way, or make them yourself like this. Everything here is free.</p>
     <div class="steps">
       <div class="frame step">
         <h3>Get a script</h3>
@@ -525,6 +540,14 @@ DESCRIPTION: one short sentence + 3 hashtags`;
       <audio controls preload="none" src="${src}"></audio>
       ${CAN_DOWNLOAD ? `<a class="btn ghost sm" href="${src}" download>Save MP3</a>` : ""}</div>`;
   }
+  function renderVideos() {
+    $("#vidList").innerHTML = SCRIPTS.map((s) => `
+      <div class="vid">
+        <video controls playsinline preload="metadata" src="videos/${s.id}.mp4"></video>
+        <b>${esc(s.title)}</b>
+        <span>${esc(s.titles[0])}</span>
+      </div>`).join("");
+  }
   function renderScripts() {
     const list = $("#scriptList");
     list.innerHTML = SCRIPTS.map((s, si) => {
@@ -562,6 +585,7 @@ DESCRIPTION: one short sentence + 3 hashtags`;
             <button class="btn ghost sm" type="button" data-copy-all="${si}">Copy whole script</button>
             <button class="btn sm ${made[s.id] ? "done" : ""}" type="button" data-made="${s.id}">${made[s.id] ? "Made it ✓" : "Mark as made"}</button>
           </div>
+          <div class="kv"><b>The finished Short</b><video class="s-video" controls playsinline preload="none" src="videos/${s.id}.mp4"></video></div>
           <div class="voice">
             <div class="kv"><b>Voiceover (ready to use)</b></div>
             ${voiceRow(s.id, "", "Fast", CUES[s.id] ? CUES[s.id].reduce((a, b) => a + b, 0).toFixed(0) + " sec · best for views" : "best for views")}
@@ -731,6 +755,7 @@ When I type an idea, write the full Short in the layout above. If I just say "id
   });
 
   updateMaker();
+  renderVideos();
   renderScripts();
   fetch("voiceovers/cues.json").then((r) => r.json()).then((c) => { CUES = c; renderScripts(); }).catch(() => {});
 })();
