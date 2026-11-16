@@ -84,7 +84,7 @@ export const SHOTS2 = {
   chocRain() {
     const S = new Shot({ shadow: 12, exposure: 1.1, fogNear: 30, fogFar: 120 }); kitchen(S); bigPiles(S, 11); table(S);
     const tp = pile(S, { x: 0.15, y: 0.76, z: 0, r: 0.75, h: 0.9, n: 260, seed: 5 });
-    const man = new Stick(S, { x: -1.6, z: 0.4 }); man.dir = 1;
+    const man = new Stick(S, { x: -0.9, z: 1.0 }); man.dir = 1;
     const N = 220, rain = bars(S, N);
     return { S, update(t, d) {
       man.pose("shocked", t, { face: { look: 0.6 } });
@@ -181,7 +181,7 @@ export const SHOTS2 = {
     house(S, { z: -6 }); pile(S, { x: 0.5, y: 4.5, z: -6, r: 5.0, h: 22, n: 2000, seed: 21, s: 2.2 });
     S.road(80, 7, { z: 0, ry: Math.PI / 2 }).position.set(0, 0, 4);
     const amb = ambulance(S, { x: 3.2, z: 4, ry: -Math.PI / 2 });
-    const docs = [new Stick(S, { x: -1.3, z: 1.6, badge: true }), new Stick(S, { x: -0.3, z: 1.9, badge: true })];
+    const docs = [new Stick(S, { x: -1.3, z: 1.6, badge: true, shirt: "#f4f4f2", coat: true, hair: "#2b2118" }), new Stick(S, { x: -0.3, z: 1.9, badge: true, shirt: "#f4f4f2", coat: true, hair: "#c8a165" })];
     return { S, update(t, d) {
       amb.flash(t); docs[0].pose("idle", t, { face: { mouth: "frown", look: -0.3 } }); docs[1].pose("idle", t + 1, { face: { mouth: "frown", look: -0.5 } }); docs[1].P.ra = [1.2 + 0.2 * Math.sin(t * 6), 1.6];
       S.move(t / d, [[3, 3.2, 17], [0, 2.2, 0], 46], [[1, 2.8, 14], [0, 2.2, 0], 46]);

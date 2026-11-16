@@ -109,6 +109,15 @@ function windowTex(seed, kind) {
   t.wrapS = t.wrapT = THREE.RepeatWrapping; return (WIN[k] = t);
 }
 
+const TOON = new Map();
+const GRAD = (() => { const d = new Uint8Array([120, 120, 120, 255, 190, 190, 190, 255, 255, 255, 255, 255]); const t = new THREE.DataTexture(d, 3, 1); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+const OUTM = {};
+function outlineMat(ink, w) {
+  const k = ink + w.toFixed(4); if (OUTM[k]) return OUTM[k];
+  const m = new THREE.MeshBasicMaterial({ color: ink, side: THREE.BackSide });
+  m.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace("#include <begin_vertex>", `#include <begin_vertex>\n transformed += normalize(normal) * ${w.toFixed(5)};`); };
+  m.customProgramCacheKey = () => k; return (OUTM[k] = m);
+}
 // ── a shot (one scene + camera) ────────────────────────
 export class Shot {
   constructor(o = {}) {
@@ -148,6 +157,25 @@ export class Shot {
   shake(t, amt) { this.cam.position.x += Math.sin(t * 53) * amt; this.cam.position.y += Math.cos(t * 47) * amt; this.cam.rotation.z += Math.sin(t * 37) * amt * 0.05; }
   render() { if (this.sticks) { this.cam.updateMatrixWorld(); this.sticks.forEach((k) => k.sync(this.cam)); } if (this.dome) this.dome.position.copy(this.cam.position); renderer.toneMappingExposure = this.exposure; renderer.render(this.scene, this.cam); return renderer.domElement; }
 
+  // ── hand-drawn look: flat cartoon shading + dark outlines on everything ──
+  toonify(o = {}) {
+    const ink = o.ink || "#2b2118", w = o.outline ?? 0.025, done = new Set(), add = [];
+    this.scene.traverse((m) => {
+      if (!(m.isMesh || m.isInstancedMesh) || m.userData.noToon || m === this.dome || m === this.groundMesh || done.has(m)) return;
+      const conv = (x) => { if (!x || !x.isMeshStandardMaterial) return x; if (TOON.has(x)) return TOON.get(x);
+        const c = x.color.clone().lerp(new THREE.Color("#f3e6cf"), 0.12); const t = new THREE.MeshToonMaterial({ color: c, map: x.map, gradientMap: GRAD, emissive: x.emissive, emissiveIntensity: x.emissiveIntensity, emissiveMap: x.emissiveMap, transparent: x.transparent, opacity: x.opacity, side: x.side });
+        TOON.set(x, t); return t; };
+      m.material = Array.isArray(m.material) ? m.material.map(conv) : conv(m.material);
+      const g = m.geometry; if (!g || g.type === "PlaneGeometry" || g.type === "TorusGeometry" || m.userData.noOutline) return;
+      if (g.boundingSphere === null) g.computeBoundingSphere(); if (g.boundingSphere.radius < 0.02) return;
+      const om = outlineMat(ink, w / Math.max(1e-3, m.getWorldScale(new THREE.Vector3()).x));
+      const ol = m.isInstancedMesh ? new THREE.InstancedMesh(g, om, m.count) : new THREE.Mesh(g, om);
+      if (m.isInstancedMesh) ol.instanceMatrix = m.instanceMatrix;
+      ol.castShadow = false; ol.receiveShadow = false; ol.frustumCulled = false; ol.userData.noToon = true; done.add(ol); add.push([m, ol]);
+    });
+    add.forEach(([m, ol]) => { m.add(ol); if (m.isInstancedMesh) { ol.position.set(0, 0, 0); } });
+    this.toon = true;
+  }
   // ── props ────────────────────────────────────────
   car(color, p = {}) {
     const g = this.group(p); const body = mat(color, { rough: 0.25, metal: 0.1 }); const glass = mat("#1f2b3a", { rough: 0.08, metal: 0.4 });

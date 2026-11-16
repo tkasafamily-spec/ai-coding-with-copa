@@ -35,7 +35,7 @@ export class Stick {
     this.mesh.renderOrder = 5; this.root = new THREE.Group(); this.root.add(this.mesh); this.mesh.position.y = CH / PX / 2 - 0.15; S.scene.add(this.root);
     const sh = canvasTex(128, 64, (x, w, h) => { const g = x.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, w / 2); g.addColorStop(0, "rgba(0,0,0,.45)"); g.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = g; x.fillRect(0, 0, w, h); });
     this.shadow = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.5), new THREE.MeshBasicMaterial({ map: sh, transparent: true, depthWrite: false })); this.shadow.rotation.x = -Math.PI / 2; this.shadow.position.y = 0.012; S.scene.add(this.shadow);
-    this.color = o.color || "#111"; this.badge = o.badge; this.dir = 1; this.scale = o.scale || 1;
+    this.ink = o.ink || "#2b2118"; this.shirt = o.shirt || "#e8833a"; this.hair = o.hair === undefined ? "#6b4226" : o.hair; this.shoes = o.shoes || "#3a2a20"; this.coat = o.coat; this.badge = o.badge; this.dir = 1; this.scale = o.scale || 1;
     (S.sticks || (S.sticks = [])).push(this);
     this.at(o.x || 0, o.y || 0, o.z || 0); this.pose("idle", 0);
   }
@@ -61,35 +61,46 @@ export class Stick {
     const sh = pt(0, 0, Math.PI + lean, TORSO - 0.08);
     const A = [limb(sh, [P.la[0] + lean, P.la[1]], UPPER, FORE), limb(sh, [P.ra[0] + lean, P.ra[1]], UPPER, FORE)];
     const stroke = (pts, w, c) => { x.beginPath(); x.moveTo(...pts[0]); for (let i = 1; i < pts.length; i++) x.lineTo(...pts[i]); x.lineWidth = w; x.strokeStyle = c; x.lineCap = "round"; x.lineJoin = "round"; x.stroke(); };
-    const body = [[0, 0], neck], W = 0.075 * PX;
-    // white outline first so he pops off any background, then black
-    for (const [w, c] of [[W + 10, "#fff"], [W, this.color]]) { [L[0], L[1], body, A[0], A[1]].forEach((p) => stroke(p, w, c)); }
-    if (this.badge) { const m = pt(0, 0, Math.PI + lean, TORSO * 0.6); x.fillStyle = "#fff"; x.fillRect(m[0] - 16, m[1] - 16, 32, 32); x.fillStyle = "#e3242b"; x.fillRect(m[0] - 4, m[1] - 13, 8, 26); x.fillRect(m[0] - 13, m[1] - 4, 26, 8); }
+    const INK = this.ink, W = 0.042 * PX, SKIN = "#fbf6ea", shirt = this.shirt;
+    const shoe = (l) => { const [, k, e] = l; const a = Math.atan2(e[1] - k[1], e[0] - k[0]) - Math.PI / 2; x.save(); x.translate(...e); x.rotate(a); x.beginPath(); x.ellipse(9, 2, 17, 9, 0, 0, 7); x.fillStyle = this.shoes; x.fill(); x.lineWidth = 4; x.strokeStyle = INK; x.stroke(); x.restore(); };
+    const hand = (l) => { x.beginPath(); x.arc(...l[2], 9, 0, 7); x.fillStyle = SKIN; x.fill(); x.lineWidth = 4; x.strokeStyle = INK; x.stroke(); };
+    const arm = (l) => { stroke(l, W, INK); const sl = [l[0], [lerp(l[0][0], l[1][0], 0.75), lerp(l[0][1], l[1][1], 0.75)]]; stroke(sl, 0.1 * PX + 8, INK); stroke(sl, 0.1 * PX, shirt); hand(l); };
+    // back arm, legs, jacket, front arm
+    arm(A[0]);
+    for (const l of L) { stroke(l, W, INK); shoe(l); }
+    const dx = Math.sin(Math.PI + lean), dy = Math.cos(Math.PI + lean), nx = -dy, ny = dx; // torso direction + its normal
+    const top = [neck[0] - dx * 4, neck[1] - dy * 4], bot = [-dx * -0.1 * PX, -dy * -0.1 * PX], wt = 0.15 * PX, wb = 0.18 * PX;
+    x.beginPath(); x.moveTo(top[0] + nx * wt, top[1] + ny * wt); x.quadraticCurveTo(top[0], top[1] - dy * 10, top[0] - nx * wt, top[1] - ny * wt); x.lineTo(bot[0] - nx * wb, bot[1] - ny * wb); x.quadraticCurveTo(bot[0] + dx * -8, bot[1] + dy * -8, bot[0] + nx * wb, bot[1] + ny * wb); x.closePath();
+    x.fillStyle = shirt; x.fill(); x.lineWidth = 6; x.strokeStyle = INK; x.stroke();
+    if (this.coat) { x.beginPath(); x.moveTo(top[0], top[1]); x.lineTo(bot[0], bot[1]); x.lineWidth = 4; x.stroke(); }
+    if (this.badge) { const m = [lerp(top[0], bot[0], 0.35) + nx * 0.06 * PX, lerp(top[1], bot[1], 0.35) + ny * 0.06 * PX]; x.fillStyle = "#e3242b"; x.fillRect(m[0] - 4, m[1] - 12, 8, 24); x.fillRect(m[0] - 12, m[1] - 4, 24, 8); }
+    arm(A[1]);
     // things in hands
-    const bar = (hp, ang) => { x.save(); x.translate(...hp); x.rotate(ang); x.fillStyle = "#5a2e14"; x.fillRect(-10, -26, 20, 52); x.fillStyle = "#c0262d"; x.fillRect(-11, -4, 22, 30); x.fillStyle = "#ffd23a"; x.fillRect(-11, 6, 22, 5); x.strokeStyle = "#fff"; x.lineWidth = 3; x.strokeRect(-11, -26, 22, 52); x.restore(); };
+    const bar = (hp, ang) => { x.save(); x.translate(...hp); x.rotate(ang); x.fillStyle = "#5a2e14"; x.fillRect(-10, -26, 20, 52); x.fillStyle = "#c0262d"; x.fillRect(-11, -4, 22, 30); x.fillStyle = "#ffd23a"; x.fillRect(-11, 6, 22, 5); x.strokeStyle = INK; x.lineWidth = 4; x.strokeRect(-11, -26, 22, 52); x.restore(); };
     if (P.hold === "bar" || P.hold === "both") bar(A[1][2], 0.4);
     if (P.hold === "both") bar(A[0][2], -0.3);
     // head
-    const hr = HEAD * PX, f = P.face; x.save(); x.translate(...head);
-    x.beginPath(); x.arc(0, 0, hr + 5, 0, 7); x.fillStyle = "#fff"; x.fill();
-    x.beginPath(); x.arc(0, 0, hr - W / 2 + 2, 0, 7); x.fillStyle = f.green ? "#b8e986" : "#fff"; x.fill(); x.lineWidth = W; x.strokeStyle = this.color; x.stroke();
-    const lx = (f.look ?? 0.35) * hr * 0.35, ey = -hr * 0.12, ex = hr * 0.36;
-    x.fillStyle = this.color; x.strokeStyle = this.color; x.lineWidth = 6; x.lineCap = "round";
+    const hr = HEAD * PX * 1.25, f = P.face; x.save(); x.translate(head[0], head[1] - hr * 0.2);
+    x.beginPath(); x.arc(0, 0, hr, 0, 7); x.fillStyle = f.green ? "#cfe8a9" : SKIN; x.fill(); x.lineWidth = 6; x.strokeStyle = INK; x.stroke();
+    if (this.hair) { x.beginPath(); x.arc(0, 0, hr + 1, Math.PI * 1.02, Math.PI * 1.98); x.quadraticCurveTo(hr * 0.75, -hr * 0.15, hr * 0.15, -hr * 0.42); x.quadraticCurveTo(-hr * 0.5, -hr * 0.25, -hr * 1.0, -hr * 0.02); x.closePath(); x.fillStyle = this.hair; x.fill(); x.lineWidth = 5; x.stroke(); }
+    const lx = (f.look ?? 0.35) * hr * 0.3, ey = hr * 0.02, ex = hr * 0.3;
+    x.fillStyle = INK; x.strokeStyle = INK; x.lineWidth = 5; x.lineCap = "round";
+    if (!f.green) { x.fillStyle = "rgba(255,140,140,.35)"; for (const s of [-1, 1]) { x.beginPath(); x.ellipse(s * hr * 0.55 + lx, hr * 0.32, 10, 6, 0, 0, 7); x.fill(); } x.fillStyle = INK; }
     for (const s of [-1, 1]) { const cx = s * ex + lx;
-      if (f.eyes === "open") { x.beginPath(); x.ellipse(cx, ey, 7, 11, 0, 0, 7); x.fill(); }
-      else if (f.eyes === "wide") { x.beginPath(); x.arc(cx, ey, 13, 0, 7); x.fillStyle = "#fff"; x.fill(); x.lineWidth = 4; x.stroke(); x.fillStyle = this.color; x.beginPath(); x.arc(cx + 2, ey, 6, 0, 7); x.fill(); }
-      else if (f.eyes === "closed" || f.eyes === "tired") { x.beginPath(); x.arc(cx, ey + (f.eyes === "tired" ? 4 : 0), 9, f.eyes === "tired" ? Math.PI : 0.2, f.eyes === "tired" ? 2 * Math.PI : Math.PI - 0.2); x.stroke(); }
-      else if (f.eyes === "x") { x.beginPath(); x.moveTo(cx - 8, ey - 8); x.lineTo(cx + 8, ey + 8); x.moveTo(cx + 8, ey - 8); x.lineTo(cx - 8, ey + 8); x.stroke(); }
-      else if (f.eyes === "spiral") { x.beginPath(); for (let a = 0; a < 12; a += 0.3) x.lineTo(cx + Math.cos(a + t * 12) * a * 1.1, ey + Math.sin(a + t * 12) * a * 1.1); x.lineWidth = 3; x.stroke(); x.lineWidth = 6; } }
-    const my = hr * 0.38, mx = lx * 0.6, brown = f.brown ? "#5a2e14" : this.color;
-    x.strokeStyle = brown; x.fillStyle = brown; x.lineWidth = 6;
-    if (f.mouth === "smile") { x.beginPath(); x.arc(mx, my - 10, 18, 0.3, Math.PI - 0.3); x.stroke(); }
-    else if (f.mouth === "grin") { x.beginPath(); x.arc(mx, my - 14, 24, 0.1, Math.PI - 0.1); x.closePath(); x.fillStyle = "#fff"; x.fill(); x.stroke(); }
-    else if (f.mouth === "frown") { x.beginPath(); x.arc(mx, my + 14, 16, Math.PI + 0.4, -0.4); x.stroke(); }
-    else if (f.mouth === "O") { x.beginPath(); x.ellipse(mx, my, 11, 16, 0, 0, 7); x.fill(); }
-    else if (f.mouth === "open") { x.beginPath(); x.ellipse(mx, my - 2, 16, 12, 0, 0, 7); x.fill(); }
-    else if (f.mouth === "chew") { const o = 4 + 8 * Math.abs(Math.sin(t * 14)); x.beginPath(); x.ellipse(mx, my - 2, 15, o, 0, 0, 7); x.fill(); }
-    else if (f.mouth === "sick") { x.beginPath(); for (let i = -18; i <= 18; i += 2) x.lineTo(mx + i, my + Math.sin(i * 0.5 + t * 6) * 4); x.stroke(); }
+      if (f.eyes === "open") { x.beginPath(); x.ellipse(cx, ey, 6, 8, 0, 0, 7); x.fill(); x.lineWidth = 4; x.beginPath(); x.moveTo(cx - 9, ey - 17 - (s * 0)); x.lineTo(cx + 9, ey - 18); x.stroke(); }
+      else if (f.eyes === "wide") { x.beginPath(); x.arc(cx, ey, 12, 0, 7); x.fillStyle = "#fff"; x.fill(); x.lineWidth = 4; x.stroke(); x.fillStyle = INK; x.beginPath(); x.arc(cx + 2, ey, 5, 0, 7); x.fill(); }
+      else if (f.eyes === "closed" || f.eyes === "tired") { x.lineWidth = 4; x.beginPath(); x.arc(cx, ey + (f.eyes === "tired" ? 4 : -2), 8, f.eyes === "tired" ? Math.PI : 0.2, f.eyes === "tired" ? 2 * Math.PI : Math.PI - 0.2); x.stroke(); }
+      else if (f.eyes === "x") { x.beginPath(); x.moveTo(cx - 7, ey - 7); x.lineTo(cx + 7, ey + 7); x.moveTo(cx + 7, ey - 7); x.lineTo(cx - 7, ey + 7); x.stroke(); }
+      else if (f.eyes === "spiral") { x.beginPath(); for (let a = 0; a < 12; a += 0.3) x.lineTo(cx + Math.cos(a + t * 12) * a, ey + Math.sin(a + t * 12) * a); x.lineWidth = 3; x.stroke(); x.lineWidth = 5; } }
+    const my = hr * 0.42, mx = lx * 0.7, brown = f.brown ? "#5a2e14" : INK;
+    x.strokeStyle = brown; x.fillStyle = brown; x.lineWidth = 5;
+    if (f.mouth === "smile") { x.beginPath(); x.arc(mx, my - 9, 12, 0.35, Math.PI - 0.35); x.stroke(); }
+    else if (f.mouth === "grin") { x.beginPath(); x.arc(mx, my - 12, 18, 0.1, Math.PI - 0.1); x.closePath(); x.fillStyle = "#fff"; x.fill(); x.stroke(); }
+    else if (f.mouth === "frown") { x.beginPath(); x.arc(mx, my + 10, 11, Math.PI + 0.45, -0.45); x.stroke(); }
+    else if (f.mouth === "O") { x.beginPath(); x.ellipse(mx, my, 8, 12, 0, 0, 7); x.fill(); }
+    else if (f.mouth === "open") { x.beginPath(); x.ellipse(mx, my - 2, 12, 9, 0, 0, 7); x.fill(); }
+    else if (f.mouth === "chew") { const o = 3 + 6 * Math.abs(Math.sin(t * 14)); x.beginPath(); x.ellipse(mx, my - 2, 11, o, 0, 0, 7); x.fill(); if (f.brown) { x.beginPath(); x.ellipse(mx - 14, my + 4, 6, 4, 0, 0, 7); x.fill(); } }
+    else if (f.mouth === "sick") { x.beginPath(); for (let i = -14; i <= 14; i += 2) x.lineTo(mx + i, my + Math.sin(i * 0.6 + t * 6) * 3); x.stroke(); }
     if (f.sweat) { x.fillStyle = "#6ec6ff"; for (const s of [1]) { const yy = -hr * 0.4 + ((t * 0.8) % 1) * hr * 0.8; x.beginPath(); x.moveTo(s * hr * 0.9, yy - 10); x.quadraticCurveTo(s * hr * 0.9 + 9, yy + 6, s * hr * 0.9, yy + 8); x.quadraticCurveTo(s * hr * 0.9 - 9, yy + 6, s * hr * 0.9, yy - 10); x.fill(); } }
     x.restore(); x.restore();
     this.tex.needsUpdate = true;

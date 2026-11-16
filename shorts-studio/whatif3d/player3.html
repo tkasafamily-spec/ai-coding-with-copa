@@ -31,7 +31,7 @@ function makeGrain() {
 window.init = async (data) => {
   D = data; D.fact = data.video; await document.fonts.load("900 92px Montserrat"); await document.fonts.load("800 40px Montserrat");
   await loadChars(CAST);
-  BUILT = D.video.beats.map((b) => { if (!SHOTS[b.shot]) throw new Error("no shot " + b.shot); return SHOTS[b.shot](); });
+  BUILT = D.video.beats.map((b) => { if (!SHOTS[b.shot]) throw new Error("no shot " + b.shot); const s = SHOTS[b.shot](); if (D.video.style === "stick") s.S.toonify(); return s; });
   makeGrain(); return true;
 };
 const span = (i) => [i === 0 ? 0 : D.voice.beats[i].start - 0.06, i + 1 < D.voice.beats.length ? D.voice.beats[i + 1].start - 0.06 : D.voice.duration];
@@ -51,11 +51,11 @@ function drawBeat(i, t) {
   const gl = BUILT[i].S.render();
   const punch = (i === 0 ? 0.12 : 0.05) * (1 - easeOut(seg(lt, 0, 0.3)));
   const whip = (i === 0 ? 0 : 1) * (1 - easeOut(seg(lt, 0, 0.16))) * (i % 2 ? -140 : 140);
-  ctx.save(); ctx.translate(W / 2 + whip, H / 2); ctx.scale(1 + punch, 1 + punch); ctx.filter = (res.filter || "") + " contrast(1.06) saturate(1.15)";
+  ctx.save(); ctx.translate(W / 2 + whip, H / 2); ctx.scale(1 + punch, 1 + punch); ctx.filter = (res.filter || "") + (D.video.style === "stick" ? " saturate(0.88) sepia(0.1) contrast(1.03)" : " contrast(1.06) saturate(1.15)");
   ctx.drawImage(gl, -W / 2, -H / 2, W, H); ctx.restore(); ctx.filter = "none";
   // soft glow on bright parts (glossy cartoon look)
-  BLOOM.x.filter = "brightness(0.85) contrast(2.4) blur(6px)"; BLOOM.x.drawImage(cv, 0, 0, 270, 480); BLOOM.x.filter = "none";
-  ctx.save(); ctx.globalCompositeOperation = "screen"; ctx.globalAlpha = 0.28; ctx.drawImage(BLOOM.c, 0, 0, W, H); ctx.restore();
+  if (D.video.style !== "stick") { BLOOM.x.filter = "brightness(0.85) contrast(2.4) blur(6px)"; BLOOM.x.drawImage(cv, 0, 0, 270, 480); BLOOM.x.filter = "none";
+  ctx.save(); ctx.globalCompositeOperation = "screen"; ctx.globalAlpha = 0.28; ctx.drawImage(BLOOM.c, 0, 0, W, H); ctx.restore(); }
   if (i > 0 && lt < 0.1) { ctx.fillStyle = `rgba(255,255,255,${0.45 * (1 - lt / 0.1)})`; ctx.fillRect(0, 0, W, H); }
   const hash = (n) => { const x = Math.sin(n * 127.1 + i * 311.7) * 43758.5453; return x - Math.floor(x); };
   if (b.fx === "glitch" && (lt < 0.5 || hash(Math.floor(t * 8)) > 0.88)) {
