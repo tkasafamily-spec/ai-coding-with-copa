@@ -1,0 +1,65 @@
+{
+ "duration": 32.733,
+ "beats": [
+  {
+   "say": "What if every AI on Earth shut off\u2026 at the exact same second?",
+   "start": 0.0,
+   "end": 3.64
+  },
+  {
+   "say": "Self-driving cars freeze in the middle of the highway.",
+   "start": 3.64,
+   "end": 6.26
+  },
+  {
+   "say": "Robot surgeons stop\u2026 in the middle of surgery.",
+   "start": 6.92,
+   "end": 9.26
+  },
+  {
+   "say": "The stock market drops to zero in four seconds.",
+   "start": 9.72,
+   "end": 12.0
+  },
+  {
+   "say": "Planes lose autopilot over the ocean.",
+   "start": 12.62,
+   "end": 14.24
+  },
+  {
+   "say": "Warehouses freeze. Nobody gets their packages.",
+   "start": 14.76,
+   "end": 17.22
+  },
+  {
+   "say": "Then the power grids fail\u2026 because AI was running them too.",
+   "start": 17.84,
+   "end": 20.92
+  },
+  {
+   "say": "Cities go dark, one by one.",
+   "start": 21.48,
+   "end": 23.06
+  },
+  {
+   "say": "Kids have to do their homework\u2026 by themselves.",
+   "start": 23.44,
+   "end": 25.46
+  },
+  {
+   "say": "Nobody remembers how to read a paper map.",
+   "start": 26.14,
+   "end": 28.04
+  },
+  {
+   "say": "The world goes back to 1950.",
+   "start": 28.04,
+   "end": 30.24
+  },
+  {
+   "say": "Could you survive without AI?",
+   "start": 30.88,
+   "end": 32.04
+  }
+ ]
+}

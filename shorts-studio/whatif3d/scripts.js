@@ -1,0 +1,75 @@
+// ─────────────────────────────────────────────────────────────
+//  WHAT IF — batch 3: real 3D animation (moving characters + sets, rendered in Three.js).
+//  All stories are made-up "what if" fiction for fun. Every video's first words are "What if".
+//  Each beat: say (voice + captions), shot (name of the 3D scene in shots.js), gfx, fx.
+//  gfx: count {from,to,label,prefix,suffix} | stamp {text} | year {text} | arrow {text,x,y}
+//  fx: "glitch" | "flicker"
+// ─────────────────────────────────────────────────────────────
+const V3 = [
+  {
+    id: "w3-no-internet",
+    title: "What If the Internet Shut Off Forever?",
+    hook: "THE INTERNET IS GONE",
+    titles: ["What If the Internet Shut Off Forever?", "The Internet Dies… Day 5 Is Terrifying", "Could You Survive Without Internet?"],
+    hashtags: "#shorts #whatif #internet",
+    question: "How long would YOU last offline? 👇",
+    beats: [
+      { say: "What if the internet shut off… forever?", shot: "phoneDies", gfx: { type: "arrow", text: "NO SIGNAL", x: 0.5, y: 0.47, until: 0.95 }, fx: "glitch" },
+      { say: "In one second, eight billion phones go black.", shot: "streetPhonesDie", gfx: { type: "count", to: 8000000000, label: "PHONES DEAD" }, fx: "glitch" },
+      { say: "No videos. No maps. No messages.", shot: "shakePhone" },
+      { say: "Every card machine says declined.", shot: "checkout", gfx: { type: "stamp", text: "DECLINED" } },
+      { say: "Traffic lights go crazy… and the city crashes.", shot: "trafficCrash" },
+      { say: "By day two, people raid the supermarkets.", shot: "raid", gfx: { type: "year", text: "DAY 2" } },
+      { say: "By day five, the shelves are empty.", shot: "emptyShelves", gfx: { type: "year", text: "DAY 5" }, fx: "flicker" },
+      { say: "Phones are worthless. Water is the new money.", shot: "tradeWater", gfx: { type: "arrow", text: "$$$", x: 0.62, y: 0.5 } },
+      { say: "Kids go outside… and have no idea what to do.", shot: "kidsOutside" },
+      { say: "Then the power goes out.", shot: "cityBlackout", gfx: { type: "stamp", text: "BLACKOUT" }, fx: "flicker" },
+      { say: "Would you last one week without internet?", shot: "aloneCurb" },
+    ],
+  },
+  {
+    id: "w3-ai-off",
+    title: "What If Every AI Shut Off at Once?",
+    hook: "ALL AI JUST DIED",
+    titles: ["What If Every AI Shut Off at Once?", "AI Turns Off… The World Ends", "We Can't Live Without AI"],
+    hashtags: "#shorts #whatif #ai",
+    question: "Could YOU live without AI? 👇",
+    beats: [
+      { say: "What if every AI on Earth shut off… at the exact same second?", shot: "robotsDie", gfx: { type: "stamp", text: "SHUT DOWN" }, fx: "glitch" },
+      { say: "Self-driving cars freeze in the middle of the highway.", shot: "carsFreeze" },
+      { say: "Robot surgeons stop… in the middle of surgery.", shot: "surgery", fx: "flicker" },
+      { say: "The stock market drops to zero in four seconds.", shot: "marketCrash", gfx: { type: "count", from: 100, to: 0, suffix: "%", label: "STOCK MARKET" } },
+      { say: "Planes lose autopilot over the ocean.", shot: "planePanic", gfx: { type: "arrow", text: "NO AUTOPILOT", x: 0.5, y: 0.5 } },
+      { say: "Warehouses freeze. Nobody gets their packages.", shot: "warehouse" },
+      { say: "Then the power grids fail… because AI was running them too.", shot: "gridFail", fx: "glitch" },
+      { say: "Cities go dark, one by one.", shot: "cityBlackout", gfx: { type: "stamp", text: "BLACKOUT" }, fx: "flicker" },
+      { say: "Kids have to do their homework… by themselves.", shot: "homework" },
+      { say: "Nobody remembers how to read a paper map.", shot: "paperMap" },
+      { say: "The world goes back to 1950.", shot: "back1950", gfx: { type: "year", text: "1950" } },
+      { say: "Could you survive without AI?", shot: "candle" },
+    ],
+  },
+  {
+    id: "w3-humans-gone",
+    title: "What If Every Human Disappeared?",
+    hook: "EVERY HUMAN JUST VANISHED",
+    titles: ["What If Every Human Disappeared Right Now?", "Earth Without Humans… Year 10,000", "What Happens After We're Gone"],
+    hashtags: "#shorts #whatif #earth",
+    question: "What would last the longest? 👇",
+    beats: [
+      { say: "What if every human on Earth disappeared… right now?", shot: "poof", gfx: { type: "count", from: 8000000000, to: 0, label: "HUMANS LEFT", dur: 3.2 } },
+      { say: "Cars crash with no one driving.", shot: "driverless" },
+      { say: "Phones keep ringing in empty streets.", shot: "ringing" },
+      { say: "Within hours, power plants shut down.", shot: "powerPlant", fx: "flicker" },
+      { say: "Every city on Earth goes dark.", shot: "cityBlackout", gfx: { type: "stamp", text: "LIGHTS OUT" }, fx: "flicker" },
+      { say: "Zoo animals break out and take over the streets.", shot: "zooStreet" },
+      { say: "Dogs form wild packs.", shot: "dogPack" },
+      { say: "Year ten: trees burst through the roads.", shot: "trees", gfx: { type: "year", text: "YEAR 10" } },
+      { say: "Year one hundred: skyscrapers crash into the jungle.", shot: "towerFall", gfx: { type: "year", text: "YEAR 100" } },
+      { say: "Year ten thousand: cities are just green hills.", shot: "greenHills", gfx: { type: "year", text: "YEAR 10,000" } },
+      { say: "All that's left of us… the pyramids.", shot: "pyramids" },
+      { say: "Would Earth even miss us?", shot: "lonelyDog" },
+    ],
+  },
+];
+if (typeof module !== "undefined") module.exports = { V3 };

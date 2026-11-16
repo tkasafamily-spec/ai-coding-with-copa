@@ -1,0 +1,65 @@
+{
+ "duration": 30.06,
+ "beats": [
+  {
+   "say": "What if every human on Earth disappeared\u2026 right now?",
+   "start": 0.0,
+   "end": 2.96
+  },
+  {
+   "say": "Cars crash with no one driving.",
+   "start": 3.56,
+   "end": 4.86
+  },
+  {
+   "say": "Phones keep ringing in empty streets.",
+   "start": 5.36,
+   "end": 6.86
+  },
+  {
+   "say": "Within hours, power plants shut down.",
+   "start": 7.44,
+   "end": 9.74
+  },
+  {
+   "say": "Every city on Earth goes dark.",
+   "start": 10.14,
+   "end": 11.58
+  },
+  {
+   "say": "Zoo animals break out and take over the streets.",
+   "start": 12.14,
+   "end": 14.2
+  },
+  {
+   "say": "Dogs form wild packs.",
+   "start": 15.04,
+   "end": 16.12
+  },
+  {
+   "say": "Year ten: trees burst through the roads.",
+   "start": 16.9,
+   "end": 18.88
+  },
+  {
+   "say": "Year one hundred: skyscrapers crash into the jungle.",
+   "start": 19.48,
+   "end": 22.14
+  },
+  {
+   "say": "Year ten thousand: cities are just green hills.",
+   "start": 22.68,
+   "end": 25.36
+  },
+  {
+   "say": "All that's left of us\u2026 the pyramids.",
+   "start": 25.92,
+   "end": 27.8
+  },
+  {
+   "say": "Would Earth even miss us?",
+   "start": 28.4,
+   "end": 29.46
+  }
+ ]
+}

@@ -1,0 +1,60 @@
+{
+ "duration": 27.24,
+ "beats": [
+  {
+   "say": "What if the internet shut off\u2026 forever?",
+   "start": 0.0,
+   "end": 1.96
+  },
+  {
+   "say": "In one second, eight billion phones go black.",
+   "start": 2.54,
+   "end": 4.9
+  },
+  {
+   "say": "No videos. No maps. No messages.",
+   "start": 5.3,
+   "end": 7.84
+  },
+  {
+   "say": "Every card machine says declined.",
+   "start": 8.5,
+   "end": 9.96
+  },
+  {
+   "say": "Traffic lights go crazy\u2026 and the city crashes.",
+   "start": 10.78,
+   "end": 12.82
+  },
+  {
+   "say": "By day two, people raid the supermarkets.",
+   "start": 13.42,
+   "end": 15.32
+  },
+  {
+   "say": "By day five, the shelves are empty.",
+   "start": 16.02,
+   "end": 17.74
+  },
+  {
+   "say": "Phones are worthless. Water is the new money.",
+   "start": 18.26,
+   "end": 20.48
+  },
+  {
+   "say": "Kids go outside\u2026 and have no idea what to do.",
+   "start": 20.96,
+   "end": 23.38
+  },
+  {
+   "say": "Then the power goes out.",
+   "start": 23.8,
+   "end": 24.78
+  },
+  {
+   "say": "Would you last one week without internet?",
+   "start": 25.18,
+   "end": 26.64
+  }
+ ]
+}
