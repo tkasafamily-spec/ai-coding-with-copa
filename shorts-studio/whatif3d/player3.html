@@ -50,7 +50,11 @@ function drawBeat(i, t) {
   const b = D.video.beats[i], [start, end] = span(i), lt = t - start;
   const res = BUILT[i].update(lt, end - start) || {};
   const gl = BUILT[i].S.render();
-  const punch = (i === 0 ? 0.12 : 0.05) * (1 - easeOut(seg(lt, 0, 0.3)));
+  let punch = (i === 0 ? 0.12 : 0.05) * (1 - easeOut(seg(lt, 0, 0.3)));
+  if (D.video.style === "stick") { // camera zooms: alternate slow zoom-in / zoom-out each shot, plus a punch-in when a big word lands
+    const dur = end - start, k = seg(lt, 0, dur), z = i % 2 ? 0.09 * (1 - easeOut(k)) : 0.07 * easeOut(k); punch += z;
+    const g = b.gfx; if (g && (g.type === "year" || g.type === "stamp")) punch += 0.07 * Math.sin(Math.PI * seg(lt, 0.05, 0.45));
+  }
   const whip = (i === 0 ? 0 : 1) * (1 - easeOut(seg(lt, 0, 0.16))) * (i % 2 ? -140 : 140);
   ctx.save(); ctx.translate(W / 2 + whip, H / 2); ctx.scale(1 + punch, 1 + punch); ctx.filter = (res.filter || "") + (D.video.style === "stick" ? " saturate(0.8) sepia(0.12) contrast(1.0) brightness(1.03)" : " contrast(1.06) saturate(1.15)");
   ctx.drawImage(gl, -W / 2, -H / 2, W, H); ctx.restore(); ctx.filter = "none";

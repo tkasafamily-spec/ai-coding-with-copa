@@ -92,7 +92,10 @@ export class Stick {
     if (this.tie) { const m0 = [lerp(top[0], bot[0], 0.05) + nx * 0.03 * PX, lerp(top[1], bot[1], 0.05)], m1 = [lerp(top[0], bot[0], 0.6) + nx * 0.03 * PX, lerp(top[1], bot[1], 0.6)]; x.beginPath(); x.moveTo(m0[0] - 7, m0[1]); x.lineTo(m0[0] + 7, m0[1]); x.lineTo(m1[0] + 9, m1[1]); x.lineTo(m1[0], m1[1] + 14); x.lineTo(m1[0] - 9, m1[1]); x.closePath(); x.fillStyle = this.tie; x.fill(); rough(3.5); }
     arm(A[1]);
     // things in hands
-    const bar = (hp, ang) => { x.save(); x.translate(...hp); x.rotate(ang); x.fillStyle = "#5a2e14"; x.fillRect(-10, -26, 20, 52); x.fillStyle = "#c0262d"; x.fillRect(-11, -4, 22, 30); x.fillStyle = "#ffd23a"; x.fillRect(-11, 6, 22, 5); x.strokeStyle = INK; x.lineWidth = 4; x.strokeRect(-11, -26, 22, 52); x.restore(); };
+    const bar = (hp, ang) => { x.save(); x.translate(...hp); x.rotate(ang); // opened bar: purple wrapper, chocolate squares sticking out the top
+      x.fillStyle = "#5a2e14"; x.beginPath(); x.roundRect(-13, -36, 26, 30, 3); x.fill(); x.strokeStyle = "#3a1c0c"; x.lineWidth = 2; x.beginPath(); x.moveTo(0, -36); x.lineTo(0, -6); x.moveTo(-13, -22); x.lineTo(13, -22); x.stroke();
+      x.fillStyle = "#4b2390"; x.beginPath(); x.moveTo(-15, -8); for (let i = -15; i <= 15; i += 5) x.lineTo(i, -8 - (i % 10 ? 5 : 0)); x.lineTo(15, 30); x.lineTo(-15, 30); x.closePath(); x.fill();
+      x.fillStyle = "#f2c14e"; x.fillRect(-15, 6, 30, 5); x.fillStyle = "#fff"; x.fillRect(-9, 14, 18, 4); x.strokeStyle = INK; x.lineWidth = 3.5; x.stroke(); x.strokeRect(-15, -8, 30, 38); x.restore(); };
     if (P.hold === "bar" || P.hold === "both") bar(A[1][2], 0.4);
     if (P.hold === "both") bar(A[0][2], -0.3);
     if (P.hold === "phone") { x.save(); x.translate(...A[1][2]); x.rotate(-0.25); x.fillStyle = INK; x.beginPath(); x.roundRect(-11, -30, 22, 40, 5); x.fill(); x.fillStyle = this.screen || "#7fd3ff"; x.fillRect(-7, -26, 14, 30); x.restore(); }

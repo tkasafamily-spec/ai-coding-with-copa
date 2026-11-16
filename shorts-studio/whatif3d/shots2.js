@@ -1,26 +1,72 @@
 // Stick-man shots: a 2D stick man in a glossy 3D world. "What if you ate 1,000,000 chocolate bars in 1 week?"
 import { THREE, Shot, lerp, seg, ease, easeOut, easeIn, back, rnd, clamp, canvasTex, mat } from "./engine.js";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { Stick } from "./stick.js";
 
 // ── chocolate bars (one instanced mesh = thousands of bars) ──
-const BAR_TEX = canvasTex(256, 128, (x, w, h) => { // wrapper (tinted per bar) + bare chocolate end with squares
-  x.fillStyle = "#f2f2f2"; x.fillRect(0, 0, w, h); x.fillStyle = "#ffffff"; x.fillRect(0, 10, w, 14); x.fillStyle = "#ffd23a"; x.fillRect(0, h - 30, w, 12);
-  x.fillStyle = "#ffffff"; x.font = "900 40px Montserrat, Arial"; x.fillText("CHOCO", 70, 80); x.fillStyle = "rgba(0,0,0,.25)"; for (let i = 0; i < w; i += 12) x.fillRect(i, 0, 2, 6);
-  x.fillStyle = "#4a2410"; x.fillRect(0, 0, 58, h); x.fillStyle = "#6b3a1e"; for (let i = 0; i < 2; i++) for (let j = 0; j < 4; j++) x.fillRect(5 + i * 26, 6 + j * 30, 22, 26);
-  x.fillStyle = "rgba(255,255,255,.25)"; for (let i = 0; i < 2; i++) for (let j = 0; j < 4; j++) x.fillRect(7 + i * 26, 8 + j * 30, 18, 4);
-});
-const BAR_GEO = new THREE.BoxGeometry(0.28, 0.05, 0.13);
-const WRAP = ["#d62839", "#7b2cbf", "#1d4ed8", "#d62839", "#e85d04", "#c1121f", "#2a9d8f"];
-function bars(S, n) {
-  const m = new THREE.InstancedMesh(BAR_GEO, new THREE.MeshStandardMaterial({ map: BAR_TEX, roughness: 0.35 }), n); m.castShadow = true; m.receiveShadow = true;
-  for (let i = 0; i < n; i++) m.setColorAt(i, new THREE.Color(WRAP[Math.floor(rnd(i * 2.71) * WRAP.length)]).lerp(new THREE.Color("#ffffff"), 0.1));
-  S.scene.add(m); return m;
+// ── wrapped chocolate bars: glossy printed wrappers (original designs), puffy middle, crimped sealed ends ──
+function wrapperArt(kind) {
+  return canvasTex(1024, 448, (x, w, h) => {
+    const D = { velvet: ["#3b1773", "#5a2aa0", "#f2c14e"], krunch: ["#c8102e", "#e8232f", "#ffffff"], nutty: ["#f3b51b", "#ffd04a", "#5a2e14"], frosty: ["#1565c0", "#2f86e0", "#ffffff"] }[kind];
+    const g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, D[1]); g.addColorStop(0.5, D[0]); g.addColorStop(1, D[1]); x.fillStyle = g; x.fillRect(0, 0, w, h);
+    // faint repeating pattern printed on the foil
+    x.globalAlpha = 0.08; x.strokeStyle = "#fff"; x.lineWidth = 3; for (let i = -h; i < w; i += 46) { x.beginPath(); x.moveTo(i, 0); x.quadraticCurveTo(i + 30, h / 2, i, h); x.stroke(); } x.globalAlpha = 1;
+    // crimped sealed ends with ridges and zig-zag cut
+    for (const e of [0, 1]) { const x0 = e ? w - 74 : 0; x.fillStyle = "rgba(0,0,0,.22)"; x.fillRect(x0, 0, 74, h); x.strokeStyle = "rgba(255,255,255,.25)"; x.lineWidth = 3; for (let i = 6; i < 74; i += 9) { x.beginPath(); x.moveTo(x0 + i, 0); x.lineTo(x0 + i, h); x.stroke(); }
+      x.fillStyle = "#f4efe6"; x.beginPath(); const ex = e ? w : 0, d = e ? -1 : 1; x.moveTo(ex, 0); for (let y = 0; y <= h; y += 16) x.lineTo(ex + d * (y % 32 ? 9 : 0), y); x.lineTo(ex, h); x.fill(); }
+    const font = (wt, sz, fam = "Montserrat, Arial") => (x.font = `${wt} ${sz}px ${fam}`);
+    x.textBaseline = "middle"; x.lineJoin = "round";
+    if (kind === "velvet") {
+      x.fillStyle = D[2]; font("italic 700", 64, "Georgia, serif"); x.fillText("Velvet", 120, 90);
+      x.fillStyle = "#fff"; font(900, 118); x.fillText("MILKY", 116, 190); x.fillText("CHOC", 116, 300);
+      x.fillStyle = D[2]; font(900, 38); x.fillText("MILK CHOCOLATE", 120, 385);
+      // milk splash + chocolate chunk
+      x.fillStyle = "#fff"; x.beginPath(); x.moveTo(640, 80); x.bezierCurveTo(700, 40, 760, 120, 720, 170); x.bezierCurveTo(690, 210, 640, 160, 660, 130); x.fill(); x.beginPath(); x.arc(760, 70, 12, 0, 7); x.arc(790, 110, 8, 0, 7); x.fill();
+      x.save(); x.translate(800, 270); x.rotate(-0.35); x.fillStyle = "#4a2410"; x.fillRect(-90, -80, 180, 160); x.fillStyle = "#6b3a1e"; x.fillRect(-78, -68, 156, 136); x.fillStyle = "rgba(255,255,255,.18)"; x.fillRect(-78, -68, 156, 22); x.fillStyle = "#3a1c0c"; x.fillRect(-90, 70, 180, 10); x.restore();
+    } else if (kind === "krunch") {
+      x.fillStyle = "#fff"; x.beginPath(); x.ellipse(330, 210, 250, 120, -0.08, 0, 7); x.fill(); x.strokeStyle = D[0]; x.lineWidth = 8; x.stroke();
+      x.fillStyle = D[0]; font("italic 900", 128); x.save(); x.translate(330, 215); x.rotate(-0.08); x.textAlign = "center"; x.fillText("Krunch", 0, 0); x.restore();
+      for (let k = 0; k < 3; k++) { x.save(); x.translate(700 + k * 26, 180 + k * 40); x.rotate(-0.3); x.fillStyle = "#6b3a1e"; x.fillRect(-120, -26, 240, 52); x.fillStyle = "#e0b070"; x.fillRect(-120, 8, 240, 8); x.fillStyle = "rgba(255,255,255,.2)"; x.fillRect(-120, -26, 240, 10); x.restore(); }
+      x.fillStyle = "#fff"; font(800, 30); x.fillText("CRISPY WAFER", 140, 380);
+    } else if (kind === "nutty") {
+      x.fillStyle = D[2]; font(900, 132); x.fillText("NUTTY", 120, 170); font(800, 40); x.fillText("PEANUT CARAMEL", 124, 270);
+      for (let k = 0; k < 6; k++) { x.save(); x.translate(700 + (k % 3) * 90, 160 + Math.floor(k / 3) * 120); x.rotate(k); x.fillStyle = "#c8894a"; x.beginPath(); x.ellipse(-18, 0, 30, 22, 0, 0, 7); x.ellipse(18, 0, 30, 22, 0, 0, 7); x.fill(); x.strokeStyle = "#8a5a2b"; x.lineWidth = 4; x.stroke(); x.restore(); }
+      x.fillStyle = "#c8102e"; x.fillRect(120, 330, 300, 60); x.fillStyle = "#fff"; font(900, 34); x.fillText("BIG BAR", 160, 362);
+    } else {
+      x.fillStyle = "#fff"; font(900, 120); x.fillText("CRISPY", 120, 180); font(800, 38); x.fillText("CRISPED RICE CHOC", 124, 280);
+      x.fillStyle = "#fff"; for (let k = 0; k < 40; k++) { x.beginPath(); x.ellipse(680 + rnd(k) * 220, 110 + rnd(k * 3) * 240, 12, 7, rnd(k * 7) * 3, 0, 7); x.fill(); }
+    }
+    // glossy foil shine
+    const s = x.createLinearGradient(0, 0, w, h); s.addColorStop(0.0, "rgba(255,255,255,0)"); s.addColorStop(0.42, "rgba(255,255,255,0)"); s.addColorStop(0.47, "rgba(255,255,255,.28)"); s.addColorStop(0.52, "rgba(255,255,255,0)"); x.fillStyle = s; x.fillRect(0, 0, w, h);
+    x.fillStyle = "rgba(255,255,255,.12)"; x.fillRect(0, 28, w, 10);
+  });
+}
+const WRAP = ["#4b2390", "#d71920", "#f3b51b", "#1f74d0"];
+const KINDS = ["velvet", "krunch", "velvet", "nutty", "krunch", "frosty"];
+const ART = {}; const artMat = (k) => ART[k] || (ART[k] = new THREE.MeshStandardMaterial({ map: wrapperArt(k), roughness: 0.22, metalness: 0.15 }));
+// puffy pillow-shaped bar with thin sealed ends
+const BAR_GEO = (() => { const g = new THREE.BoxGeometry(0.3, 0.042, 0.13, 10, 1, 3), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) { const u = Math.abs(p.getX(i)) / 0.15, v = Math.abs(p.getZ(i)) / 0.065; const f = u > 0.86 ? 0.12 : (1 - 0.45 * Math.pow(u / 0.86, 6)) * (1 - 0.3 * Math.pow(v, 4)); p.setY(i, p.getY(i) * f); }
+  g.computeVertexNormals(); return g; })();
+// a set of bars split across a few wrapper designs; behaves like one instanced mesh
+function bars(S, n, o = {}) {
+  const kinds = o.kinds || KINDS, D = kinds.length, meshes = kinds.map((k, j) => { const m = new THREE.InstancedMesh(BAR_GEO, artMat(k), Math.ceil((n - j) / D)); m.castShadow = true; m.receiveShadow = true; m.userData.noOutline = !o.outline; m.frustumCulled = false; S.scene.add(m); return m; });
+  return { count: n, meshes, setMatrixAt(i, M) { const m = meshes[i % D], k = Math.floor(i / D); if (k < m.count) m.setMatrixAt(k, M); }, get instanceMatrix() { return { set needsUpdate(v) { meshes.forEach((m) => (m.instanceMatrix.needsUpdate = true)); } }; } };
+}
+// opened bar: wrapper torn back, real chocolate squares showing
+const SQ_GEO = new RoundedBoxGeometry(0.068, 0.03, 0.058, 2, 0.008);
+const CHOC_MAT = new THREE.MeshStandardMaterial({ color: "#5a2e14", roughness: 0.28 });
+function openBar(S, p = {}, kind = "velvet") {
+  const g = S.group(p); const wr = new THREE.Mesh(BAR_GEO, artMat(kind)); wr.scale.set(0.55, 1, 1.05); wr.position.x = 0.07; wr.castShadow = true; g.add(wr);
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) { const q = new THREE.Mesh(SQ_GEO, CHOC_MAT); q.position.set(-0.04 - i * 0.072, 0.005, -0.031 + j * 0.062); q.castShadow = true; g.add(q); }
+  const torn = S.box(0.03, 0.006, 0.14, "#d9d4cc", { x: -0.12, y: 0.02, rz: 0.6, r: 0, metal: 0.8, rough: 0.2 }, g); // foil flap
+  return g;
 }
 const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), P3 = new THREE.Vector3(), S3 = new THREE.Vector3(1, 1, 1);
 function setBar(m, i, x, y, z, rx, ry, rz, s = 1, order = "XYZ") { Q.setFromEuler(E.set(rx, ry, rz, order)); S3.setScalar(s); m.setMatrixAt(i, M4.compose(P3.set(x, y, z), Q, S3)); }
 // the inside of a pile is drawn as packed bars too (never brown mud)
 const PACK_TEX = canvasTex(512, 256, (x, w, h) => { x.fillStyle = "#3a1c0c"; x.fillRect(0, 0, w, h);
-  for (let r = 0; r < 10; r++) for (let c = -1; c < 8; c++) { const bx = c * 72 + (r % 2) * 36, by = r * 26; x.fillStyle = WRAP[(r * 3 + c + 9) % WRAP.length]; x.fillRect(bx + 2, by + 2, 68, 22); x.fillStyle = "#4a2410"; x.fillRect(bx + 2, by + 2, 16, 22); x.fillStyle = "#ffd23a"; x.fillRect(bx + 18, by + 16, 52, 3); } });
+  for (let r = 0; r < 10; r++) for (let c = -1; c < 8; c++) { const bx = c * 72 + (r % 2) * 36, by = r * 26; x.fillStyle = ["#4b2390", "#d71920", "#4b2390", "#f3b51b", "#d71920", "#1f74d0"][(r * 3 + c + 9) % 6]; x.fillRect(bx + 2, by + 2, 68, 22); x.fillStyle = "rgba(0,0,0,.25)"; x.fillRect(bx + 2, by + 2, 7, 22); x.fillRect(bx + 63, by + 2, 7, 22); x.fillStyle = "rgba(255,255,255,.7)"; x.fillRect(bx + 16, by + 9, 30, 5); } });
 PACK_TEX.wrapS = PACK_TEX.wrapT = THREE.RepeatWrapping;
 // a heap of bars: rows of bars wrapped neatly around a cone, two layers, bars tilted to the slope
 function pile(S, o) {
@@ -92,6 +138,7 @@ function kitchen(S, o = {}) {
   return { clock, win };
 }
 function table(S, p = {}) { const g = S.group(p); S.box(2.0, 0.08, 1.1, "#c68b59", { y: 0.72, r: 0.03 }, g); for (const [x, z] of [[-0.9, -0.45], [0.9, -0.45], [-0.9, 0.45], [0.9, 0.45]]) S.box(0.08, 0.72, 0.08, "#a8723f", { x, z, r: 0.02 }, g);
+  openBar(S, { x: (p.x || 0) - 0.5, y: 0.78, z: (p.z || 0) + 0.3, ry: 0.5 }, "velvet"); openBar(S, { x: (p.x || 0) - 0.72, y: 0.78, z: (p.z || 0) - 0.05, ry: -0.9 }, "krunch");
   S.cyl(0.18, 0.16, 0.02, "#ffffff", { x: -0.62, y: 0.8, z: 0.28 }, g); S.cyl(0.05, 0.045, 0.16, "#f1faee", { x: -0.75, y: 0.8, z: -0.3, opacity: 0.85 }, g); S.box(0.16, 0.01, 0.16, "#ffd6e0", { x: -0.45, y: 0.8, z: 0.4, r: 0 }, g); return g; }
 function chair(S, p = {}) { const g = S.group(p); S.box(0.5, 0.06, 0.5, "#e76f51", { y: 0.44, r: 0.02 }, g); S.box(0.06, 0.6, 0.5, "#e76f51", { x: -0.24, y: 0.47, r: 0.02 }, g); for (const [x, z] of [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]]) S.box(0.05, 0.44, 0.05, "#c4553a", { x, z, r: 0.01 }, g); return g; }
 function seatedMan(S, o = {}) { chair(S, { x: -1.25, z: 0 }); const man = new Stick(S, { x: -1.22, z: 0.02 }); return man; }
@@ -164,7 +211,7 @@ export const SHOTS2 = {
     table(S); pile(S, { x: 0.15, y: 0.76, z: 0, r: 0.75, h: 0.9, n: 260, seed: 3 }); const man = seatedMan(S);
     return { S, update(t, d) {
       man.pose("sit", t, { to: "eat", w: 1 }); man.P.ll = [1.55, -1.55]; man.P.rl = [1.5, -1.5]; man.P.sit = true; man.P.hold = "bar";
-      if (t < 0.9) S.move(seg(t, 0, 0.9), [[-0.6, 1.3, 3.2], [-0.9, 1.05, 0], 40], [[-0.4, 1.4, 4.2], [-0.6, 1.1, 0], 42]);
+      if (t < 0.9) S.move(seg(t, 0, 0.9), [[0.35, 1.05, 0.95], [0.15, 0.95, 0], 36], [[-0.4, 1.4, 4.2], [-0.6, 1.1, 0], 42], easeOut);
       else S.move(seg(t, 0.9, d), [[-0.4, 1.4, 4.2], [-0.6, 1.1, 0], 42], [[0.6, 21, 9], [0.4, 19, -3], 46], ease);
     } };
   },
