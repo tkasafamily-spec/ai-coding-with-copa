@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pip & Quack Shorts Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Everything for making animated YouTube Shorts: scripts, scene prompts, the cast and channel setup.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* Layout: one long scrolling studio page, chunky pixel-cornered panels on a night-sky black,
+   matching Oreok's thumbnail portfolio. Deliberately dark-only. */
+:root {
+  color-scheme: dark;
+  --space: #07080C;
+  --panel: #12141B;
+  --panel-2: #1A1D27;
+  --line: #2A2F3D;
+  --ink: #FFFFFF;
+  --soft: #B9C0D4;
+  --duck: #FFC83D;
+  --duck-dark: #C98F00;
+  --cyan: #45D6E5;
+  --good: #7EE08A;
+  --step: 8px;
+  --chunky: "Lilita One", "Arial Black", Impact, sans-serif;
+  --body: "Nunito", system-ui, -apple-system, sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; background: var(--space); }
+body {
+  margin: 0; background: var(--space); color: var(--ink);
+  font-family: var(--body); font-weight: 700; font-size: 1.0625rem; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+img { display: block; max-width: 100%; }
+a { color: var(--cyan); }
+:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+
+.wrap {
+  max-width: 980px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 80px;
+  display: grid; gap: 56px;
+}
+section { display: grid; gap: 18px; scroll-margin-top: 72px; }
+h1, h2, h3 { font-family: var(--chunky); font-weight: 400; line-height: 1.05; margin: 0; text-wrap: balance; letter-spacing: .01em; }
+h1 { font-size: clamp(2.4rem, 7vw, 4.2rem); }
+h2 { font-size: clamp(1.8rem, 4.6vw, 2.6rem); }
+h3 { font-size: 1.45rem; }
+p { margin: 0; max-width: 65ch; }
+.lead { color: var(--soft); font-size: 1.15rem; }
+.muted { color: var(--soft); }
+.small { font-size: .92rem; }
+.duck { color: var(--duck); }
+
+/* pixel corners */
+.frame, .btn, .chip {
+  clip-path: polygon(
+    0 var(--step), var(--step) var(--step), var(--step) 0,
+    calc(100% - var(--step)) 0, calc(100% - var(--step)) var(--step), 100% var(--step),
+    100% calc(100% - var(--step)), calc(100% - var(--step)) calc(100% - var(--step)), calc(100% - var(--step)) 100%,
+    var(--step) 100%, var(--step) calc(100% - var(--step)), 0 calc(100% - var(--step))
+  );
+}
+.frame { background: var(--panel); padding: 20px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+
+.btn {
+  --step: 5px; appearance: none; border: 0; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--chunky); font-size: 1.12rem; line-height: 1; letter-spacing: .01em;
+  color: #000; background: var(--duck); padding: 13px 18px 15px; text-decoration: none;
+  box-shadow: inset 0 -5px 0 var(--duck-dark);
+  transition: transform .08s steps(2);
+}
+.btn:hover { transform: translateY(-2px); }
+.btn:active { transform: translateY(2px); box-shadow: inset 0 -2px 0 var(--duck-dark); }
+.btn.ghost { background: var(--panel-2); color: var(--ink); box-shadow: inset 0 -5px 0 var(--line); }
+.btn.sm { font-size: .98rem; padding: 10px 14px 12px; }
+.btn.done { background: var(--good); box-shadow: inset 0 -5px 0 #3E9C4A; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+/* top */
+.top { display: grid; gap: 16px; }
+.eyebrow { font-family: var(--chunky); color: var(--duck); font-size: 1.05rem; letter-spacing: .06em; text-transform: uppercase; }
+nav.jump {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: color-mix(in srgb, var(--space) 92%, transparent);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  border-bottom: 2px solid var(--line);
+}
+nav.jump::-webkit-scrollbar { display: none; }
+nav.jump a {
+  flex: none; color: var(--ink); text-decoration: none; font-family: var(--chunky); font-size: 1rem;
+  padding: 7px 12px 9px; background: var(--panel-2);
+}
+nav.jump a:hover { color: var(--duck); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--space); }
+
+/* steps */
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; counter-reset: s; }
+.step { counter-increment: s; position: relative; padding-top: 18px; }
+.step::before {
+  content: counter(s); font-family: var(--chunky); font-size: 1.6rem; color: #000; background: var(--duck);
+  width: 42px; height: 42px; display: grid; place-items: center; margin-bottom: 4px;
+}
+.step .tool { font-size: .92rem; color: var(--soft); }
+
+/* script maker */
+.maker { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 760px) { .maker { grid-template-columns: minmax(0, 1fr); } }
+label.lbl { font-family: var(--chunky); font-size: 1.1rem; display: block; margin-bottom: 6px; }
+textarea, select, input[type="text"] {
+  width: 100%; font: inherit; font-weight: 700; color: var(--ink); background: var(--space);
+  border: 2px solid var(--line); padding: 12px; border-radius: 0;
+}
+textarea:focus, select:focus, input:focus { border-color: var(--cyan); outline: none; }
+textarea { resize: vertical; min-height: 96px; }
+.checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { --step: 4px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--panel-2); cursor: pointer; }
+.chip input { accent-color: var(--duck); width: 18px; height: 18px; margin: 0; }
+.dot { width: 12px; height: 12px; background: var(--c); flex: none; }
+pre.out {
+  margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .82rem; font-weight: 500; line-height: 1.45; color: var(--soft);
+  background: var(--space); border: 2px solid var(--line); padding: 14px; max-height: 340px; overflow: auto;
+}
+
+/* scripts */
+.scripts { display: grid; gap: 12px; }
+details.script { background: var(--panel); }
+details.script > summary {
+  list-style: none; cursor: pointer; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px;
+}
+details.script > summary::-webkit-details-marker { display: none; }
+.thumb { width: 112px; aspect-ratio: 16 / 9; background: var(--panel-2); overflow: hidden; display: grid; place-items: center; font-family: var(--chunky); color: var(--duck); font-size: 1.6rem; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 520px) { .thumb { width: 72px; } }
+.s-title { font-family: var(--chunky); font-size: 1.35rem; line-height: 1.1; }
+.s-hook { color: var(--duck); font-size: .9rem; font-weight: 900; letter-spacing: .02em; }
+.s-meta { color: var(--soft); font-size: .88rem; }
+.badge { font-family: var(--chunky); font-size: .9rem; padding: 4px 10px 6px; background: var(--panel-2); color: var(--soft); white-space: nowrap; }
+.badge.made { background: var(--good); color: #000; }
+.open-mark { font-family: var(--chunky); font-size: 1.6rem; color: var(--duck); transition: transform .15s; }
+details[open] .open-mark { transform: rotate(45deg); }
+.s-body { padding: 0 14px 18px; display: grid; gap: 14px; }
+.scene { background: var(--panel-2); padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.scene-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; }
+.scene-num { font-family: var(--chunky); font-size: 1.15rem; }
+.scene-num span { color: var(--soft); font-family: var(--body); font-size: .88rem; font-weight: 800; margin-left: 6px; }
+.lines { display: grid; gap: 4px; }
+.line b { color: var(--c, var(--ink)); }
+.prompt { font-size: .95rem; color: var(--soft); }
+.prompt .tag { color: var(--c); font-weight: 900; }
+.sfx { font-size: .88rem; color: var(--soft); }
+.sfx::before { content: "Sounds: "; color: var(--ink); font-weight: 900; }
+.kv { display: grid; gap: 4px; }
+.kv b { font-family: var(--chunky); font-weight: 400; font-size: 1.05rem; }
+
+/* cast */
+.cast { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.member h3 { color: var(--c); }
+.member .look { font-size: .9rem; color: var(--soft); }
+
+/* lists */
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.rules .frame p { color: var(--soft); }
+ul.hooks { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+ul.hooks li { background: var(--panel-2); padding: 10px 14px; }
+ul.hooks em { color: var(--duck); font-style: normal; }
+.todo { display: grid; gap: 8px; }
+.todo label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; background: var(--panel-2); padding: 12px 14px; cursor: pointer; }
+.todo input { accent-color: var(--good); width: 22px; height: 22px; margin: 2px 0 0; }
+.todo label:has(input:checked) .t { color: var(--soft); text-decoration: line-through; text-decoration-thickness: 2px; }
+.todo .t b { display: block; }
+.todo .t span { color: var(--soft); font-size: .93rem; display: block; }
+.todo .t .row { margin-top: 8px; }
+.ideas { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }
+.idea { background: var(--panel-2); padding: 12px 14px; display: grid; gap: 8px; align-content: space-between; }
+.idea button { justify-self: start; }
+.progress { height: 12px; background: var(--panel-2); }
+.progress i { display: block; height: 100%; width: 0; background: var(--good); transition: width .3s; }
+
+audio { width: 100%; color-scheme: dark; min-width: 0; }
+.voice { display: grid; gap: 10px; background: var(--panel-2); padding: 14px; }
+.voice-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.voice-row b { font-family: var(--chunky); font-weight: 400; font-size: 1.05rem; }
+.voice-row b small { display: block; font-family: var(--body); font-weight: 800; font-size: .82rem; color: var(--soft); }
+@media (max-width: 560px) { .voice-row { grid-template-columns: minmax(0, 1fr) auto; } .voice-row audio { grid-column: 1 / -1; grid-row: 2; } }
+.trim { font-size: .85rem; font-weight: 900; color: #000; background: var(--cyan); padding: 3px 8px; }
+.vids { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 14px; }
+.vid { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.vid video { width: 100%; aspect-ratio: 9 / 16; background: #000; display: block; }
+.vid b { font-family: var(--chunky); font-weight: 400; font-size: 1.1rem; line-height: 1.15; }
+.vid span { color: var(--soft); font-size: .88rem; }
+.s-video { width: min(100%, 280px); aspect-ratio: 9 / 16; background: #000; }
+.toast {
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 120px);
+  background: var(--good); color: #000; font-family: var(--chunky); font-size: 1.1rem; padding: 12px 18px 14px; z-index: 20;
+  transition: transform .2s;
+}
+.toast.show { transform: translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="eyebrow">Shorts Studio</div>
+    <h1>Pip &amp; Quack</h1>
+    <p class="lead">Your whole animated Shorts channel in one place: the cast, six scripts ready to make, a script maker for new ones, and the channel setup. Tap any <b class="duck">Copy</b> button and paste it where it says.</p>
+    <div class="row">
+      <a class="btn" href="#videos">Watch my Shorts</a>
+      <a class="btn ghost" href="#scripts">Scripts</a>
+      <a class="btn ghost" href="#setup">Set up the channel</a>
+    </div>
+  </header>
+
+  <nav class="jump" aria-label="Sections">
+    <a href="#videos">My Shorts</a>
+    <a href="#how">How it works</a>
+    <a href="#scripts">Scripts</a>
+    <a href="#maker">Script maker</a>
+    <a href="#cast">Cast</a>
+    <a href="#viral">Go viral</a>
+    <a href="#setup">Channel setup</a>
+    <a href="#upload">Upload</a>
+    <a href="#ideas">Ideas</a>
+    <a href="#claude">Claude prompts</a>
+  </nav>
+
+  <!-- VIDEOS -->
+  <section id="videos">
+    <h2>Your Shorts, ready to upload</h2>
+    <p class="muted">All 6 are fully animated, with voices, bold captions, sound effects and music. Each one is 1080 × 1920, ready for YouTube Shorts. Watch them here, then upload them from the files Claude sent you.</p>
+    <div class="vids" id="vidList"></div>
+  </section>
+
+  <!-- HOW -->
+  <section id="how">
+    <h2>How one Short gets made</h2>
+    <p class="muted">Your first 6 are already animated for you (see <a href="#videos">Your Shorts</a>). For new ones, you can ask Claude Code to animate them the same way, or make them yourself like this. Everything here is free.</p>
+    <div class="steps">
+      <div class="frame step">
+        <h3>Get a script</h3>
+        <p>Pick one of the ready scripts below, or make a new one with the Script Maker and Claude.</p>
+        <p class="tool">Tool: <a href="https://claude.ai/new" target="_blank" rel="noopener">Claude</a></p>
+      </div>
+      <div class="frame step">
+        <h3>Make the cast pictures</h3>
+        <p>One time only. Make one picture of each character and save them. You'll reuse them in every Short so everyone looks the same.</p>
+        <p class="tool">Tool: Google Flow (image) or Gemini. Prompts are in <a href="#cast">Cast</a>.</p>
+      </div>
+      <div class="frame step">
+        <h3>Make the clips</h3>
+        <p>In Google Flow, start a project, set it to portrait <b>9:16</b>, use <b>Ingredients to Video</b>, add the cast pictures for that scene, paste the scene prompt. Each scene = one 8-second clip. Make 2 of each and keep the best.</p>
+        <p class="tool">Tool: <a href="https://labs.google/flow" target="_blank" rel="noopener">labs.google/flow</a></p>
+      </div>
+      <div class="frame step">
+        <h3>Get the voice</h3>
+        <p><b class="duck">Already done.</b> Every script below has its voiceover ready, with a different voice for each character. Press play, then save the MP3.</p>
+        <p class="tool">Made free with Kokoro, which is OK to use on a channel that makes money.</p>
+      </div>
+      <div class="frame step">
+        <h3>Edit it</h3>
+        <p>CapCut, 9:16. Clips in order, then add the voiceover MP3. <b>Fast version:</b> trim each clip to the time shown on its scene. <b>Easy version:</b> leave every clip at 8 seconds. Then auto captions, big and bold in the middle, a sound effect on every action, quiet music underneath.</p>
+        <p class="tool">Tool: CapCut (phone or iPad)</p>
+      </div>
+      <div class="frame step">
+        <h3>Upload</h3>
+        <p>Go through the <a href="#upload">upload checklist</a>. Post at the same time every day.</p>
+        <p class="tool">Tool: YouTube app</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCRIPTS -->
+  <section id="scripts">
+    <h2>Ready-to-make scripts</h2>
+    <p class="muted">Each scene is one 8-second clip. Tap a script to open it. <b class="duck">Copy prompt</b> gives you the full Google Flow prompt with the characters already described. The voiceovers are already made.</p>
+    <div class="row small muted" id="madeCount"></div>
+    <div class="scripts" id="scriptList"></div>
+  </section>
+
+  <!-- MAKER -->
+  <section id="maker">
+    <h2>Script maker</h2>
+    <p class="muted">Type an idea, pick who's in it, tap <b class="duck">Copy for Claude</b>, then paste it into Claude. You get back the voiceover, the storyboard and every scene prompt in the same layout as the scripts above.</p>
+    <p class="muted"><b class="duck">Free voice for a new script:</b> paste Claude's script into Claude Code and say "Add this to my Shorts Studio and make the voiceover." It uses the same free voices.</p>
+    <div class="frame maker">
+      <div style="display:grid; gap:16px; min-width:0;">
+        <div>
+          <label class="lbl" for="idea">The idea</label>
+          <textarea id="idea">Mr. Bucks offers $1,000,000 to whoever stays in a bouncy castle longest, but it keeps inflating</textarea>
+          <div class="row" style="margin-top:8px;"><button class="btn ghost sm" id="surprise" type="button">Surprise me</button></div>
+        </div>
+        <div>
+          <span class="lbl">Who's in it</span>
+          <div class="checks" id="who"></div>
+        </div>
+        <div class="row" style="align-items:end;">
+          <div style="flex:1 1 180px;">
+            <label class="lbl" for="kind">Kind of Short</label>
+            <select id="kind">
+              <option>Money challenge with a twist</option>
+              <option>Funny disaster</option>
+              <option>Would you rather / would you press it</option>
+              <option>Survival escape</option>
+              <option>Wholesome with a funny ending</option>
+            </select>
+          </div>
+          <div style="flex:1 1 120px;">
+            <label class="lbl" for="len">Scenes</label>
+            <select id="len">
+              <option value="6">6 (48 sec)</option>
+              <option value="7" selected>7 (56 sec)</option>
+              <option value="5">5 (40 sec)</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" id="copyMaker" type="button">Copy for Claude</button>
+          <a class="btn ghost" href="https://claude.ai/new" target="_blank" rel="noopener">Open Claude</a>
+        </div>
+      </div>
+      <div style="display:grid; gap:8px; min-width:0; align-content:start;">
+        <span class="lbl">What gets copied</span>
+        <pre class="out" id="makerOut"></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- CAST -->
+  <section id="cast">
+    <h2>The cast</h2>
+    <p class="muted">These five are yours: original characters, not copied from any other channel. Press play to hear each voice. Make one picture of each with <b class="duck">Copy picture prompt</b> (in Google Flow's image maker or Gemini), save the best one, and add it as an Ingredient whenever that character is in a scene.</p>
+    <div class="frame" style="grid-template-columns:auto minmax(0,1fr);align-items:center;">
+      <h3>Narrator</h3>
+      <audio controls preload="none" src="voiceovers/cast-narrator.mp3"></audio>
+    </div>
+    <div class="cast" id="castList"></div>
+  </section>
+
+  <!-- VIRAL -->
+  <section id="viral">
+    <h2>What makes a Short go viral</h2>
+    <p class="muted">YouTube shows your Short to a few people first. If they keep watching instead of swiping, it shows it to more. These rules are all about stopping the swipe.</p>
+    <div class="rules">
+      <div class="frame"><h3>Hook in 1 second</h3><p>Start in the middle of the action or with the big offer. No "hi guys", no intro, no slow start. The first frame should already be interesting.</p></div>
+      <div class="frame"><h3>Change every 2–3 seconds</h3><p>New shot, new problem, new joke. If nothing changes for 4 seconds, people swipe.</p></div>
+      <div class="frame"><h3>Stakes go up 3 times</h3><p>Easy → uh-oh → disaster → twist. Each scene should make it worse or crazier.</p></div>
+      <div class="frame"><h3>Twist ending</h3><p>Never end how people expect. Quack gets the money. The coins are chocolate. Granny wins.</p></div>
+      <div class="frame"><h3>Make it loop</h3><p>If the last line leads back into the first scene, people watch twice without noticing. That counts as more watch time.</p></div>
+      <div class="frame"><h3>Same characters, every time</h3><p>When people know Pip, Mo and Quack, they come back for them. That's how you get subscribers, not just views.</p></div>
+      <div class="frame"><h3>Big captions</h3><p>2–4 words at a time, in the middle of the screen, with the key word in yellow. Lots of people watch with the sound off.</p></div>
+      <div class="frame"><h3>Sound on every action</h3><p>Whoosh, boing, splash, squeak. Sound effects make cheap animation feel expensive.</p></div>
+      <div class="frame"><h3>Short and fast wins</h3><p>The fast voiceovers are 20–25 seconds. Most people watch them to the end, and many watch twice. That's the number YouTube cares about most.</p></div>
+    </div>
+    <div class="frame">
+      <h3>Hook bank</h3>
+      <p class="muted small">Swap in your own words. Use one as the first line or the on-screen text.</p>
+      <ul class="hooks">
+        <li><em>"[Rich guy] said: [do something simple], win [huge money]."</em></li>
+        <li><em>"There was one button. It said DON'T."</em></li>
+        <li><em>"Never [normal thing]. Here's why."</em></li>
+        <li><em>"Last one to [leave / let go / touch] wins [money]."</em></li>
+        <li><em>"He had 60 seconds to [goal]."</em></li>
+        <li><em>"Would you [scary thing] for [money]?"</em></li>
+        <li><em>"Every time he [did X], [something crazy] happened."</em></li>
+        <li><em>"Nobody expected [weakest character] to win."</em></li>
+        <li><em>"This [normal object] was hiding a secret."</em></li>
+        <li><em>"Day 1 of [silly challenge]."</em> (makes it a series people follow)</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- SETUP -->
+  <section id="setup">
+    <h2>Channel setup</h2>
+    <p class="muted">Tick them off as you go. Your ticks are saved on this device.</p>
+    <div class="progress" aria-hidden="true"><i id="setupBar"></i></div>
+    <div class="todo" id="setupList"></div>
+  </section>
+
+  <!-- UPLOAD -->
+  <section id="upload">
+    <h2>Upload checklist</h2>
+    <p class="muted">Do this for every Short. Tap <b class="duck">Clear ticks</b> before the next one.</p>
+    <div class="todo" id="uploadList"></div>
+    <div class="row"><button class="btn ghost sm" id="clearUpload" type="button">Clear ticks</button></div>
+    <div class="frame">
+      <h3>After you post</h3>
+      <p class="muted">Reply to every comment in the first hour. After a day, open YouTube Studio → the Short → <b>Viewed vs. swiped away</b>. Above 70% viewed is great. If it's low, the first second wasn't strong enough: make the next hook crazier. Make more of whatever gets the most views.</p>
+    </div>
+  </section>
+
+  <!-- IDEAS -->
+  <section id="ideas">
+    <h2>Idea bank</h2>
+    <p class="muted"><b class="duck">Use this idea</b> sends it to the Script Maker.</p>
+    <div class="ideas" id="ideaList"></div>
+  </section>
+
+  <!-- CLAUDE -->
+  <section id="claude">
+    <h2>Claude prompts</h2>
+    <div class="frame">
+      <h3>Make a "Shorts Writer" in Claude (best way)</h3>
+      <p class="muted">In Claude, make a new <b>Project</b> called <b>Shorts Writer</b>. Paste this into the project's <b>instructions</b>. After that, start a chat in the project and just type an idea, like "Pip gets stuck in a giant fridge". It will always write in the right layout with the right characters.</p>
+      <div class="row"><button class="btn" id="copyProject" type="button">Copy project instructions</button></div>
+      <pre class="out" id="projectOut"></pre>
+    </div>
+    <div class="frame">
+      <h3>Quick follow-ups</h3>
+      <p class="muted">Paste one of these into the same chat after Claude writes a script.</p>
+      <div class="todo" id="followups"></div>
+    </div>
+  </section>
+
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite">Copied!</div>
+
+<script src="scripts.js"></script>
+<script>
+(function () {
+  const THUMB_DIR = "../portfolio/thumbnails/";
+  const CAN_DOWNLOAD = true;
+  let CUES = {};
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const castBy = Object.fromEntries(CAST.map((c) => [c.name, c]));
+  const colorOf = (who) => (castBy[who] ? castBy[who].color : "#FFFFFF");
+
+  // ── storage (safe) ───────────────────────────
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem("pq-" + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem("pq-" + k, JSON.stringify(v)); } catch (e) {} },
+  };
+
+  // ── copy ─────────────────────────────────────
+  let toastTimer;
+  function toast(msg) {
+    const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 1600);
+  }
+  function fallbackCopy(text) {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+    let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+    ta.remove(); return ok;
+  }
+  function copy(text, msg) {
+    const done = () => toast(msg || "Copied!");
+    const fail = () => (fallbackCopy(text) ? done() : toast("Couldn't copy. Press and hold the text to copy it."));
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fail);
+      else fail();
+    } catch (e) { fail(); }
+  }
+
+  // ── prompts ──────────────────────────────────
+  const expand = (p) => p.replace(/\[([^\]]+)\]/g, (m, n) => (castBy[n] ? castBy[n].look : n));
+  const scenePrompt = (p) => expand(p) + " Style: " + STYLE + ".";
+  const tagged = (p) => esc(p).replace(/\[([^\]]+)\]/g, (m, n) => `<span class="tag" style="--c:${colorOf(n)}">${n}</span>`);
+  const time = (i) => `${i * 8}–${(i + 1) * 8}s`;
+
+  function castBlock(names) {
+    return CAST.filter((c) => !names || names.includes(c.name))
+      .map((c) => `- ${c.name}: ${c.look}. Personality: ${c.role} Voice: ${c.voice}`).join("\n");
+  }
+  function rules(names, scenes) {
+    const n = scenes || "6 or 7";
+    return `You write scripts for a YouTube Shorts channel of funny animated 3D cartoon stories starring Pip and his friends.
+
+THE CAST (when writing scene prompts, always describe each character with these exact words):
+${castBlock(names)}
+
+THE LOOK (put this at the end of every scene prompt):
+${STYLE}
+
+HOW EVERY SHORT WORKS
+- ${n} scenes. Each scene is ONE 8-second video clip made in Google Flow.
+- Scene 1 hooks in the first 2 seconds: start in the middle of the crazy situation or with a big money offer. No intros.
+- Something new happens every scene. The stakes go up at least 3 times.
+- End with a funny twist nobody expects. Best if the ending makes people want to watch again.
+- Voiceover: short punchy lines, simple words, no more than 20 words per scene so it fits in 8 seconds. Mostly a Narrator, plus a few short character lines. Mo always says "Bad idea" at some point. Quack never talks, only squeaks.
+- Family friendly. No real brands, no real people, no characters from other shows or channels.
+- No words or signs inside the video (AI video is bad at text).
+
+WRITE IT IN EXACTLY THIS LAYOUT
+TITLE OPTIONS: 3 titles, each under 50 characters, that make people curious
+HOOK TEXT: on-screen text for the first 2 seconds (max 6 words, CAPITALS)
+
+VOICEOVER
+L1 (Narrator): ...
+L2 (Pip): ...
+(and so on)
+
+STORYBOARD
+Scene 1 (0–8s) | Lines: L1 | What happens: ... | Sound effects: ...
+(one row per scene)
+
+SCENE PROMPTS FOR GOOGLE FLOW
+C1: one paragraph. Write the FULL description of every character in the scene, every time (never just the name). Say where it is, what happens, and how the camera moves. End with the style line.
+(one per scene)
+
+PINNED COMMENT: one question that makes people want to comment
+DESCRIPTION: one short sentence + 3 hashtags`;
+  }
+
+  // ── scripts ──────────────────────────────────
+  let made = store.get("made", {});
+  function scriptText(s) {
+    const lines = []; let n = 1;
+    s.scenes.forEach((sc) => sc.say.forEach(([w, t]) => lines.push(`L${n++} (${w}): ${t}`)));
+    return [
+      `${s.title.toUpperCase()}`,
+      `HOOK TEXT: ${s.hook}`,
+      `TITLE OPTIONS:\n- ${s.titles.join("\n- ")}`,
+      `\nVOICEOVER\n${lines.join("\n")}`,
+      `\nSCENE PROMPTS FOR GOOGLE FLOW\n` + s.scenes.map((sc, i) => `C${i + 1} (${time(i)}): ${scenePrompt(sc.prompt)}\nSound effects: ${sc.sfx}`).join("\n\n"),
+      `\nPINNED COMMENT: ${s.question}`,
+      `DESCRIPTION: ${s.titles[0]} ${s.hashtags}`,
+    ].join("\n");
+  }
+  function voiceText(s) {
+    return s.scenes.map((sc) => sc.say.map(([w, t]) => `${w}: ${t}`).join("\n")).join("\n\n");
+  }
+  function voiceRow(id, suffix, label, note) {
+    const src = `voiceovers/${id}${suffix}.mp3`;
+    return `<div class="voice-row"><b>${label}<small>${note}</small></b>
+      <audio controls preload="none" src="${src}"></audio>
+      ${CAN_DOWNLOAD ? `<a class="btn ghost sm" href="${src}" download>Save MP3</a>` : ""}</div>`;
+  }
+  function renderVideos() {
+    $("#vidList").innerHTML = SCRIPTS.map((s) => `
+      <div class="vid">
+        <video controls playsinline preload="metadata" src="videos/${s.id}.mp4"></video>
+        <b>${esc(s.title)}</b>
+        <span>${esc(s.titles[0])}</span>
+      </div>`).join("");
+  }
+  function renderScripts() {
+    const list = $("#scriptList");
+    list.innerHTML = SCRIPTS.map((s, si) => {
+      const secs = s.scenes.length * 8;
+      const thumb = s.thumb
+        ? `<img src="${THUMB_DIR}${s.thumb}-sm.webp" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode('${si + 1}'))">`
+        : `${si + 1}`;
+      const scenes = s.scenes.map((sc, i) => `
+        <div class="scene">
+          <div class="scene-head">
+            <div class="scene-num">Scene ${i + 1}<span>${time(i)}</span>${CUES[s.id] ? ` <span class="trim" title="Fast version: trim this clip to this length">Fast: ${CUES[s.id][i]}s</span>` : ""}</div>
+            <button class="btn sm" type="button" data-copy-scene="${si}:${i}">Copy prompt</button>
+          </div>
+          <div class="lines">${sc.say.map(([w, t]) => `<div class="line" style="--c:${colorOf(w)}"><b>${esc(w)}:</b> ${esc(t)}</div>`).join("")}</div>
+          <div class="prompt">${tagged(sc.prompt)}</div>
+          <div class="sfx">${esc(sc.sfx)}</div>
+        </div>`).join("");
+      return `
+      <details class="script" data-id="${s.id}">
+        <summary>
+          <div class="thumb">${thumb}</div>
+          <div style="min-width:0; display:grid; gap:2px;">
+            <div class="s-title">${esc(s.title)}</div>
+            <div class="s-hook">${esc(s.hook)}</div>
+            <div class="s-meta">${s.scenes.length} scenes · ${secs} sec</div>
+          </div>
+          <div class="row" style="gap:10px; flex-wrap:nowrap;">
+            <span class="badge ${made[s.id] ? "made" : ""}" data-badge="${s.id}">${made[s.id] ? "Made" : "To make"}</span>
+            <span class="open-mark" aria-hidden="true">+</span>
+          </div>
+        </summary>
+        <div class="s-body">
+          <div class="row">
+            <button class="btn ghost sm" type="button" data-copy-voice="${si}">Copy voiceover words</button>
+            <button class="btn ghost sm" type="button" data-copy-all="${si}">Copy whole script</button>
+            <button class="btn sm ${made[s.id] ? "done" : ""}" type="button" data-made="${s.id}">${made[s.id] ? "Made it ✓" : "Mark as made"}</button>
+          </div>
+          <div class="kv"><b>The finished Short</b><video class="s-video" controls playsinline preload="none" src="videos/${s.id}.mp4"></video></div>
+          <div class="voice">
+            <div class="kv"><b>Voiceover (ready to use)</b></div>
+            ${voiceRow(s.id, "", "Fast", CUES[s.id] ? CUES[s.id].reduce((a, b) => a + b, 0).toFixed(0) + " sec · best for views" : "best for views")}
+            ${voiceRow(s.id, "-8s", "Easy", secs + " sec · full 8-sec clips")}
+          </div>
+          <div class="kv"><b>On-screen hook (first 2 seconds)</b><span class="duck">${esc(s.hook)}</span></div>
+          ${scenes}
+          <div class="frame" style="background:var(--panel-2)">
+            <div class="kv"><b>Title ideas</b>${s.titles.map((t) => `<span>${esc(t)}</span>`).join("")}</div>
+            <div class="kv"><b>Pinned comment</b><span>${esc(s.question)}</span></div>
+            <div class="kv"><b>Hashtags</b><span>${esc(s.hashtags)}</span></div>
+          </div>
+        </div>
+      </details>`;
+    }).join("");
+    updateMadeCount();
+  }
+  function updateMadeCount() {
+    const n = SCRIPTS.filter((s) => made[s.id]).length;
+    $("#madeCount").textContent = `${n} of ${SCRIPTS.length} made`;
+  }
+  $("#scriptList").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.copyScene) {
+      const [si, i] = b.dataset.copyScene.split(":").map(Number);
+      copy(scenePrompt(SCRIPTS[si].scenes[i].prompt), `Scene ${i + 1} copied. Paste it in Google Flow.`);
+    } else if (b.dataset.copyVoice) {
+      copy(voiceText(SCRIPTS[+b.dataset.copyVoice]), "Voiceover words copied.");
+    } else if (b.dataset.copyAll) {
+      copy(scriptText(SCRIPTS[+b.dataset.copyAll]), "Whole script copied.");
+    } else if (b.dataset.made) {
+      const id = b.dataset.made; made[id] = !made[id]; store.set("made", made);
+      b.classList.toggle("done", !!made[id]); b.textContent = made[id] ? "Made it ✓" : "Mark as made";
+      const badge = document.querySelector(`[data-badge="${id}"]`);
+      badge.classList.toggle("made", !!made[id]); badge.textContent = made[id] ? "Made" : "To make";
+      updateMadeCount();
+    }
+  });
+
+  // ── script maker ─────────────────────────────
+  $("#who").innerHTML = CAST.map((c) => `
+    <label class="chip"><input type="checkbox" value="${esc(c.name)}" ${["Pip", "Quack", "Mo", "Mr. Bucks"].includes(c.name) ? "checked" : ""}>
+    <span class="dot" style="--c:${c.color}"></span>${esc(c.name)}</label>`).join("");
+  function makerText() {
+    const names = [...document.querySelectorAll("#who input:checked")].map((i) => i.value);
+    const use = names.length ? names : ["Pip"];
+    const scenes = $("#len").value;
+    const idea = $("#idea").value.trim() || "Surprise me with your best idea";
+    return `${rules(use, scenes)}
+
+NOW WRITE THIS SHORT
+Idea: ${idea}
+Kind of Short: ${$("#kind").value}
+Characters in it: ${use.join(", ")}
+Number of scenes: ${scenes} (${scenes * 8} seconds)`;
+  }
+  const updateMaker = () => { $("#makerOut").textContent = makerText(); };
+  ["input", "change"].forEach((ev) => $("#maker").addEventListener(ev, updateMaker));
+  $("#copyMaker").addEventListener("click", () => copy(makerText(), "Copied. Now paste it into Claude."));
+  $("#surprise").addEventListener("click", () => {
+    $("#idea").value = IDEAS[Math.floor(Math.random() * IDEAS.length)]; updateMaker();
+  });
+
+  // ── cast ─────────────────────────────────────
+  const picPrompt = (c) => `Character design sheet of ${c.look}. Full body, front view, side view and back view, standing in a neutral pose, on a plain white background. 3D animated cartoon, chunky vinyl-toy look with soft rounded shapes, glossy plastic shading, bright saturated colours, soft studio lighting. No text.`;
+  $("#castList").innerHTML = CAST.map((c, i) => `
+    <div class="frame member" style="--c:${c.color}">
+      <h3>${esc(c.name)}</h3>
+      <p>${esc(c.role)}</p>
+      <p class="small"><b>Voice:</b> <span class="muted">${esc(c.voice)}</span></p>
+      ${c.name === "Quack" ? `<p class="small muted">No voice. Use a squeaky-toy sound effect in CapCut.</p>` : `<audio controls preload="none" src="voiceovers/cast-${c.name.toLowerCase().replace(". ", "-").replace(" ", "-")}.mp3"></audio>`}
+      <p class="look">${esc(c.look)}</p>
+      <div class="row"><button class="btn sm" type="button" data-pic="${i}">Copy picture prompt</button></div>
+    </div>`).join("");
+  $("#castList").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-pic]"); if (!b) return;
+    const c = CAST[+b.dataset.pic]; copy(picPrompt(c), `${c.name} picture prompt copied.`);
+  });
+
+  // ── checklists ───────────────────────────────
+  const ABOUT = "Pip says yes to every crazy challenge. Quack saves the day. Mo says \"bad idea.\" New animated Shorts every day! 🦆";
+  const PFP = `Close-up portrait of ${castBy.Pip.look}, big happy grin, looking at the camera, centered, on a bright yellow background. 3D animated cartoon, chunky vinyl-toy look, glossy plastic shading, bright saturated colours, soft studio lighting. Square image, no text.`;
+  const BANNER = `Wide cinematic banner of five cartoon friends lined up in a row on a sunny game-show stage with gold confetti: ${CAST.map((c) => c.look).join("; ")}. Keep all the characters in the middle of the image with empty space on the left and right. 3D animated cartoon, chunky vinyl-toy look, glossy plastic shading, bright saturated colours. Wide 16:9 image, no text.`;
+  const SETUP = [
+    { t: "Check the age rule", d: "YouTube says you need to be 13 or older to run your own channel. If you're younger, a parent or guardian makes the channel and runs it with you." },
+    { t: "Pick the channel name", d: "Ideas: Oreok (matches your thumbnail portfolio), Pip & Quack, Pip's Challenges, Bucket Bean. Short and easy to say is best. Check nobody else has it by searching YouTube." },
+    { t: "Make the channel", d: "In the YouTube app: tap your profile picture → Create a channel. Pick a handle that matches the name, like @PipAndQuack." },
+    { t: "Make the cast pictures", d: "One picture of each character, saved in one photo album. You'll reuse them for every Short.", link: ["Go to the cast", "#cast"] },
+    { t: "Profile picture", d: "Pip's face on yellow. Make it, crop it square.", copy: ["Copy picture prompt", PFP] },
+    { t: "Banner", d: "Size 2560 × 1440. Only the middle strip shows on phones, so keep the characters in the middle. Add the channel name in Canva or CapCut afterwards (AI is bad at text).", copy: ["Copy banner prompt", BANNER] },
+    { t: "Channel description", d: ABOUT, copy: ["Copy description", ABOUT] },
+    { t: "Make 3 Shorts before posting the first one", d: "Then you're always one ahead and never miss a day." },
+    { t: "Pick a posting time", d: "One Short a day, same time every day. After school (around 4–5 pm) is a good start." },
+    { t: "Make a playlist", d: "Call it \"Pip's Challenges\" and add every Short to it." },
+  ];
+  const UPLOAD = [
+    { t: "The first second is the most exciting part", d: "Watch the start with the sound off. Would you stop scrolling?" },
+    { t: "Under 60 seconds, 9:16, 1080 × 1920", d: "Export from CapCut at 1080p, 30 fps." },
+    { t: "Big captions, sound effects, quiet music", d: "Music around 10–15% volume so the voice is clear." },
+    { t: "Title under 50 characters", d: "Make people curious. Use one of the title ideas." },
+    { t: "Description and 3 hashtags", d: "One line about the Short, then #shorts #animation and one more." },
+    { t: "Say yes to \"Altered or synthetic content\"", d: "YouTube asks this on upload. Your clips are made with AI, so tick yes. It's the rule, and it doesn't hurt views." },
+    { t: "Add it to the playlist", d: "Pip's Challenges." },
+    { t: "Pin a comment with a question", d: "Use the pinned comment from the script. Questions get comments, and comments help the Short spread." },
+    { t: "Reply to comments in the first hour", d: "" },
+  ];
+  function renderTodo(el, items, key, bar) {
+    const state = store.get(key, {});
+    el.innerHTML = items.map((it, i) => `
+      <label>
+        <input type="checkbox" id="${key}-${i}" data-i="${i}" ${state[i] ? "checked" : ""}>
+        <span class="t"><b>${esc(it.t)}</b>${it.d ? `<span>${esc(it.d)}</span>` : ""}
+        ${it.copy || it.link ? `<span class="row">${it.copy ? `<button class="btn sm" type="button" data-copy-i="${i}">${esc(it.copy[0])}</button>` : ""}${it.link ? `<a class="btn ghost sm" href="${it.link[1]}">${esc(it.link[0])}</a>` : ""}</span>` : ""}
+        </span>
+      </label>`).join("");
+    const update = () => {
+      const s = {}; el.querySelectorAll("input").forEach((x) => { if (x.checked) s[x.dataset.i] = 1; });
+      store.set(key, s);
+      if (bar) bar.style.width = (Object.keys(s).length / items.length) * 100 + "%";
+    };
+    el.addEventListener("change", update);
+    el.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-copy-i]"); if (!b) return;
+      e.preventDefault(); const it = items[+b.dataset.copyI]; copy(it.copy[1], `${it.t}: copied.`);
+    });
+    update();
+    return update;
+  }
+  renderTodo($("#setupList"), SETUP, "setup", $("#setupBar"));
+  const updUpload = renderTodo($("#uploadList"), UPLOAD, "upload");
+  $("#clearUpload").addEventListener("click", () => {
+    $("#uploadList").querySelectorAll("input").forEach((x) => (x.checked = false)); updUpload(); toast("Ready for the next Short.");
+  });
+
+  // ── ideas ────────────────────────────────────
+  $("#ideaList").innerHTML = IDEAS.map((t, i) => `
+    <div class="idea"><span>${esc(t)}</span><button class="btn ghost sm" type="button" data-idea="${i}">Use this idea</button></div>`).join("");
+  $("#ideaList").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-idea]"); if (!b) return;
+    $("#idea").value = IDEAS[+b.dataset.idea]; updateMaker();
+    $("#maker").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    toast("Idea added to the Script Maker.");
+  });
+
+  // ── claude project ───────────────────────────
+  const project = rules(null) + `
+
+When I type an idea, write the full Short in the layout above. If I just say "ideas", give me 20 new Short ideas using the cast. Keep the characters the same in every Short so people recognise them.`;
+  $("#projectOut").textContent = project;
+  $("#copyProject").addEventListener("click", () => copy(project, "Copied. Paste it into your Claude project's instructions."));
+  const FOLLOW = [
+    ["Better hooks", "Give me 10 stronger hooks for this Short. Each one must make someone stop scrolling in 1 second. Then rewrite Scene 1 with the best one."],
+    ["Funnier", "Make this funnier. Add one more surprise in the middle and make the twist at the end bigger. Keep the same layout."],
+    ["Make it loop", "Change the last line so it leads straight back into the first line, so the Short loops."],
+    ["Part 2", "Write Part 2 of this Short. Start right where Part 1 ended, in the same layout."],
+    ["Fix a bad clip", "Google Flow made scene [number] look wrong: [what went wrong]. Rewrite that scene prompt so it is simpler and clearer, with only one action."],
+    ["20 ideas", "Give me 20 new Short ideas for the cast. Mix money challenges, funny disasters and would-you-rather. One line each."],
+  ];
+  $("#followups").innerHTML = FOLLOW.map(([t, p], i) => `
+    <label style="cursor:default;grid-template-columns:minmax(0,1fr) auto;align-items:center;">
+      <span class="t"><b>${esc(t)}</b><span>${esc(p)}</span></span>
+      <button class="btn sm" type="button" data-f="${i}">Copy</button>
+    </label>`).join("");
+  $("#followups").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-f]"); if (!b) return;
+    e.preventDefault(); copy(FOLLOW[+b.dataset.f][1], `"${FOLLOW[+b.dataset.f][0]}" copied.`);
+  });
+
+  updateMaker();
+  renderVideos();
+  renderScripts();
+  fetch("voiceovers/cues.json").then((r) => r.json()).then((c) => { CUES = c; renderScripts(); }).catch(() => {});
+})();
+</script>
+</body>
+</html>

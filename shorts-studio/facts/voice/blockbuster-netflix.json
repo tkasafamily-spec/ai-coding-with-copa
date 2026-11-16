@@ -1,0 +1,50 @@
+{
+ "duration": 24.426,
+ "beats": [
+  {
+   "say": "In 2000, Netflix offered to sell itself to Blockbuster for $50 million.",
+   "start": 0.05,
+   "end": 4.423
+  },
+  {
+   "say": "Back then, Netflix was tiny. It mailed DVDs in red envelopes.",
+   "start": 4.583,
+   "end": 8.275
+  },
+  {
+   "say": "Blockbuster had thousands of video stores.",
+   "start": 8.435,
+   "end": 10.541
+  },
+  {
+   "say": "So the Netflix founders flew to Dallas to make the deal.",
+   "start": 10.701,
+   "end": 12.814
+  },
+  {
+   "say": "Blockbuster laughed them out of the room.",
+   "start": 12.974,
+   "end": 14.478
+  },
+  {
+   "say": "Ten years later, Blockbuster went bankrupt.",
+   "start": 14.638,
+   "end": 16.824
+  },
+  {
+   "say": "Netflix is now worth hundreds of billions of dollars.",
+   "start": 16.984,
+   "end": 19.521
+  },
+  {
+   "say": "And there's only one Blockbuster left, in Bend, Oregon.",
+   "start": 19.681,
+   "end": 22.35
+  },
+  {
+   "say": "All because they said no.",
+   "start": 22.51,
+   "end": 23.966
+  }
+ ]
+}

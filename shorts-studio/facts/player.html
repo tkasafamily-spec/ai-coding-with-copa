@@ -1,0 +1,185 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face { font-family: Montserrat; font-weight: 900; src: url(../animator/node_modules/@fontsource/montserrat/files/montserrat-latin-900-normal.woff2) format("woff2"); }
+@font-face { font-family: Montserrat; font-weight: 800; src: url(../animator/node_modules/@fontsource/montserrat/files/montserrat-latin-800-normal.woff2) format("woff2"); }
+body { margin: 0; background: #000; }
+</style></head><body>
+<script>
+// Facts Shorts player: draws any moment of a Short onto a 1080x1920 canvas.
+const W = 1080, H = 1920;
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, t) => a + (b - a) * t;
+const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const back = (x) => { const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const cv = document.createElement("canvas"); cv.width = W; cv.height = H; document.body.appendChild(cv);
+const ctx = cv.getContext("2d");
+let D, IMGS = {}, BLUR = {}, GRAIN = [];
+const WIDE = (() => { const c = document.createElement("canvas"); return { c, x: c.getContext("2d") }; })();
+
+function loadImg(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("missing " + src)); i.src = src; }); }
+function makeBlur(img) { // pre-blurred, darkened background version of a photo
+  const c = document.createElement("canvas"); c.width = 540; c.height = 960; const x = c.getContext("2d");
+  const s = Math.max(540 / img.width, 960 / img.height); x.filter = "blur(18px) brightness(0.55) saturate(1.1)";
+  x.drawImage(img, (540 - img.width * s) / 2 - 20, (960 - img.height * s) / 2 - 20, img.width * s + 40, img.height * s + 40); return c;
+}
+function makeGrain() {
+  for (let k = 0; k < 6; k++) { const c = document.createElement("canvas"); c.width = 540; c.height = 960; const x = c.getContext("2d"); const d = x.createImageData(540, 960);
+    for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; } x.putImageData(d, 0, 0); GRAIN.push(c); }
+}
+window.init = async (data) => {
+  D = data; await document.fonts.load('900 92px Montserrat'); await document.fonts.load('800 40px Montserrat');
+  for (const tag of new Set(D.fact.beats.map((b) => b.img))) { IMGS[tag] = await loadImg(`${D.imgDir || "images"}/${tag}.jpg`); BLUR[tag] = makeBlur(IMGS[tag]); }
+  makeGrain();
+  return true;
+};
+
+const fmt = (n) => Math.round(n).toLocaleString("en-US");
+function outlined(text, x, y, size, fill = "#fff", stroke = "#000", lw = 0.2, align = "center") {
+  ctx.font = `900 ${size}px Montserrat, "Arial Black", sans-serif`; ctx.textAlign = align; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+  ctx.lineWidth = size * lw; ctx.strokeStyle = stroke; ctx.strokeText(text, x, y); ctx.fillStyle = fill; ctx.fillText(text, x, y);
+}
+function fitSize(text, size, maxW) { ctx.font = `900 ${size}px Montserrat`; const w = ctx.measureText(text).width; return w > maxW ? size * maxW / w : size; }
+function rrect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+// ── one beat's picture ─────────────────────────────────
+function drawBeat(i, t) {
+  const b = D.fact.beats[i], tb = D.voice.beats[i];
+  const start = i === 0 ? 0 : tb.start - 0.06, end = i + 1 < D.voice.beats.length ? D.voice.beats[i + 1].start - 0.06 : D.voice.duration;
+  const p = seg(t, start, end), lt = t - start;
+  const img = IMGS[b.img];
+  const punch = 1 + 0.07 * (1 - easeOut(seg(lt, 0, 0.35)));
+  const whip = (i === 0 ? 0 : 1) * (1 - easeOut(seg(lt, 0, 0.22))) * (i % 2 ? -140 : 140);
+  ctx.save(); ctx.translate(W / 2 + whip, H / 2);
+  if (b.look === "card") {
+    const bg = BLUR[b.img]; ctx.drawImage(bg, -W / 2 * 1.08, -H / 2 * 1.08, W * 1.08, H * 1.08);
+    const maxW = 900, maxH = 1050; const s = Math.min(maxW / img.width, maxH / img.height);
+    const w = img.width * s, h = img.height * s;
+    const drop = back(seg(lt, 0, 0.35)); const z = (0.85 + 0.15 * drop) * (1 + 0.05 * p) * punch;
+    ctx.save(); ctx.translate(0, -120); ctx.rotate(((i % 3) - 1) * 0.025); ctx.scale(z, z);
+    ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 50; ctx.shadowOffsetY = 20;
+    ctx.fillStyle = "#f4efe4"; ctx.fillRect(-w / 2 - 16, -h / 2 - 16, w + 32, h + 32);
+    ctx.shadowColor = "transparent"; ctx.filter = "contrast(1.08) saturate(0.95)"; ctx.drawImage(img, -w / 2, -h / 2, w, h); ctx.filter = "none";
+    ctx.restore();
+  } else if (img.width / img.height > 0.8) { // wide photo: big and sharp across the middle, soft edges, blurred fill
+    const bg = BLUR[b.img]; ctx.drawImage(bg, -W / 2 * 1.1, -H / 2 * 1.1, W * 1.1, H * 1.1);
+    const zoom = (i % 2 ? lerp(1.32, 1.18, ease(p)) : lerp(1.18, 1.32, ease(p))) * punch;
+    const s = (W * zoom) / img.width, w = img.width * s, h = img.height * s;
+    const px = (w - W) / 2 * 0.85 * (i % 2 ? 1 : -1) * lerp(-1, 1, ease(p));
+    const oc = WIDE.c, ox = WIDE.x; oc.width = W; oc.height = Math.ceil(h);
+    ox.globalCompositeOperation = "source-over"; ox.filter = "contrast(1.1) saturate(1.05)"; ox.drawImage(img, (W - w) / 2 + px, 0, w, h); ox.filter = "none";
+    const f = Math.min(140, h * 0.18), g = ox.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(f / h, "rgba(0,0,0,1)"); g.addColorStop(1 - f / h, "rgba(0,0,0,1)"); g.addColorStop(1, "rgba(0,0,0,0)");
+    ox.globalCompositeOperation = "destination-in"; ox.fillStyle = g; ox.fillRect(0, 0, W, h);
+    ctx.drawImage(oc, -W / 2, -H * 0.1 - h / 2);
+  } else {
+    const s0 = Math.max(W / img.width, H / img.height);
+    const zoom = (i % 3 === 2 ? lerp(1.22, 1.06, ease(p)) : lerp(1.06, 1.2, ease(p))) * punch;
+    const s = s0 * zoom, w = img.width * s, h = img.height * s;
+    const ox = Math.max(0, (w - W) / 2), oy = Math.max(0, (h - H) / 2);
+    const dir = [[1, 0], [-1, 0], [0, 0.6], [-0.7, -0.3], [0.7, 0.4]][i % 5];
+    const px = ox * 0.75 * dir[0] * lerp(-1, 1, ease(p)), py = oy * 0.75 * dir[1] * lerp(-1, 1, ease(p));
+    ctx.filter = "contrast(1.1) saturate(1.05)"; ctx.drawImage(img, -w / 2 + px, -h / 2 + py, w, h); ctx.filter = "none";
+  }
+  ctx.restore();
+  // flash on the cut
+  if (i > 0 && lt < 0.12) { ctx.fillStyle = `rgba(255,255,255,${0.45 * (1 - lt / 0.12)})`; ctx.fillRect(0, 0, W, H); }
+  return { b, lt, p };
+}
+
+// ── graphics ──────────────────────────────────────────
+function drawGfx(g, lt, i) {
+  if (!g) return;
+  const y0 = H * 0.4;
+  if (g.type === "count") {
+    const k = easeOut(seg(lt, 0.1, 1.2)); const val = (g.prefix || "") + fmt(g.to * k) + (k >= 1 ? (g.suffix || "") : (g.suffix && !g.suffix.trim().match(/^\+$/) ? g.suffix : ""));
+    const size = fitSize(val, 170, 980); const sc = back(seg(lt, 0, 0.25)) * (1 + 0.06 * Math.max(0, 1 - Math.abs(lt - 1.25) / 0.15));
+    ctx.save(); ctx.translate(W / 2, y0); ctx.scale(sc, sc);
+    const grad = ctx.createLinearGradient(0, -size / 2, 0, size / 2); grad.addColorStop(0, "#fff6c9"); grad.addColorStop(0.55, "#ffd23a"); grad.addColorStop(1, "#e09a00");
+    ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 30; outlined(val, 0, 0, size, grad, "#000", 0.16); ctx.shadowColor = "transparent";
+    if (g.label) outlined(g.label, 0, size * 0.85, 58, "#fff", "#000", 0.22);
+    ctx.restore();
+  } else if (g.type === "year") {
+    const sc = lerp(2.4, 1, easeOut(seg(lt, 0, 0.18))); const a = seg(lt, 0, 0.08);
+    const size = fitSize(g.text, 190, 960);
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2, y0); ctx.scale(sc, sc);
+    ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 40; outlined(g.text, 0, 0, size, "#fff", "#000", 0.15); ctx.shadowColor = "transparent";
+    const bw = ctx.measureText(g.text).width * easeOut(seg(lt, 0.15, 0.45)); ctx.fillStyle = "#ffd23a"; ctx.fillRect(-bw / 2, size * 0.62, bw, 18);
+    ctx.restore();
+  } else if (g.type === "stamp") {
+    const sc = lerp(2.2, 1, easeOut(seg(lt, 0.05, 0.2))); const a = seg(lt, 0.05, 0.12);
+    const size = fitSize(g.text, 150, 820);
+    ctx.save(); ctx.globalAlpha = a * 0.95; ctx.translate(W / 2, y0 + 40); ctx.rotate(-0.16); ctx.scale(sc, sc);
+    ctx.font = `900 ${size}px Montserrat`; const tw = ctx.measureText(g.text).width;
+    ctx.fillStyle = "rgba(250,244,230,.88)"; rrect(-tw / 2 - 50, -size * 0.75, tw + 100, size * 1.5, 26); ctx.fill();
+    ctx.lineWidth = 16; ctx.strokeStyle = "#e3242b"; rrect(-tw / 2 - 50, -size * 0.75, tw + 100, size * 1.5, 26); ctx.stroke();
+    ctx.lineWidth = 5; rrect(-tw / 2 - 30, -size * 0.6, tw + 60, size * 1.2, 16); ctx.stroke();
+    ctx.fillStyle = "#e3242b"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(g.text, 0, size * 0.04);
+    ctx.globalCompositeOperation = "destination-out"; // worn ink
+    for (let k = 0; k < 160; k++) { const r = Math.sin(k * 91.7) * 0.5 + 0.5, q = Math.sin(k * 47.3) * 0.5 + 0.5; ctx.fillStyle = `rgba(0,0,0,${0.25 + 0.5 * r})`; ctx.fillRect(-tw / 2 - 50 + q * (tw + 100), -size * 0.75 + r * size * 1.5, 3 + 6 * q, 2 + 4 * r); }
+    ctx.restore();
+  } else if (g.type === "tag") {
+    const k = easeOut(seg(lt, 0.05, 0.4)); const y = H * 0.565;
+    ctx.save(); ctx.font = `900 74px Montserrat`; const tw = Math.min(980, ctx.measureText(g.text).width + 70);
+    const x = lerp(-tw, 50, k);
+    ctx.fillStyle = "#ffd23a"; ctx.fillRect(x, y - 52, tw, 104);
+    ctx.fillStyle = "#000"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.font = `900 ${fitSize(g.text, 74, tw - 70)}px Montserrat`; ctx.fillText(g.text, x + 35, y + 4);
+    if (g.sub) { const k2 = easeOut(seg(lt, 0.2, 0.55)); ctx.globalAlpha = k2; ctx.fillStyle = "rgba(0,0,0,.75)"; ctx.font = `800 40px Montserrat`; const sw = ctx.measureText(g.sub).width + 50; ctx.fillRect(lerp(-sw, 50, k2), y + 58, sw, 64); ctx.fillStyle = "#fff"; ctx.fillText(g.sub, lerp(-sw, 50, k2) + 25, y + 92); }
+    ctx.restore();
+  }
+}
+
+// ── captions (plain bold) ─────────────────────────────
+function drawCaptions(t) {
+  const c = D.captions.find((x) => t >= x.s && t < x.e); if (!c) return;
+  const size = 88, y = H * 0.74;
+  ctx.save(); ctx.font = `900 ${size}px Montserrat`; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+  const words = c.words.map((w) => ({ ...w, text: w.w.toUpperCase() })), space = size * 0.28, widths = words.map((w) => ctx.measureText(w.text).width);
+  const lines = [[]]; let lw = 0;
+  words.forEach((w, i) => { if (lw + widths[i] > 940 && lines.at(-1).length) { lines.push([]); lw = 0; } lines.at(-1).push(i); lw += widths[i] + space; });
+  const lh = size * 1.12, top = y - ((lines.length - 1) * lh) / 2, chunkIn = back(seg(t, c.s, c.s + 0.12));
+  lines.forEach((ln, li) => {
+    let x = W / 2 - (ln.reduce((a, i) => a + widths[i], 0) + space * (ln.length - 1)) / 2;
+    ln.forEach((i) => { const w = words[i]; const said = t >= w.s - 0.02; const sc = (said ? lerp(0.85, 1, back(seg(t, w.s - 0.02, w.s + 0.12))) : 0.85) * lerp(0.6, 1, chunkIn);
+      ctx.save(); ctx.translate(x + widths[i] / 2, top + li * lh); ctx.scale(sc, sc); ctx.globalAlpha = said ? 1 : 0;
+      ctx.lineWidth = size * 0.2; ctx.strokeStyle = "#000"; ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 18; ctx.shadowOffsetY = 8; ctx.strokeText(w.text, -widths[i] / 2, 0);
+      ctx.shadowColor = "transparent"; ctx.fillStyle = "#fff"; ctx.fillText(w.text, -widths[i] / 2, 0); ctx.restore(); x += widths[i] + space; });
+  });
+  ctx.restore();
+}
+function drawHook(t) {
+  const until = D.voice.beats[1] ? D.voice.beats[1].start - 0.1 : 2.5; if (t > until) return;
+  const a = seg(t, 0, 0.12) * (1 - seg(t, until - 0.15, until)), sc = back(seg(t, 0, 0.3));
+  ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2, 260); ctx.scale(sc, sc);
+  ctx.font = `900 72px Montserrat`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const text = D.fact.hook, words = text.split(" "); let lines = [text];
+  if (ctx.measureText(text).width > 900) { let best = 1, bd = 1e9; for (let k = 1; k < words.length; k++) { const d = Math.abs(ctx.measureText(words.slice(0, k).join(" ")).width - ctx.measureText(words.slice(k).join(" ")).width); if (d < bd) { bd = d; best = k; } } lines = [words.slice(0, best).join(" "), words.slice(best).join(" ")]; }
+  const bw = Math.max(...lines.map((l) => ctx.measureText(l).width)) + 80, bh = lines.length * 84 + 44;
+  ctx.fillStyle = "rgba(0,0,0,.78)"; rrect(-bw / 2, -bh / 2, bw, bh, 24); ctx.fill();
+  lines.forEach((l, k) => { const yy = (k - (lines.length - 1) / 2) * 84; ctx.lineWidth = 14; ctx.strokeStyle = "#000"; ctx.lineJoin = "round"; ctx.strokeText(l, 0, yy); ctx.fillStyle = "#FFD23A"; ctx.fillText(l, 0, yy); });
+  ctx.restore();
+}
+
+window.frame = (t, q = 0.92) => {
+  const vb = D.voice.beats; let i = vb.length - 1; while (i > 0 && t < vb[i].start - 0.06) i--;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+  // camera shake on year/stamp slams
+  const g = D.fact.beats[i].gfx, lt0 = t - (i === 0 ? 0 : vb[i].start - 0.06);
+  if (g && (g.type === "year" || g.type === "stamp") && lt0 > 0.15 && lt0 < 0.4) { const a = 14 * (1 - seg(lt0, 0.15, 0.4)); ctx.translate(Math.sin(t * 97) * a, Math.cos(t * 83) * a); }
+  const { lt } = drawBeat(i, t);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // vignette + grain
+  const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.75); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.55)"); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.globalAlpha = 0.07; ctx.globalCompositeOperation = "overlay"; ctx.drawImage(GRAIN[Math.floor(t * 24) % GRAIN.length], 0, 0, W, H); ctx.restore();
+  // dark band behind captions area for readability
+  const cg = ctx.createLinearGradient(0, H * 0.6, 0, H * 0.9); cg.addColorStop(0, "rgba(0,0,0,0)"); cg.addColorStop(0.5, "rgba(0,0,0,.35)"); cg.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = cg; ctx.fillRect(0, H * 0.6, W, H * 0.3);
+  drawGfx(g, lt, i);
+  drawHook(t);
+  drawCaptions(t);
+  return cv.toDataURL("image/jpeg", q);
+};
+window.ready = true;
+</script>
+</body></html>

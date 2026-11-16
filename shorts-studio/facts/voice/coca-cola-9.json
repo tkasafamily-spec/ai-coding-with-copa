@@ -1,0 +1,45 @@
+{
+ "duration": 24.422,
+ "beats": [
+  {
+   "say": "In its first year, Coca-Cola sold just 9 drinks a day.",
+   "start": 0.05,
+   "end": 3.168
+  },
+  {
+   "say": "It was invented in 1886, by a pharmacist in Atlanta named John Pemberton.",
+   "start": 3.328,
+   "end": 6.984
+  },
+  {
+   "say": "A glass cost 5 cents, at Jacobs' Pharmacy.",
+   "start": 7.144,
+   "end": 9.498
+  },
+  {
+   "say": "His bookkeeper, Frank Robinson, named it, and wrote the famous logo by hand.",
+   "start": 9.658,
+   "end": 13.261
+  },
+  {
+   "say": "Pemberton sold his share, and died in 1888.",
+   "start": 13.421,
+   "end": 15.945
+  },
+  {
+   "say": "He never saw what it would become.",
+   "start": 16.105,
+   "end": 17.714
+  },
+  {
+   "say": "Today, the company sells over 2 billion drinks every single day.",
+   "start": 17.874,
+   "end": 21.876
+  },
+  {
+   "say": "From 9 drinks a day\u2026 to 2 billion.",
+   "start": 22.036,
+   "end": 23.962
+  }
+ ]
+}

@@ -1,0 +1,50 @@
+{
+ "duration": 23.242,
+ "beats": [
+  {
+   "say": "Nintendo is older than the airplane.",
+   "start": 0.05,
+   "end": 1.6
+  },
+  {
+   "say": "It was started in 1889, in Kyoto, Japan.",
+   "start": 1.76,
+   "end": 4.379
+  },
+  {
+   "say": "And it made playing cards, called hanafuda.",
+   "start": 4.539,
+   "end": 7.169
+  },
+  {
+   "say": "Later, Nintendo tried running a taxi company\u2026",
+   "start": 7.329,
+   "end": 9.515
+  },
+  {
+   "say": "\u2026selling instant rice\u2026 and even a vacuum cleaner.",
+   "start": 9.675,
+   "end": 12.215
+  },
+  {
+   "say": "Most of it flopped.",
+   "start": 12.375,
+   "end": 13.249
+  },
+  {
+   "say": "Then an engineer built a toy grabbing arm, the Ultra Hand. It sold over a million.",
+   "start": 13.409,
+   "end": 17.696
+  },
+  {
+   "say": "That led to video games, and eventually, to Mario.",
+   "start": 17.856,
+   "end": 20.548
+  },
+  {
+   "say": "And Nintendo still sells playing cards today.",
+   "start": 20.708,
+   "end": 22.782
+  }
+ ]
+}

@@ -1,3 +1,13 @@
+# Shorts Studio
+
+**Now: a business & history facts channel.** Open `index.html` (on the live site: `/shorts-studio/`).
+
+- `videos/` holds the finished Shorts, ready to upload
+- `facts/` is everything that makes them (scripts, voice, photos and credits, renderer). See `facts/README.md`.
+- `cartoon.html`, `animator/`, `scripts.js`, `voiceovers/` are the first cartoon version (Pip & Quack), kept for reference.
+
+---
+
 # Pip & Quack Shorts Studio
 
 Everything for an animated YouTube Shorts channel, in one page:

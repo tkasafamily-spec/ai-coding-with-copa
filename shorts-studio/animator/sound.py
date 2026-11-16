@@ -90,7 +90,36 @@ def magic(d=1.0):
         st = int(k * 0.07 * SR); s = tone(f, 0.5) * np.exp(-t_(0.5) * 6) * 0.25; out[st:st + len(s)] += s
     return out
 def fireworks(): return poof() * 0.6 + _sparkle()
-LIB = {k: v for k, v in globals().items() if k in "whoosh pop confetti cheer step tick splash spray scratch ding boing squeak beep horn cash zoom sting whistle bubbles thunder honk poof rumble crumble click alarm rocket munch snore magic fireworks".split()}
+def impact(d=1.2):
+    t = t_(d); boom = np.sin(2 * np.pi * (45 + 60 * np.exp(-t * 12)) * t) * np.exp(-t * 3.5)
+    hit = fastlp(noise(d), 3) * np.exp(-t * 30) * 0.8
+    return (boom * 1.3 + hit) * 0.9
+def stamp(): t = t_(0.4); return (fastlp(noise(0.4), 6) * np.exp(-t * 25) * 1.2 + np.sin(2 * np.pi * 90 * t) * np.exp(-t * 18)) * 0.9
+def ticks(d=1.1):
+    out = np.zeros(int(d * SR)); tt = 0.0; gap = 0.035
+    while tt < d - 0.03:
+        c = tick() * 0.6; st = int(tt * SR); out[st:st + len(c)] += c; tt += gap; gap *= 1.07
+    return out
+def swish(d=0.3): return whoosh(d) * 0.8
+def riser(d=1.5): t = t_(d); return (fastlp(noise(d), 4) * (t / d) ** 2 + tone(200 + 600 * (t / d) ** 2, d) * 0.15 * (t / d)) * 0.8
+def music_doc(d, bpm=96):
+    """Dark, driving documentary bed: pulsing bass, soft kick, minor pads. Original, royalty-free."""
+    beat = 60 / bpm; n = int(d * SR); out = np.zeros(n + 2 * SR)
+    prog = [(110.0, [220.0, 261.6, 329.6]), (87.3, [174.6, 220.0, 261.6]), (130.8, [196.0, 261.6, 329.6]), (98.0, [196.0, 246.9, 293.7])]
+    b = 0; t = 0.0
+    while t < d:
+        root, chord = prog[(b // 8) % 4]; st = int(t * SR)
+        if b % 4 in (0, 2):
+            k = np.sin(2 * np.pi * (48 + 70 * np.exp(-t_(0.25) * 25)) * t_(0.25)) * np.exp(-t_(0.25) * 12) * 0.8; out[st:st + len(k)] += k
+        for e in (0, 0.5):
+            es = int((t + e * beat) * SR); ln = beat * 0.45
+            bs = fastlp(tone(root, ln, "saw"), 12) * env(int(ln * SR), 0.005, 0.08) * 0.35; out[es:es + len(bs)] += bs
+            h = (noise(0.03) - fastlp(noise(0.03), 3)) * np.exp(-t_(0.03) * 120) * (0.10 if e else 0.05); out[es:es + len(h)] += h
+        if b % 8 == 0:
+            pl = beat * 8; pad = sum(fastlp(tone(f, pl, "saw"), 30) for f in chord) * env(int(pl * SR), 0.6, 0.8) * 0.06; seg_ = out[st:st + len(pad)]; seg_ += pad[:len(seg_)]
+        b += 1; t += beat
+    o = out[:n]; return o * env(n, 0.2, 0.8)
+LIB = {k: v for k, v in globals().items() if k in "impact stamp ticks swish riser whoosh pop confetti cheer step tick splash spray scratch ding boing squeak beep horn cash zoom sting whistle bubbles thunder honk poof rumble crumble click alarm rocket munch snore magic fireworks".split()}
 
 def music(d, bpm=124):
     """Bouncy chiptune-ish loop: bass, chords, hats, kick. Original, royalty-free."""
@@ -127,7 +156,7 @@ if __name__ == "__main__":
     for e in ev["events"]:
         s = LIB[e["name"]]() * e.get("vol", 1); st = int(e["t"] * SR); fxbus[st:st + len(s)] += s * 0.55
     fxbus = fxbus[:n]
-    mus = music(n / SR)
+    mus = music_doc(n / SR) if ev.get("music") == "doc" else music(n / SR)
     v = np.zeros(n); v[: min(n, len(voice))] = voice[:n]
     # duck music under the voice
     venv = fastlp(np.abs(v), 2205); duck = 1 - 0.55 * np.clip(venv / (venv.max() + 1e-9) * 3, 0, 1)

@@ -1,0 +1,50 @@
+{
+ "duration": 21.611,
+ "beats": [
+  {
+   "say": "Play-Doh was invented to clean wallpaper.",
+   "start": 0.05,
+   "end": 1.935
+  },
+  {
+   "say": "Back in the 1930s, lots of homes were heated with coal.",
+   "start": 2.095,
+   "end": 4.638
+  },
+  {
+   "say": "And the soot turned wallpaper black.",
+   "start": 4.798,
+   "end": 6.161
+  },
+  {
+   "say": "So a company called Kutol made a soft dough to wipe it clean.",
+   "start": 6.321,
+   "end": 9.047
+  },
+  {
+   "say": "Then washable wallpaper came out, and sales crashed.",
+   "start": 9.207,
+   "end": 12.038
+  },
+  {
+   "say": "Until a teacher, Kay Zufall, let her class play with it.",
+   "start": 12.198,
+   "end": 14.978
+  },
+  {
+   "say": "In 1956, it became a toy called Play-Doh.",
+   "start": 15.138,
+   "end": 17.767
+  },
+  {
+   "say": "Billions of cans have been sold since.",
+   "start": 17.927,
+   "end": 19.769
+  },
+  {
+   "say": "All because of dirty walls.",
+   "start": 19.929,
+   "end": 21.151
+  }
+ ]
+}

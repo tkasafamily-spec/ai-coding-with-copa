@@ -1,0 +1,50 @@
+{
+ "duration": 25.897,
+ "beats": [
+  {
+   "say": "In 1925, a con man sold the Eiffel Tower.",
+   "start": 0.05,
+   "end": 2.741
+  },
+  {
+   "say": "His name was Victor Lustig.",
+   "start": 2.901,
+   "end": 4.533
+  },
+  {
+   "say": "He read in the paper that the tower cost a fortune to repair.",
+   "start": 4.693,
+   "end": 7.185
+  },
+  {
+   "say": "So he pretended to be a government official, and invited scrap metal dealers to a secret meeting.",
+   "start": 7.345,
+   "end": 12.036
+  },
+  {
+   "say": "He told them Paris was tearing the tower down, and selling it for scrap.",
+   "start": 12.196,
+   "end": 15.018
+  },
+  {
+   "say": "One dealer paid him, for over 7,000 tons of iron.",
+   "start": 15.178,
+   "end": 18.129
+  },
+  {
+   "say": "Lustig ran off with the money, and the dealer was too embarrassed to tell the police.",
+   "start": 18.289,
+   "end": 21.153
+  },
+  {
+   "say": "So Lustig came back\u2026 and tried to sell it again.",
+   "start": 21.313,
+   "end": 23.819
+  },
+  {
+   "say": "He ended up in Alcatraz.",
+   "start": 23.979,
+   "end": 25.437
+  }
+ ]
+}

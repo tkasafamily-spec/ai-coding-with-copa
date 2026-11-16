@@ -1,0 +1,55 @@
+{
+ "duration": 24.897,
+ "beats": [
+  {
+   "say": "This man owned 10% of Apple.",
+   "start": 0.05,
+   "end": 1.814
+  },
+  {
+   "say": "In April 1976, he started Apple with Steve Jobs and Steve Wozniak.",
+   "start": 1.974,
+   "end": 6.066
+  },
+  {
+   "say": "His name was Ronald Wayne.",
+   "start": 6.226,
+   "end": 7.769
+  },
+  {
+   "say": "He wrote Apple's first contract, and drew its very first logo.",
+   "start": 7.929,
+   "end": 10.79
+  },
+  {
+   "say": "But just 12 days later, he got scared of the risk.",
+   "start": 10.95,
+   "end": 12.968
+  },
+  {
+   "say": "So he sold his 10%\u2026 for $800.",
+   "start": 13.128,
+   "end": 15.477
+  },
+  {
+   "say": "Apple went on to become one of the biggest companies on Earth.",
+   "start": 15.637,
+   "end": 18.296
+  },
+  {
+   "say": "Today, that 10% would be worth hundreds of billions of dollars.",
+   "start": 18.456,
+   "end": 21.73
+  },
+  {
+   "say": "And he says he has no regrets.",
+   "start": 21.89,
+   "end": 23.338
+  },
+  {
+   "say": "Would you have sold it?",
+   "start": 23.498,
+   "end": 24.437
+  }
+ ]
+}
