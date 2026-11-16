@@ -1,10 +1,11 @@
 """AI cartoon scenes for v2 Shorts (Pollinations, free)."""
 import json, os, subprocess, sys, time, urllib.parse, urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
-data = json.loads(subprocess.run(["node", "-e", "const m=require(process.argv[1]);process.stdout.write(JSON.stringify(m))", os.path.join(HERE, "v2.js")], capture_output=True, text=True, check=True).stdout)
+data = json.loads(subprocess.run(["node", "-e", "const m=require(process.argv[1]);process.stdout.write(JSON.stringify(m))", os.path.join(HERE, os.environ.get("DATA", "v2.js"))], capture_output=True, text=True, check=True).stdout)
 only = sys.argv[1:]
 for f in data["V2"]:
     for k, b in enumerate(f["beats"]):
+        if b['scene'] == 'same': continue
         out = os.path.join(HERE, "images2", f"{f['id']}-{k}.jpg")
         key = f"{f['id']}-{k}"
         if only and key not in only and f["id"] not in only: continue

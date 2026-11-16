@@ -31,7 +31,7 @@ function makeGrain() {
 }
 window.init = async (data) => {
   D = data; await document.fonts.load('900 92px Montserrat'); await document.fonts.load('800 40px Montserrat');
-  for (let k = 0; k < D.fact.beats.length; k++) { const tag = `${D.fact.id}-${k}`; D.fact.beats[k].img = tag;
+  for (let k = 0; k < D.fact.beats.length; k++) { let src = k; while (src > 0 && D.fact.beats[src].scene === "same") src--; const tag = `${D.fact.id}-${src}`; D.fact.beats[k].img = tag; if (IMGS[tag]) continue;
     IMGS[tag] = await loadImg(`images2/${tag}.jpg`); DEPTH[tag] = await loadImg(`images2/${tag}.depth.png`); }
   GL.init();
   makeGrain();
@@ -142,6 +142,14 @@ function drawGfx(g, lt, i) {
     ctx.fillStyle = "#e3242b"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(g.text, 0, size * 0.04);
     ctx.globalCompositeOperation = "destination-out"; // worn ink
     for (let k = 0; k < 160; k++) { const r = Math.sin(k * 91.7) * 0.5 + 0.5, q = Math.sin(k * 47.3) * 0.5 + 0.5; ctx.fillStyle = `rgba(0,0,0,${0.25 + 0.5 * r})`; ctx.fillRect(-tw / 2 - 50 + q * (tw + 100), -size * 0.75 + r * size * 1.5, 3 + 6 * q, 2 + 4 * r); }
+    ctx.restore();
+  } else if (g.type === "title") {
+    const k = back(seg(lt, 0, 0.35)), pulse = 1 + 0.04 * Math.sin(lt * 9);
+    ctx.save(); ctx.translate(W / 2, H * 0.36); ctx.scale(k, k);
+    ctx.fillStyle = "rgba(0,0,0,.55)"; rrect(-500, -170, 1000, 340, 30); ctx.fill();
+    outlined(g.top, 0, -75, fitSize(g.top, 78, 900), "#fff", "#000", 0.18);
+    ctx.save(); ctx.scale(pulse, pulse); const gr = ctx.createLinearGradient(0, 0, 0, 120); gr.addColorStop(0, "#fff6c9"); gr.addColorStop(1, "#ffb300");
+    outlined(g.bottom, 0, 50, fitSize(g.bottom, 150, 940), "#FFD23A", "#000", 0.16); ctx.restore();
     ctx.restore();
   } else if (g.type === "tag") {
     const k = easeOut(seg(lt, 0.05, 0.4)); const y = H * 0.565;

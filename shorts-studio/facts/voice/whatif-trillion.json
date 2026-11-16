@@ -1,0 +1,65 @@
+{
+ "duration": 29.414,
+ "beats": [
+  {
+   "say": "Everyone on Earth just got one trillion dollars.",
+   "start": 0.05,
+   "end": 2.614
+  },
+  {
+   "say": "You buy a mansion.",
+   "start": 2.914,
+   "end": 4.133
+  },
+  {
+   "say": "Your mom buys an island.",
+   "start": 4.433,
+   "end": 6.103
+  },
+  {
+   "say": "Your little brother buys a rocket.",
+   "start": 6.403,
+   "end": 8.354
+  },
+  {
+   "say": "What if everyone had a trillion dollars?",
+   "start": 8.654,
+   "end": 10.794
+  },
+  {
+   "say": "Sounds amazing.",
+   "start": 11.244,
+   "end": 12.438
+  },
+  {
+   "say": "But if everyone's rich, nobody needs a job.",
+   "start": 12.658,
+   "end": 15.097
+  },
+  {
+   "say": "So prices go up. And up. And up.",
+   "start": 15.397,
+   "end": 17.398
+  },
+  {
+   "say": "In 2008, Zimbabwe printed so much money, prices doubled about every day.",
+   "start": 17.698,
+   "end": 22.388
+  },
+  {
+   "say": "That's real.",
+   "start": 22.688,
+   "end": 23.561
+  },
+  {
+   "say": "Soon, one loaf of bread costs a trillion dollars.",
+   "start": 23.781,
+   "end": 26.387
+  },
+  {
+   "say": "And your brother just spent his on a rocket.",
+   "start": 26.687,
+   "end": 28.764
+  }
+ ]
+}

@@ -15,7 +15,7 @@ const server = http.createServer((req, res) => {
 (async () => {
   await new Promise((r) => server.listen(0, r));
   const V2 = process.argv.includes("--v2");
-  const { FACTS } = require(path.join(HERE, "facts.js")); const { V2: V2S } = require(path.join(HERE, "v2.js"));
+  const { FACTS } = require(path.join(HERE, "facts.js")); const { V2: V2S } = require(path.join(HERE, arg("--data", "v2.js")));
   const fact = (V2 ? V2S : FACTS).find((f) => f.id === id);
   const voice = JSON.parse(fs.readFileSync(path.join(HERE, "voice", id + ".json")));
   const captions = JSON.parse(fs.readFileSync(path.join(HERE, "voice", id + "-captions.json")));
@@ -37,7 +37,7 @@ const server = http.createServer((req, res) => {
     const st = i === 0 ? 0 : vb.start - 0.06; if (i > 0) fx(st - 0.05, "whoosh", 0.7);
     const g = fact.beats[i].gfx; if (!g) return;
     if (g.type === "count") { fx(st + 0.1, "ticks", 0.6); fx(st + 1.2, "cash", 0.6); }
-    if (g.type === "year") fx(st + 0.02, "impact");
+    if (g.type === "year" || g.type === "title") fx(st + 0.02, "impact");
     if (g.type === "stamp") fx(st + 0.08, "stamp");
     if (g.type === "tag") fx(st + 0.05, "swish", 0.6);
   });

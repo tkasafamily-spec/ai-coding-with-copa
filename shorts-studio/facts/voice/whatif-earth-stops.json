@@ -1,0 +1,60 @@
+{
+ "duration": 25.775,
+ "beats": [
+  {
+   "say": "The Earth just stopped spinning.",
+   "start": 0.05,
+   "end": 1.641
+  },
+  {
+   "say": "But you didn't.",
+   "start": 1.942,
+   "end": 2.944
+  },
+  {
+   "say": "You, your house, and the ocean keep flying east\u2026 at a thousand miles an hour.",
+   "start": 3.244,
+   "end": 7.316
+  },
+  {
+   "say": "What if the Earth stopped spinning?",
+   "start": 7.616,
+   "end": 9.242
+  },
+  {
+   "say": "The air keeps moving too.",
+   "start": 9.692,
+   "end": 11.279
+  },
+  {
+   "say": "Winds over three times faster than the strongest tornado ever measured.",
+   "start": 11.579,
+   "end": 15.311
+  },
+  {
+   "say": "That's real.",
+   "start": 15.611,
+   "end": 16.485
+  },
+  {
+   "say": "Then it gets worse.",
+   "start": 16.705,
+   "end": 17.91
+  },
+  {
+   "say": "One day now lasts a whole year.",
+   "start": 18.21,
+   "end": 20.035
+  },
+  {
+   "say": "Half the planet bakes. The other half freezes in the dark.",
+   "start": 20.335,
+   "end": 23.288
+  },
+  {
+   "say": "So which side are you on?",
+   "start": 23.588,
+   "end": 24.975
+  }
+ ]
+}
