@@ -6,6 +6,7 @@ import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 export { THREE };
 
+export const CFG = { stick: false, makeStick: null }; // stick = draw people as 2D stick men
 export const GW = 720, GH = 1280;
 export const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(GW, GH, false);
@@ -149,7 +150,7 @@ export class Shot {
   cyl(rt, rb, h, color, p = {}, parent) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, p.seg || 24), p.material || mat(color, p)); m.castShadow = p.shadow !== false; m.receiveShadow = true; (parent || this.scene).add(place(m, { ...p, y: (p.y || 0) + h / 2 })); return m; }
   ball(r, color, p = {}, parent) { const m = new THREE.Mesh(p.detail ? new THREE.IcosahedronGeometry(r, p.detail) : new THREE.SphereGeometry(r, 24, 16), p.material || mat(color, p)); m.castShadow = p.shadow !== false; m.receiveShadow = true; (parent || this.scene).add(place(m, p)); return m; }
   plane(w, h, color, p = {}, parent) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), p.material || mat(color, p)); m.receiveShadow = true; (parent || this.scene).add(place(m, p)); return m; }
-  char(name, p = {}) { const a = new Actor(name, p.h); this.scene.add(a.root); a.at(p.x || 0, p.y || 0, p.z || 0, p.ry || 0); if (p.s) a.root.scale.setScalar(p.s); a.pose(p.clip || "idle", p.t || 0); return a; }
+  char(name, p = {}) { if (CFG.stick && CFG.makeStick && !ANIMAL_H[name]) return CFG.makeStick(this, name, p); const a = new Actor(name, p.h); this.scene.add(a.root); a.at(p.x || 0, p.y || 0, p.z || 0, p.ry || 0); if (p.s) a.root.scale.setScalar(p.s); a.pose(p.clip || "idle", p.t || 0); return a; }
   light(color, intensity, dist, p) { const l = new THREE.PointLight(color, intensity, dist, 2); this.scene.add(place(l, p)); return l; }
   view(pos, look, fov) { this.cam.position.set(...pos); this.cam.lookAt(...look); if (fov) { this.cam.fov = fov; } this.cam.updateProjectionMatrix(); }
   // move camera between two framings
@@ -166,7 +167,7 @@ export class Shot {
         const c = x.color.clone().lerp(new THREE.Color("#f3e6cf"), 0.12); const t = new THREE.MeshToonMaterial({ color: c, map: x.map, gradientMap: GRAD, emissive: x.emissive, emissiveIntensity: x.emissiveIntensity, emissiveMap: x.emissiveMap, transparent: x.transparent, opacity: x.opacity, side: x.side });
         TOON.set(x, t); return t; };
       m.material = Array.isArray(m.material) ? m.material.map(conv) : conv(m.material);
-      const g = m.geometry; if (!g || g.type === "PlaneGeometry" || g.type === "TorusGeometry" || m.userData.noOutline) return;
+      const g = m.geometry; if (!g || m.isSkinnedMesh || g.type === "PlaneGeometry" || g.type === "TorusGeometry" || m.userData.noOutline) return;
       if (g.boundingSphere === null) g.computeBoundingSphere(); if (g.boundingSphere.radius < 0.02) return;
       const om = outlineMat(ink, w / Math.max(1e-3, m.getWorldScale(new THREE.Vector3()).x));
       const ol = m.isInstancedMesh ? new THREE.InstancedMesh(g, om, m.count) : new THREE.Mesh(g, om);

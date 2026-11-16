@@ -8,6 +8,7 @@
 const V3 = [
   {
     id: "w3-no-internet",
+    style: "stick",
     title: "What If the Internet Shut Off Forever?",
     hook: "THE INTERNET IS GONE",
     titles: ["What If the Internet Shut Off Forever?", "The Internet Dies… Day 5 Is Terrifying", "Could You Survive Without Internet?"],
@@ -29,6 +30,7 @@ const V3 = [
   },
   {
     id: "w3-ai-off",
+    style: "stick",
     title: "What If Every AI Shut Off at Once?",
     hook: "ALL AI JUST DIED",
     titles: ["What If Every AI Shut Off at Once?", "AI Turns Off… The World Ends", "We Can't Live Without AI"],
@@ -51,6 +53,7 @@ const V3 = [
   },
   {
     id: "w3-humans-gone",
+    style: "stick",
     title: "What If Every Human Disappeared?",
     hook: "EVERY HUMAN JUST VANISHED",
     titles: ["What If Every Human Disappeared Right Now?", "Earth Without Humans… Year 10,000", "What Happens After We're Gone"],

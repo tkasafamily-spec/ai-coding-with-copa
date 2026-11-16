@@ -1,6 +1,6 @@
 // The animated 3D shots used by the What If scripts. Each shot builds a scene once and returns
 // update(t, d): t = seconds into the shot, d = shot length. Everything moves: characters, props, camera.
-import { THREE, Shot, lerp, seg, ease, easeOut, easeIn, back, rnd, lerp3, clamp, canvasTex, mat } from "./engine.js";
+import { THREE, Shot, lerp, seg, ease, easeOut, easeIn, back, rnd, lerp3, clamp, canvasTex, mat, CFG } from "./engine.js";
 
 export const CAST = ["SalesRep", "ItEngineer", "OfficeIntern", "Accountant", "Receptionist", "SecurityGuard", "CompanyCeo", "Cashier", "Schoolkid", "GrandmaShopper",
   "StockClerk", "FoodCourier", "OfficeLady", "WhiteCoatDoctor", "WardNurse", "AirTraveller", "AirlineCaptain", "Lion", "Elephant", "Zebra", "Corgi", "Chihuahua", "Goose", "Eagle", "Fox"];
@@ -55,10 +55,26 @@ function phoneScreen(S, guy, draw) { // screen laid over the phone the SalesRep 
   const scr = S.screen(0.42, 0.28, draw, { res: 256 }, g); scr.position.z = -0.067; scr.rotation.y = Math.PI; g.lookAt(guy.root.position.x - 0.1, 1.35, guy.root.position.z - 0.3); g.rotateY(Math.PI);
   return scr;
 }
+function bigPhone(S, draw) { // stick style: a phone held up toward us, screen facing the camera
+  const g = S.group(); S.box(0.26, 0.46, 0.03, "#22252b", { y: -0.23, r: 0.03, rough: 0.25 }, g); const scr = S.screen(0.22, 0.4, draw, { z: 0.017, res: 192 }, g); g.scr = scr; return g;
+}
 const OTS = [[-0.75, 1.65, -0.45], [-0.12, 0.88, 0.5], 40]; // over-the-shoulder at the phone
 // ── NO INTERNET ─────────────────────────────────────────
 export const SHOTS = {
   phoneDies() {
+    if (CFG.stick) {
+      const S = new Shot({ shadow: 8 }); city(S); const guy = S.char(GUY, { z: 0 });
+      const ph = bigPhone(S, (x, w, h, t) => (t < 0.3 ? feed(x, w, h, t) : noSignal(x, w, h, t, t < 0.9))); ph.position.set(0.34, 1.05, 0.25);
+      const ws = [walker(S, "OfficeLady", 2.2, -14, 4, 0, 0), walker(S, "Accountant", -2.5, 2, -16, Math.PI, 3), walker(S, "Schoolkid", 3.2, -18, 2, 0, 6)];
+      return { S, update(t, d) {
+        ph.scr.draw(t); guy.stick.dir = 1; guy.stick.pose(t < 0.9 ? "phone" : "angry", t, { face: t < 0.9 ? { eyes: t > 0.35 ? "wide" : "open", mouth: t > 0.35 ? "O" : "smile", look: 0.4 } : {} }); guy.stick.P.hold = undefined;
+        ph.position.y = 1.05 + (t > 0.9 ? 0.25 * Math.sin(t * 13) : 0); ph.rotation.z = t > 0.9 ? 0.3 * Math.sin(t * 11) : 0;
+        ws.forEach((f) => f(t));
+        if (t < 0.9) S.move(seg(t, 0, 0.9), [[0.36, 0.86, 0.95], [0.34, 0.83, 0.2], 40], [[0.36, 0.86, 1.25], [0.34, 0.83, 0.2], 40]);
+        else S.move(seg(t, 0.9, 1.5), [[0.36, 0.86, 1.25], [0.34, 0.83, 0.2], 40], [[0.4, 1.25, 5.2], [0.1, 1.0, 0], 40], easeOut);
+        if (t > 0.3 && t < 0.7) S.shake(t, 0.015);
+      } };
+    }
     const S = new Shot({ shadow: 8 }); city(S);
     const guy = S.char(GUY, { z: 0 }); guy.pose("Text", 0.6);
     const scr = phoneScreen(S, guy, (x, w, h, t) => (t < 0.3 ? feed(x, w, h, t) : noSignal(x, w, h, t, t < 0.9)));
@@ -85,6 +101,18 @@ export const SHOTS = {
     } };
   },
   shakePhone() {
+    if (CFG.stick) {
+      const S = new Shot({ shadow: 8 }); city(S); const guy = S.char(GUY, {}); let tt = 0;
+      const ph = bigPhone(S, (x, w, h) => { x.fillStyle = "#0b0d12"; x.fillRect(0, 0, w, h); const i = Math.min(2, Math.floor(tt / 0.75)); x.font = `900 ${w * 0.5}px Arial`; x.textAlign = "center"; x.fillStyle = ["#ff4d6d", "#69db7c", "#4dabf7"][i]; x.fillText(["▶", "⌖", "✉"][i], w / 2, h * 0.5); x.strokeStyle = "#ff3b3b"; x.lineWidth = w * 0.08; const k = seg(tt % 0.75, 0.1, 0.3); x.beginPath(); x.moveTo(w * 0.15, h * 0.3); x.lineTo(w * 0.15 + w * 0.7 * k, h * 0.3 + h * 0.3 * k); x.stroke(); x.beginPath(); x.moveTo(w * 0.85, h * 0.3); x.lineTo(w * 0.85 - w * 0.7 * k, h * 0.3 + h * 0.3 * k); x.stroke(); });
+      const bys = [S.char("OfficeIntern", { x: -1.6, z: -2.5, ry: 0.5 }), S.char("Receptionist", { x: 1.8, z: -3, ry: -0.5 })];
+      return { S, update(t, d) {
+        tt = t; ph.scr.draw(t); const lt = t % 0.75, sh = 1 - seg(lt, 0, 0.4);
+        guy.stick.dir = 1; guy.stick.pose("phone", t, { face: { eyes: "angry", mouth: "open", look: 0.4 } }); guy.stick.P.hold = undefined; guy.stick.P.jitter = 0.01 * sh;
+        ph.position.set(0.34 + 0.04 * Math.sin(t * 45) * sh, 1.05 + 0.03 * Math.cos(t * 40) * sh, 0.25); ph.rotation.z = 0.15 * Math.sin(t * 38) * sh;
+        bys[0].pose("Shrug", t * 0.8); bys[1].pose("Think", t);
+        S.move(t / d, [[1.0, 1.45, 3.9], [0.2, 1.15, 0], 40], [[0.7, 1.4, 3.2], [0.25, 1.15, 0], 40]);
+      } };
+    }
     const S = new Shot({ shadow: 8 }); city(S);
     const guy = S.char(GUY, {}); let tt = 0; guy.pose("Text", 0.6);
     const draw = (x, w, h) => { x.fillStyle = "#0b0d12"; x.fillRect(0, 0, w, h); const i = Math.min(2, Math.floor(tt / 0.75)); const icons = ["▶", "⌖", "✉"]; x.font = `900 ${w * 0.5}px Arial`; x.textAlign = "center"; x.fillStyle = ["#ff4d6d", "#69db7c", "#4dabf7"][i]; x.fillText(icons[i], w / 2, h * 0.5); x.strokeStyle = "#ff3b3b"; x.lineWidth = w * 0.08; const k = seg(tt % 0.75, 0.1, 0.3); x.beginPath(); x.moveTo(w * 0.15, h * 0.3); x.lineTo(w * 0.15 + w * 0.7 * k, h * 0.3 + h * 0.3 * k); x.stroke(); x.beginPath(); x.moveTo(w * 0.85, h * 0.3); x.lineTo(w * 0.85 - w * 0.7 * k, h * 0.3 + h * 0.3 * k); x.stroke(); };
@@ -171,8 +199,8 @@ export const SHOTS = {
     const dust = S.burst({ n: 40, at: [0, 0.5, 0], speed: 1.2, up: 0.2, spread: 0.3, gravity: -0.05, color: "#e9c9a0", round: true, size: 0.05, life: 6, fade: false, flat: true });
     return { S, update(t, d) {
       guy.pose(t < 0.6 ? "TalkAsk" : "Call", t);
-      man.pose(t < 1.0 ? "Idle" : "Shake", t < 1 ? t : t - 1);
-      const hb = 1.08 + 0.05 * Math.sin(t * 3); bottle.position.set(0.32, hb, 0.25); bottle.rotation.z = 0.1 * Math.sin(t * 2);
+      man.pose(t < 1.0 ? (CFG.stick ? "Point" : "Idle") : "Shake", t < 1 ? t : t - 1);
+      const hb = (CFG.stick ? 1.12 : 1.08) + 0.05 * Math.sin(t * 3); bottle.position.set(CFG.stick ? 0.2 : 0.32, hb, CFG.stick ? 0.1 : 0.25); bottle.rotation.z = 0.1 * Math.sin(t * 2);
       dust.update(t + 1);
       S.move(t / d, [[0.3, 1.4, 6.4], [0.05, 1.0, 0], 40], [[0.2, 1.3, 5.2], [0.1, 1.0, 0], 40]);
     } };

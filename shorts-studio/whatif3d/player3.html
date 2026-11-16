@@ -9,7 +9,7 @@ body { margin: 0; background: #000; }
 </head><body>
 <script type="module">
 // What If 3D player: real animated 3D shots + bold captions, arrows, stamps, counters on a 1080x1920 canvas.
-import { loadChars } from "./engine.js";
+import { loadChars, CFG } from "./engine.js";
 import { SHOTS, CAST } from "./shots.js";
 import { SHOTS2 } from "./shots2.js";
 Object.assign(SHOTS, SHOTS2);
@@ -31,6 +31,7 @@ function makeGrain() {
 window.init = async (data) => {
   D = data; D.fact = data.video; await document.fonts.load("900 92px Montserrat"); await document.fonts.load("800 40px Montserrat");
   await loadChars(CAST);
+  CFG.stick = D.video.style === "stick";
   BUILT = D.video.beats.map((b) => { if (!SHOTS[b.shot]) throw new Error("no shot " + b.shot); const s = SHOTS[b.shot](); if (D.video.style === "stick") s.S.toonify(); return s; });
   makeGrain(); return true;
 };

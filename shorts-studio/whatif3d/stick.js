@@ -1,6 +1,6 @@
 // 2D stick man living in the 3D world: drawn fresh every frame on a canvas that always faces the camera.
 // Poses are joint angles (0 = limb hanging straight down, + = toward the way he faces), so every move is animated.
-import { THREE, canvasTex, lerp, clamp, rnd } from "./engine.js";
+import { THREE, canvasTex, lerp, clamp, rnd, CFG } from "./engine.js";
 
 const PX = 200, CW = 640, CH = 640; // 200 px per metre, canvas covers 3.2 m x 3.2 m
 const HIP = 0.92, THIGH = 0.46, SHIN = 0.46, TORSO = 0.55, UPPER = 0.36, FORE = 0.34, HEAD = 0.2;
@@ -17,6 +17,18 @@ export const POSES = {
   shake: (t) => ({ la: [0.4 + 0.2 * Math.sin(t * 40), 1.2], ra: [0.4 + 0.2 * Math.sin(t * 43), 1.2], jitter: 0.025, face: { eyes: "spiral", mouth: "grin" } }),
   sick: (t) => ({ la: [0.9, 1.6], ra: [0.2, 0.2], lean: 0.2 + 0.05 * Math.sin(t * 3), face: { mouth: "sick", eyes: "tired", green: true } }),
   lie: (t) => ({ rot: -Math.PI / 2, la: [3.0, 0], ra: [0.1, 0], ll: [0.1, 0], rl: [-0.1, 0], face: { eyes: "x", mouth: "frown" } }),
+  phone: (t) => ({ ra: [0.75, 1.75], la: [0.6, 1.5], hold: "phone", face: { look: 0.5 } }),
+  call: (t) => ({ ra: [2.3, 2.7], la: [0.2, 0.3], hold: "phone", face: { mouth: "chew", look: 0.4 } }),
+  angry: (t) => ({ la: [2.3 + 0.35 * Math.sin(t * 13), 0.5], ra: [2.3 + 0.35 * Math.sin(t * 13 + 2), 0.5], jitter: 0.008, face: { eyes: "angry", mouth: "open" } }),
+  shrug: (t) => ({ la: [0.75, 1.3], ra: [-0.75, -1.3], bob: 0.03 * Math.abs(Math.sin(t * 3)), face: { mouth: "frown", eyes: "open", look: 0 } }),
+  think: (t) => ({ ra: [0.6, 2.4], la: [0.4, 1.6], face: { look: 0.6, mouth: "flat" } }),
+  scratch: (t) => ({ ra: [2.8, 1.9 + 0.3 * Math.sin(t * 14)], la: [0.15, 0.2], face: { mouth: "frown", look: 0.2 } }),
+  hit: (t) => ({ lean: -0.35, la: [2.2, 0.4], ra: [2.0, 0.6], face: { eyes: "wide", mouth: "O" } }),
+  nope: (t) => ({ la: [0.2, 0.3], ra: [0.2, 0.3], face: { mouth: "frown", look: 0.7 * Math.sin(t * 12) } }),
+  cheer: (t) => ({ la: [2.9 + 0.15 * Math.sin(t * 10), 0.2], ra: [2.9 + 0.15 * Math.sin(t * 10 + 1), 0.2], bob: 0.08 * Math.abs(Math.sin(t * 6)), face: { mouth: "grin" } }),
+  talk: (t) => ({ ra: [0.9 + 0.3 * Math.sin(t * 5), 1.1], la: [0.2, 0.3], face: { mouth: "chew" } }),
+  point: (t) => ({ ra: [1.6, 0], la: [0.2, 0.3], face: { mouth: "open" } }),
+  fall: (t) => mix(POSES.hit(t), POSES.lie(t), clamp(t / 0.55)),
   wave: (t) => ({ ra: [2.7, 0.5 + 0.4 * Math.sin(t * 9)], la: [0.15, 0.2], face: { mouth: "smile" } }),
 };
 const lerpArr = (a, b, k) => (a && b ? [lerp(a[0], b[0], k), lerp(a[1], b[1], k)] : (k < 0.5 ? a : b));
@@ -79,6 +91,7 @@ export class Stick {
     const bar = (hp, ang) => { x.save(); x.translate(...hp); x.rotate(ang); x.fillStyle = "#5a2e14"; x.fillRect(-10, -26, 20, 52); x.fillStyle = "#c0262d"; x.fillRect(-11, -4, 22, 30); x.fillStyle = "#ffd23a"; x.fillRect(-11, 6, 22, 5); x.strokeStyle = INK; x.lineWidth = 4; x.strokeRect(-11, -26, 22, 52); x.restore(); };
     if (P.hold === "bar" || P.hold === "both") bar(A[1][2], 0.4);
     if (P.hold === "both") bar(A[0][2], -0.3);
+    if (P.hold === "phone") { x.save(); x.translate(...A[1][2]); x.rotate(-0.25); x.fillStyle = INK; x.beginPath(); x.roundRect(-11, -30, 22, 40, 5); x.fill(); x.fillStyle = this.screen || "#7fd3ff"; x.fillRect(-7, -26, 14, 30); x.restore(); }
     // head
     const hr = HEAD * PX * 1.25, f = P.face; x.save(); x.translate(head[0], head[1] - hr * 0.2);
     x.beginPath(); x.arc(0, 0, hr, 0, 7); x.fillStyle = f.green ? "#cfe8a9" : SKIN; x.fill(); x.lineWidth = 6; x.strokeStyle = INK; x.stroke();
@@ -90,6 +103,7 @@ export class Stick {
       if (f.eyes === "open") { x.beginPath(); x.ellipse(cx, ey, 6, 8, 0, 0, 7); x.fill(); x.lineWidth = 4; x.beginPath(); x.moveTo(cx - 9, ey - 17 - (s * 0)); x.lineTo(cx + 9, ey - 18); x.stroke(); }
       else if (f.eyes === "wide") { x.beginPath(); x.arc(cx, ey, 12, 0, 7); x.fillStyle = "#fff"; x.fill(); x.lineWidth = 4; x.stroke(); x.fillStyle = INK; x.beginPath(); x.arc(cx + 2, ey, 5, 0, 7); x.fill(); }
       else if (f.eyes === "closed" || f.eyes === "tired") { x.lineWidth = 4; x.beginPath(); x.arc(cx, ey + (f.eyes === "tired" ? 4 : -2), 8, f.eyes === "tired" ? Math.PI : 0.2, f.eyes === "tired" ? 2 * Math.PI : Math.PI - 0.2); x.stroke(); }
+      else if (f.eyes === "angry") { x.beginPath(); x.ellipse(cx, ey + 2, 6, 7, 0, 0, 7); x.fill(); x.lineWidth = 5; x.beginPath(); x.moveTo(cx - s * 12, ey - 20); x.lineTo(cx + s * 8, ey - 9); x.stroke(); }
       else if (f.eyes === "x") { x.beginPath(); x.moveTo(cx - 7, ey - 7); x.lineTo(cx + 7, ey + 7); x.moveTo(cx + 7, ey - 7); x.lineTo(cx - 7, ey + 7); x.stroke(); }
       else if (f.eyes === "spiral") { x.beginPath(); for (let a = 0; a < 12; a += 0.3) x.lineTo(cx + Math.cos(a + t * 12) * a, ey + Math.sin(a + t * 12) * a); x.lineWidth = 3; x.stroke(); x.lineWidth = 5; } }
     const my = hr * 0.42, mx = lx * 0.7, brown = f.brown ? "#5a2e14" : INK;
@@ -100,14 +114,43 @@ export class Stick {
     else if (f.mouth === "O") { x.beginPath(); x.ellipse(mx, my, 8, 12, 0, 0, 7); x.fill(); }
     else if (f.mouth === "open") { x.beginPath(); x.ellipse(mx, my - 2, 12, 9, 0, 0, 7); x.fill(); }
     else if (f.mouth === "chew") { const o = 3 + 6 * Math.abs(Math.sin(t * 14)); x.beginPath(); x.ellipse(mx, my - 2, 11, o, 0, 0, 7); x.fill(); if (f.brown) { x.beginPath(); x.ellipse(mx - 14, my + 4, 6, 4, 0, 0, 7); x.fill(); } }
+    else if (f.mouth === "flat") { x.beginPath(); x.moveTo(mx - 9, my - 2); x.lineTo(mx + 9, my - 2); x.stroke(); }
     else if (f.mouth === "sick") { x.beginPath(); for (let i = -14; i <= 14; i += 2) x.lineTo(mx + i, my + Math.sin(i * 0.6 + t * 6) * 3); x.stroke(); }
     if (f.sweat) { x.fillStyle = "#6ec6ff"; for (const s of [1]) { const yy = -hr * 0.4 + ((t * 0.8) % 1) * hr * 0.8; x.beginPath(); x.moveTo(s * hr * 0.9, yy - 10); x.quadraticCurveTo(s * hr * 0.9 + 9, yy + 6, s * hr * 0.9, yy + 8); x.quadraticCurveTo(s * hr * 0.9 - 9, yy + 6, s * hr * 0.9, yy - 10); x.fill(); } }
     x.restore(); x.restore();
     this.tex.needsUpdate = true;
   }
   sync(cam) { // face the camera (stays upright) + keep shadow under the feet
-    const p = this.root.position; this.mesh.rotation.y = Math.atan2(cam.position.x - p.x, cam.position.z - p.z);
+    const p = this.root.position, face = Math.atan2(cam.position.x - p.x, cam.position.z - p.z); this.mesh.rotation.y = face - this.root.rotation.y;
+    if (this.autoDir) { const ry = this.root.rotation.y, f = [Math.sin(ry), Math.cos(ry)], r = [Math.cos(face), -Math.sin(face)], d = f[0] * r[0] + f[1] * r[1]; if (Math.abs(d) > 0.2) this.dir = d > 0 ? 1 : -1; }
     this.shadow.position.set(p.x, p.y + 0.012, p.z); this.shadow.scale.setScalar(this.P && this.P.rot ? 2 : 1); this.shadow.visible = this.root.visible;
     this.draw();
   }
 }
+
+// ── stand-in for the 3D characters: same calls (pose("Walk", t), root, at...), drawn as stick people ──
+const OUTFIT = {
+  SalesRep: { shirt: "#e8833a", hair: "#6b4226" }, ItEngineer: { shirt: "#4a90d9", hair: "#3b2a1e" }, OfficeIntern: { shirt: "#f1f1ee", hair: "#8a5a32" },
+  Accountant: { shirt: "#7d8b6a", hair: "#d8d8d8" }, Receptionist: { shirt: "#c94f7c", hair: "#2b2118" }, SecurityGuard: { shirt: "#34495e", hair: "#2b2118" },
+  CompanyCeo: { shirt: "#3d3d46", hair: "#e0e0e0" }, Cashier: { shirt: "#d62839", hair: "#5a3a22" }, Schoolkid: { shirt: "#2ecc71", hair: "#3b2a1e", scale: 0.72 },
+  GrandmaShopper: { shirt: "#9b59b6", hair: "#e6e6e6" }, StockClerk: { shirt: "#27ae60", hair: "#6b4226" }, FoodCourier: { shirt: "#f1c40f", hair: "#2b2118" },
+  OfficeLady: { shirt: "#1abc9c", hair: "#2b2118" }, WhiteCoatDoctor: { shirt: "#f4f4f2", coat: true, badge: true, hair: "#7a7a7a" }, WardNurse: { shirt: "#7ec8e3", badge: true, hair: "#c8a165" },
+  Paramedic: { shirt: "#2e86de", badge: true }, AirTraveller: { shirt: "#e67e22", hair: "#c8a165" }, AirlineCaptain: { shirt: "#1f3a68", hair: "#3b2a1e" },
+};
+const CLIPS = { idle: "idle", walk: "walk", run: "run", text: "phone", call: "call", talkangry: "angry", attack: "angry", shrug: "shrug", think: "think", scratch: "scratch", sit: "sit",
+  death: "fall", dead: "fall", hit: "hit", shake: "nope", cheer: "cheer", special: "wave", talkask: "talk", talk: "talk", point: "point", wave: "wave", type: "sit" };
+class StickActor {
+  constructor(S, name, p) {
+    const o = OUTFIT[name] || {}; this.stick = new Stick(S, { ...o, x: p.x, y: p.y, z: p.z }); this.stick.scale = (o.scale || 0.9) * (p.h && p.h < 1.5 && !o.scale ? 0.8 : 1); this.stick.autoDir = true; this.root = this.stick.root; this.root.rotation.y = p.ry || 0; this.h = 1.7 * this.stick.scale; this.name = name;
+    this.pose(p.clip || "idle", p.t || 0);
+  }
+  has() { return true; } dur() { return 1.2; } hand() { return null; } hold() { return null; }
+  at(x, y, z, ry = 0) { this.root.position.set(x, y, z); this.root.rotation.y = ry; return this; }
+  pose(c, t, o = {}) {
+    const k = CLIPS[c.toLowerCase()] || "idle", kb = o.to ? CLIPS[o.to.toLowerCase()] || "idle" : null;
+    const lying = Math.abs(this.root.rotation.x) > 0.5; if (lying) { this.root.rotation.x = 0; this.stick.pose("lie", t, { face: { eyes: "closed", mouth: "flat" } }); return this; }
+    if (kb && o.w > 0) this.stick.pose(k, t * (o.speed || 1), { to: kb, tb: o.tb ?? t, w: o.w }); else this.stick.pose(k, t * (o.speed || 1));
+    return this;
+  }
+}
+CFG.makeStick = (S, name, p) => new StickActor(S, name, p);
