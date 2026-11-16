@@ -6,7 +6,7 @@ import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 export { THREE };
 
-export const CFG = { stick: false, makeStick: null }; // stick = draw people as 2D stick men
+export const CFG = { stick: false, sketch: false, time: 0, makeStick: null }; // stick = draw people as 2D stick men
 export const GW = 720, GH = 1280;
 export const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(GW, GH, false);
@@ -156,7 +156,8 @@ export class Shot {
   // move camera between two framings
   move(p, a, b, f = ease) { const k = f(p); this.view(lerp3(a[0], b[0], k), lerp3(a[1], b[1], k), a[2] !== undefined ? lerp(a[2], b[2] ?? a[2], k) : undefined); }
   shake(t, amt) { this.cam.position.x += Math.sin(t * 53) * amt; this.cam.position.y += Math.cos(t * 47) * amt; this.cam.rotation.z += Math.sin(t * 37) * amt * 0.05; }
-  render() { if (this.sticks) { this.cam.updateMatrixWorld(); this.sticks.forEach((k) => k.sync(this.cam)); } if (this.dome) this.dome.position.copy(this.cam.position); renderer.toneMappingExposure = this.exposure; renderer.render(this.scene, this.cam); return renderer.domElement; }
+  render() { if (this.sticks) { this.cam.updateMatrixWorld(); this.sticks.forEach((k) => k.sync(this.cam)); } if (this.dome) this.dome.position.copy(this.cam.position); renderer.toneMappingExposure = this.exposure;
+    if (CFG.sketch) return SKETCH.render(this); renderer.render(this.scene, this.cam); return renderer.domElement; }
 
   // ── hand-drawn look: flat cartoon shading + dark outlines on everything ──
   toonify(o = {}) {
@@ -167,7 +168,7 @@ export class Shot {
         const c = x.color.clone().lerp(new THREE.Color("#f3e6cf"), 0.12); const t = new THREE.MeshToonMaterial({ color: c, map: x.map, gradientMap: GRAD, emissive: x.emissive, emissiveIntensity: x.emissiveIntensity, emissiveMap: x.emissiveMap, transparent: x.transparent, opacity: x.opacity, side: x.side });
         TOON.set(x, t); return t; };
       m.material = Array.isArray(m.material) ? m.material.map(conv) : conv(m.material);
-      const g = m.geometry; if (!g || m.isSkinnedMesh || g.type === "PlaneGeometry" || g.type === "TorusGeometry" || m.userData.noOutline) return;
+      const g = m.geometry; if (CFG.sketch || !g || m.isSkinnedMesh || g.type === "PlaneGeometry" || g.type === "TorusGeometry" || m.userData.noOutline) return;
       if (g.boundingSphere === null) g.computeBoundingSphere(); if (g.boundingSphere.radius < 0.02) return;
       const om = outlineMat(ink, w / Math.max(1e-3, m.getWorldScale(new THREE.Vector3()).x));
       const ol = m.isInstancedMesh ? new THREE.InstancedMesh(g, om, m.count) : new THREE.Mesh(g, om);
@@ -288,3 +289,71 @@ export class Shot {
     g.update(-1); return g;
   }
 }
+
+// ── SKETCH LOOK: turns the 3D frame into a hand-drawn drawing ─────────────
+// pass 1: colour.  pass 2: normals + depth (stick men drawn as solid shapes so their outline is kept, nothing shows through them).
+// pass 3: wobbly ink lines from normal/depth edges, flat posterised colour, pencil hatching in shadow, paper grain.
+// The wobble pattern changes 8 times a second, like hand-drawn "line boil".
+const SKETCH = (() => {
+  const opts = { type: THREE.HalfFloatType };
+  const rtC = new THREE.WebGLRenderTarget(GW, GH, opts); // linear light; tone mapping + sRGB done in the sketch shader
+  const rtN = new THREE.WebGLRenderTarget(GW, GH, opts); rtN.depthTexture = new THREE.DepthTexture(GW, GH);
+  const normalMat = new THREE.MeshNormalMaterial();
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+    uniforms: { tC: { value: rtC.texture }, tN: { value: rtN.texture }, tD: { value: rtN.depthTexture }, res: { value: new THREE.Vector2(GW, GH) }, uStep: { value: 0 }, expo: { value: 1 }, near: { value: 0.1 }, far: { value: 400 } },
+    vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }",
+    fragmentShader: `
+      uniform sampler2D tC, tN, tD; uniform vec2 res; uniform float uStep, expo, near, far; varying vec2 vUv;
+      float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f); return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
+      float lin(float d){ float z = d * 2. - 1.; return (2. * near * far) / (far + near - z * (far - near)); }
+      float edge(vec2 uv, float px){
+        vec2 o = px / res; float e = 0.;
+        vec3 nc = texture2D(tN, uv).rgb; float dc = lin(texture2D(tD, uv).r);
+        for (int k = 0; k < 4; k++) { vec2 dir = k == 0 ? vec2(1,0) : k == 1 ? vec2(0,1) : k == 2 ? vec2(1,1) : vec2(1,-1);
+          vec3 na = texture2D(tN, uv + dir * o).rgb, nb = texture2D(tN, uv - dir * o).rgb;
+          float da = lin(texture2D(tD, uv + dir * o).r), db = lin(texture2D(tD, uv - dir * o).r);
+          e = max(e, length(na - nb) * 0.9); e = max(e, abs(da - db) / max(dc, 0.5) * 14.); }
+        return e; }
+      void main(){
+        float s = uStep;
+        vec2 wob = (vec2(n2(vUv * 9. + s * 3.1), n2(vUv * 9. + 17. + s * 5.7)) - .5) * 0.0045;
+        vec2 uv = vUv + wob;
+        vec3 col = texture2D(tC, vUv + wob * .35).rgb * expo;
+        col = clamp((col * (2.51 * col + .03)) / (col * (2.43 * col + .59) + .14), 0., 1.); col = pow(col, vec3(1. / 2.2));
+        // flat, slightly posterised colour, pulled towards warm paper
+        vec3 q = floor(col * 7. + .5) / 7.; col = mix(col, q, .55);
+        float lum = dot(col, vec3(.299, .587, .114)); col = mix(vec3(lum), col, .85); col = mix(col, vec3(.98, .95, .88), .08);
+        // pencil hatching in shadows
+        vec2 px = vUv * res;
+        float hat = step(.55, fract((px.x + px.y) / 7. + n2(px * .05 + s) * .4)) * smoothstep(.32, .12, lum) * .2;
+        hat += step(.6, fract((px.x - px.y) / 7.)) * smoothstep(.22, .05, lum) * .18;
+        col *= 1. - hat;
+        // ink lines: thick main stroke + a second offset pass, broken up like a pen
+        float e1 = smoothstep(.4, .85, edge(uv, 2.2));
+        float e2 = smoothstep(.6, 1.0, edge(vUv - wob * .8, 1.0)) * .4;
+        float pen = .75 + .25 * n2(px * .08 + s * 7.);
+        float ink = clamp(max(e1 * pen, e2), 0., 1.);
+        col = mix(col, vec3(.12, .1, .09), ink);
+        // paper grain + soft vignette of the paper
+        float g = n2(px * .9) * .5 + n2(px * .23) * .5; col *= .93 + .07 * g;
+        gl_FragColor = vec4(col, 1.);
+      }` , depthTest: false, depthWrite: false }));
+  const qs = new THREE.Scene(); qs.add(quad); const qc = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const MASK = new Map();
+  return { render(S) {
+    renderer.setRenderTarget(rtC); renderer.render(S.scene, S.cam);
+    // normal pass
+    const swap = []; S.scene.traverse((m) => { if (!m.isMesh || !m.visible) return;
+      if (m.material && m.material.map && m.material.transparent && m.parent && m.parent.parent === S.scene && S.sticks && S.sticks.some((k) => k.mesh === m)) {
+        let mm = MASK.get(m); if (!mm) { mm = new THREE.MeshBasicMaterial({ map: m.material.map, alphaTest: 0.5, color: "#808080", side: THREE.DoubleSide }); MASK.set(m, mm); }
+        swap.push([m, m.material]); m.material = mm; return; }
+      if (m.material && m.material.transparent && m.material.opacity < 0.95) { swap.push([m, m.material, true]); m.visible = false; return; }
+      swap.push([m, m.material]); m.material = normalMat; });
+    const bg = S.scene.background, fog = S.scene.fog, dome = S.dome && S.dome.visible; S.scene.background = new THREE.Color(0.5, 0.5, 1.0); S.scene.fog = null; if (S.dome) S.dome.visible = false;
+    renderer.setRenderTarget(rtN); renderer.render(S.scene, S.cam);
+    swap.forEach(([m, mt, hid]) => { m.material = mt; if (hid) m.visible = true; }); S.scene.background = bg; S.scene.fog = fog; if (S.dome) S.dome.visible = dome;
+    quad.material.uniforms.uStep.value = Math.floor(CFG.time * 8); quad.material.uniforms.expo.value = S.exposure; quad.material.uniforms.near.value = S.cam.near; quad.material.uniforms.far.value = S.cam.far;
+    renderer.setRenderTarget(null); renderer.render(qs, qc); return renderer.domElement;
+  } };
+})();

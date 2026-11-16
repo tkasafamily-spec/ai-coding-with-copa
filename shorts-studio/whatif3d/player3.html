@@ -32,6 +32,7 @@ window.init = async (data) => {
   D = data; D.fact = data.video; await document.fonts.load("900 92px Montserrat"); await document.fonts.load("800 40px Montserrat");
   await loadChars(CAST);
   CFG.stick = D.video.style === "stick";
+  CFG.sketch = D.video.style === "stick";
   BUILT = D.video.beats.map((b) => { if (!SHOTS[b.shot]) throw new Error("no shot " + b.shot); const s = SHOTS[b.shot](); if (D.video.style === "stick") s.S.toonify(); return s; });
   makeGrain(); return true;
 };
@@ -48,6 +49,7 @@ function rrect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo
 
 function drawBeat(i, t) {
   const b = D.video.beats[i], [start, end] = span(i), lt = t - start;
+  CFG.time = t;
   const res = BUILT[i].update(lt, end - start) || {};
   const gl = BUILT[i].S.render();
   let punch = (i === 0 ? 0.12 : 0.05) * (1 - easeOut(seg(lt, 0, 0.3)));
