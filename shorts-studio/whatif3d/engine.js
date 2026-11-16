@@ -146,7 +146,7 @@ export class Shot {
   // move camera between two framings
   move(p, a, b, f = ease) { const k = f(p); this.view(lerp3(a[0], b[0], k), lerp3(a[1], b[1], k), a[2] !== undefined ? lerp(a[2], b[2] ?? a[2], k) : undefined); }
   shake(t, amt) { this.cam.position.x += Math.sin(t * 53) * amt; this.cam.position.y += Math.cos(t * 47) * amt; this.cam.rotation.z += Math.sin(t * 37) * amt * 0.05; }
-  render() { if (this.dome) this.dome.position.copy(this.cam.position); renderer.toneMappingExposure = this.exposure; renderer.render(this.scene, this.cam); return renderer.domElement; }
+  render() { if (this.sticks) { this.cam.updateMatrixWorld(); this.sticks.forEach((k) => k.sync(this.cam)); } if (this.dome) this.dome.position.copy(this.cam.position); renderer.toneMappingExposure = this.exposure; renderer.render(this.scene, this.cam); return renderer.domElement; }
 
   // ── props ────────────────────────────────────────
   car(color, p = {}) {

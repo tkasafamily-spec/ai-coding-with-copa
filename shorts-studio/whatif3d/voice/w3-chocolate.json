@@ -1,0 +1,65 @@
+{
+ "duration": 37.543,
+ "beats": [
+  {
+   "say": "What if you ate one million chocolate bars\u2026 in just one week?",
+   "start": 0.0,
+   "end": 3.5
+  },
+  {
+   "say": "That's 143,000 bars every single day.",
+   "start": 3.86,
+   "end": 6.94
+  },
+  {
+   "say": "So you stay up all night, eating as fast as you can.",
+   "start": 7.3,
+   "end": 10.38
+  },
+  {
+   "say": "Your mouth turns brown\u2026 and your teeth start screaming.",
+   "start": 10.86,
+   "end": 13.68
+  },
+  {
+   "say": "By day two, you've eaten more sugar than most people eat in ten years.",
+   "start": 14.28,
+   "end": 18.26
+  },
+  {
+   "say": "You're so hyper, you run laps around the kitchen at 3 a.m.",
+   "start": 18.68,
+   "end": 22.22
+  },
+  {
+   "say": "Then\u2026 the sugar crash hits.",
+   "start": 22.22,
+   "end": 23.88
+  },
+  {
+   "say": "Day four: just looking at chocolate makes you sick.",
+   "start": 24.48,
+   "end": 27.2
+  },
+  {
+   "say": "But the pile is still taller than your house.",
+   "start": 27.52,
+   "end": 29.56
+  },
+  {
+   "say": "Day seven. You take one last bite\u2026",
+   "start": 30.22,
+   "end": 32.74
+  },
+  {
+   "say": "and an ambulance is already waiting outside.",
+   "start": 32.74,
+   "end": 34.88
+  },
+  {
+   "say": "Would you even make it to day two?",
+   "start": 35.52,
+   "end": 36.94
+  }
+ ]
+}

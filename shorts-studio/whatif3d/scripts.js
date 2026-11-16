@@ -71,5 +71,28 @@ const V3 = [
       { say: "Would Earth even miss us?", shot: "lonelyDog" },
     ],
   },
+  {
+    id: "w3-chocolate",
+    style: "stick",
+    title: "What If You Ate 1,000,000 Chocolate Bars in 1 Week?",
+    hook: "1,000,000 CHOCOLATE BARS IN 7 DAYS",
+    titles: ["What If You Ate 1 Million Chocolate Bars in a Week?", "1,000,000 Chocolate Bars in 7 Days… Day 4 Is Bad", "I Ate 1 Million Chocolate Bars (What Would Happen)"],
+    hashtags: "#shorts #whatif #chocolate",
+    question: "What day would YOU give up? 👇",
+    beats: [
+      { say: "What if you ate one million chocolate bars… in just one week?", shot: "chocPile", gfx: { type: "count", to: 1000000, label: "CHOCOLATE BARS", dur: 2.2 } },
+      { say: "That's 143,000 bars every single day.", shot: "chocRain", gfx: { type: "count", to: 143000, label: "BARS A DAY" } },
+      { say: "So you stay up all night, eating as fast as you can.", shot: "chocNight", gfx: { type: "year", text: "DAY 1" } },
+      { say: "Your mouth turns brown… and your teeth start screaming.", shot: "chocTeeth", gfx: { type: "arrow", text: "TEETH", x: 0.42, y: 0.58 } },
+      { say: "By day two, you've eaten more sugar than most people eat in ten years.", shot: "chocSugar", gfx: { type: "stamp", text: "SUGAR OVERLOAD" } },
+      { say: "You're so hyper, you run laps around the kitchen at 3 a.m.", shot: "chocLaps" },
+      { say: "Then… the sugar crash hits.", shot: "chocCrash", gfx: { type: "stamp", text: "CRASH" }, fx: "flicker" },
+      { say: "Day four: just looking at chocolate makes you sick.", shot: "chocSick", gfx: { type: "year", text: "DAY 4" } },
+      { say: "But the pile is still taller than your house.", shot: "chocHouse", gfx: { type: "arrow", text: "700,000 LEFT", x: 0.5, y: 0.42 } },
+      { say: "Day seven. You take one last bite…", shot: "chocLastBite", gfx: { type: "year", text: "DAY 7" } },
+      { say: "and an ambulance is already waiting outside.", shot: "chocAmbulance" },
+      { say: "Would you even make it to day two?", shot: "chocEnd" },
+    ],
+  },
 ];
 if (typeof module !== "undefined") module.exports = { V3 };

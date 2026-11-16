@@ -11,6 +11,8 @@ body { margin: 0; background: #000; }
 // What If 3D player: real animated 3D shots + bold captions, arrows, stamps, counters on a 1080x1920 canvas.
 import { loadChars } from "./engine.js";
 import { SHOTS, CAST } from "./shots.js";
+import { SHOTS2 } from "./shots2.js";
+Object.assign(SHOTS, SHOTS2);
 const W = 1080, H = 1920;
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const seg = (t, a, b) => clamp((t - a) / (b - a));

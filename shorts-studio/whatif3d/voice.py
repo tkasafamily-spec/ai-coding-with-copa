@@ -8,7 +8,7 @@ from faster_whisper import WhisperModel
 HERE = os.path.dirname(os.path.abspath(__file__)); OUT = os.path.join(HERE, "voice"); os.makedirs(OUT, exist_ok=True)
 V3 = json.loads(subprocess.run(["node", "-e", "process.stdout.write(JSON.stringify(require(process.argv[1]).V3))", os.path.join(HERE, "scripts.js")], capture_output=True, text=True, check=True).stdout)
 VOICE, PACE, SEED = os.environ.get("VOICE", "Russell"), os.environ.get("PACE", "-0.06"), int(os.environ.get("SEED", "7"))
-SPOKEN = {"1950": "nineteen fifty"}  # say numbers the way a narrator would
+SPOKEN = {"1950": "nineteen fifty", "143,000": "a hundred and forty-three thousand", "3 a.m.": "three A M"}  # say numbers the way a narrator would
 tts = ptts.TTS("hf://gradium/phonon-31m-en", lang="en", quant="q8", seed=SEED)
 tts.set_conditions({"num_speakers": "1", "duration_delta": PACE})
 wm = WhisperModel("small.en", device="cpu", compute_type="int8")
@@ -30,7 +30,7 @@ for f in V3:
     lead = np.where(np.abs(a) > 0.01)[0]; a = a[max(0, lead[0] - int(sr * 0.04)):] if len(lead) else a
     wav = os.path.join(OUT, f["id"] + ".wav"); sf.write(wav, a, sr)
     mp3 = os.path.join(OUT, f["id"] + ".mp3")
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", wav, "-af", "highpass=f=70,equalizer=f=180:t=q:w=1:g=2,equalizer=f=3200:t=q:w=1.2:g=2.5,acompressor=threshold=-18dB:ratio=3:attack=8:release=80:makeup=2,loudnorm=I=-14:TP=-1.5:LRA=9", "-ar", "44100", "-ac", "1", "-b:a", "192k", mp3], check=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", wav, "-af", f"atempo={os.environ.get('TEMPO', '1')},highpass=f=70,equalizer=f=180:t=q:w=1:g=2,equalizer=f=3200:t=q:w=1.2:g=2.5,acompressor=threshold=-18dB:ratio=3:attack=8:release=80:makeup=2,loudnorm=I=-14:TP=-1.5:LRA=9", "-ar", "44100", "-ac", "1", "-b:a", "192k", mp3], check=True)
     os.remove(raw)
     # word timings
     pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", mp3, "-f", "s16le", "-ac", "1", "-ar", "16000", "-"], capture_output=True).stdout
