@@ -47,11 +47,23 @@ function table(S, p = {}) { const g = S.group(p); S.box(2.0, 0.08, 1.1, "#c68b59
 function chair(S, p = {}) { const g = S.group(p); S.box(0.5, 0.06, 0.5, "#e76f51", { y: 0.44, r: 0.02 }, g); S.box(0.06, 0.6, 0.5, "#e76f51", { x: -0.24, y: 0.47, r: 0.02 }, g); for (const [x, z] of [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]]) S.box(0.05, 0.44, 0.05, "#c4553a", { x, z, r: 0.01 }, g); return g; }
 function seatedMan(S, o = {}) { chair(S, { x: -1.25, z: 0 }); const man = new Stick(S, { x: -1.22, z: 0.02 }); return man; }
 function house(S, p = {}) {
-  const g = S.group(p); S.box(9, 5, 7, "#fdf0d5", { r: 0.05 }, g);
-  const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 6.6, 3.2, 4, 1), mat("#c0392b", { rough: 0.5 })); roof.rotation.y = Math.PI / 4; roof.scale.set(1.05, 1, 0.82); roof.position.y = 6.6; roof.castShadow = true; g.add(roof);
+  const g = S.group(p); S.box(9, 5, 7, p.wall || "#fdf0d5", { r: 0.05 }, g);
+  const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 6.6, 3.2, 4, 1), mat(p.roof || "#c0392b", { rough: 0.5 })); roof.rotation.y = Math.PI / 4; roof.scale.set(1.05, 1, 0.82); roof.position.y = 6.6; roof.castShadow = true; g.add(roof);
   S.box(1.2, 2.2, 0.1, "#8d5524", { z: 3.52, r: 0.03 }, g);
   for (const x of [-2.8, 2.8]) { S.box(1.6, 1.3, 0.08, "#9fd3f5", { x, y: 2.0, z: 3.52, r: 0.02, rough: 0.1 }, g); S.box(1.8, 0.12, 0.2, "#ffffff", { x, y: 1.95, z: 3.56, r: 0.02 }, g); }
   return g;
+}
+// rows and rows of houses with streets and trees around the main house (left empty at "keep")
+function neighborhood(S, keep = [0, 0]) {
+  const walls = ["#fdf0d5", "#dbe9f6", "#f6d6d6", "#e2f0d9", "#fff1b8", "#e8dcf5", "#f3e0c7"], roofs = ["#c0392b", "#34495e", "#8e5a3c", "#2e6f9e", "#6d4c41", "#a93226"];
+  for (let i = -5; i <= 5; i++) for (let j = -6; j <= 3; j++) {
+    const x = i * 14, z = j * 15; if (Math.abs(x - keep[0]) < 9 && z > keep[1] - 9) continue;
+    const k = Math.abs(i * 7 + j * 3), sc = 0.75 + rnd(k) * 0.2;
+    const g = house(S, { x, z, ry: j % 2 ? Math.PI : 0, wall: walls[k % walls.length], roof: roofs[(k * 5 + j) % roofs.length] }); g.scale.setScalar(sc);
+    if (rnd(k * 3) > 0.4) S.tree({ x: x + 6, z: z + (rnd(k) - 0.5) * 6, size: 1 + rnd(k * 9) * 0.5 });
+  }
+  for (let j = -6; j <= 3; j++) S.plane(170, 4, "#9aa3ab", { rx: -Math.PI / 2, y: 0.02, z: j * 15 + 7.5, material: mat("#a9b1b8", { rough: 0.9 }) });
+  for (let i = -5; i <= 5; i++) S.plane(4, 160, null, { rx: -Math.PI / 2, y: 0.021, x: i * 14 + 7, z: -20, material: mat("#a9b1b8", { rough: 0.9 }) });
 }
 function ambulance(S, p = {}) {
   const g = S.group(p); S.box(2.3, 2.3, 4.2, "#ffffff", { y: 0.45, z: -0.6, r: 0.15 }, g); S.box(2.2, 1.5, 1.6, "#ffffff", { y: 0.45, z: 2.2, r: 0.2 }, g);
@@ -157,14 +169,13 @@ export const SHOTS2 = {
   },
   chocHouse() {
     const S = new Shot({ shadow: 30, ground: "#6cc24a", fogNear: 60, fogFar: 200 });
-    house(S, { z: 0 }); pile(S, { x: 0.5, y: 4.5, z: 0, r: 5.0, h: 26, n: 2600, seed: 17, s: 2.2 });
-    for (let k = 0; k < 16; k++) S.tree({ x: (k % 2 ? 1 : -1) * (9 + rnd(k) * 12), z: -10 + rnd(k * 3) * 22, size: 1.2 + rnd(k * 5) * 0.6 });
+    house(S, { z: 0 }); pile(S, { x: 0.5, y: 4.5, z: 0, r: 5.0, h: 26, n: 2600, seed: 17, s: 2.2 }); neighborhood(S, [0, 0]);
     for (let k = 0; k < 12; k++) S.box(0.15, 1.0, 0.15, "#ffffff", { x: -9 + k * 1.6, z: 7, r: 0.03 });
     S.box(19, 0.12, 0.1, "#ffffff", { y: 0.75, z: 7, r: 0.02 });
     const man = new Stick(S, { x: 2.6, z: 5.2 });
     return { S, update(t, d) {
       man.pose("shocked", t, { face: { look: 0 } });
-      S.move(t / d, [[3, 2.2, 14], [1, 5, 0], 44], [[8, 6, 32], [0, 12, 0], 48], ease);
+      S.move(t / d, [[3, 2.2, 14], [1, 5, 0], 44], [[10, 16, 44], [0, 9, -4], 50], ease);
     } };
   },
   chocLastBite() {
@@ -178,7 +189,7 @@ export const SHOTS2 = {
   },
   chocAmbulance() {
     const S = new Shot({ shadow: 20, ground: "#6cc24a", fogNear: 50, fogFar: 160, sky: ["#f49e4c", "#ffe2b8"], sunPos: [-12, 9, 8] });
-    house(S, { z: -6 }); pile(S, { x: 0.5, y: 4.5, z: -6, r: 5.0, h: 22, n: 2000, seed: 21, s: 2.2 });
+    house(S, { z: -6 }); pile(S, { x: 0.5, y: 4.5, z: -6, r: 5.0, h: 22, n: 2000, seed: 21, s: 2.2 }); neighborhood(S, [0, -6]);
     S.road(80, 7, { z: 0, ry: Math.PI / 2 }).position.set(0, 0, 4);
     const amb = ambulance(S, { x: 3.2, z: 4, ry: -Math.PI / 2 });
     const docs = [new Stick(S, { x: -1.3, z: 1.6, badge: true, shirt: "#f4f4f2", coat: true, hair: "#2b2118" }), new Stick(S, { x: -0.3, z: 1.9, badge: true, shirt: "#f4f4f2", coat: true, hair: "#c8a165" })];

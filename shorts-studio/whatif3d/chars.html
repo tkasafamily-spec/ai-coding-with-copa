@@ -1,0 +1,33 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>@font-face { font-family: Montserrat; font-weight: 900; src: url(../animator/node_modules/@fontsource/montserrat/files/montserrat-latin-900-normal.woff2) format("woff2"); } body{margin:0}</style>
+<script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }</script></head>
+<body><script type="module">
+// Character sheet: draws the stick-man designs side by side so one can be picked as the main character.
+import { Shot } from "./engine.js";
+import { Stick } from "./stick.js";
+export const CHARACTERS = [
+  ["1. CLASSIC", { shirt: "#e8833a", hair: "#6b4226", hairStyle: "bowl" }, "wave"],
+  ["2. HOODIE", { shirt: "#7d8590", hair: "#2b2118", hairStyle: "spiky", hood: true, shoes: "#f4f4f2" }, "idle"],
+  ["3. CAP GUY", { shirt: "#2f6fd6", hair: "#6b4226", hairStyle: "bowl", cap: "#d62839" }, "idle"],
+  ["4. CURLY", { shirt: "#3aa655", hair: "#2b2118", hairStyle: "curly" }, "shrug"],
+  ["5. SMART", { shirt: "#f4f4f2", hair: "#e0b45c", hairStyle: "side", glasses: true, tie: "#d62839" }, "think"],
+  ["6. MESSY", { shirt: "#7b4bb7", hair: "#1f1a17", hairStyle: "messy", coat: true }, "point"],
+];
+window.go = async () => {
+  await document.fonts.load("900 60px Montserrat");
+  const S = new Shot({});
+  const out = document.createElement("canvas"); out.width = 1800; out.height = 1300; const x = out.getContext("2d");
+  const g = x.createLinearGradient(0, 0, 0, 1300); g.addColorStop(0, "#fbf3e4"); g.addColorStop(1, "#efe2c9"); x.fillStyle = g; x.fillRect(0, 0, 1800, 1300);
+  x.font = "900 64px Montserrat"; x.textAlign = "center"; x.fillStyle = "#2b2118"; x.fillText("PICK YOUR MAIN CHARACTER", 900, 90);
+  CHARACTERS.forEach(([name, o, pose], i) => {
+    const k = new Stick(S, o); k.pose(pose, 0.35); k.draw(); const c = k.tex.userData.c;
+    const cx = 300 + (i % 3) * 600, cy = 130 + Math.floor(i / 3) * 590;
+    x.fillStyle = "rgba(255,255,255,.55)"; x.beginPath(); x.roundRect(cx - 270, cy, 540, 560, 30); x.fill();
+    x.fillStyle = "rgba(0,0,0,.12)"; x.beginPath(); x.ellipse(cx, cy + 470, 110, 22, 0, 0, 7); x.fill();
+    x.drawImage(c, cx - 300, cy - 110, 600, 600);
+    x.font = "900 44px Montserrat"; x.fillStyle = "#2b2118"; x.fillText(name, cx, cy + 535);
+  });
+  return out.toDataURL("image/jpeg", 0.92);
+};
+window.ready = true;
+</script></body></html>
