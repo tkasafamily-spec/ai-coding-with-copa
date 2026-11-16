@@ -1,0 +1,60 @@
+{
+ "duration": 34.349,
+ "beats": [
+  {
+   "say": "In 1914, one boss doubled his workers' pay overnight.",
+   "start": 0.05,
+   "end": 3.423
+  },
+  {
+   "say": "His name was Henry Ford.",
+   "start": 3.543,
+   "end": 4.705
+  },
+  {
+   "say": "His new assembly line made cars fast\u2026 but the work was so boring, people kept quitting.",
+   "start": 4.825,
+   "end": 9.786
+  },
+  {
+   "say": "In 1913, he hired over 50,000 people, just to keep about 14,000 jobs filled.",
+   "start": 9.906,
+   "end": 15.717
+  },
+  {
+   "say": "So he did something crazy.",
+   "start": 15.837,
+   "end": 17.143
+  },
+  {
+   "say": "He raised pay from $2.34\u2026 to $5 a day.",
+   "start": 17.262,
+   "end": 20.714
+  },
+  {
+   "say": "Thousands of people rushed to his factory in the freezing cold.",
+   "start": 20.834,
+   "end": 23.757
+  },
+  {
+   "say": "So many came, they got sprayed with fire hoses.",
+   "start": 23.877,
+   "end": 26.206
+  },
+  {
+   "say": "But workers stopped quitting, and Ford's factory boomed.",
+   "start": 26.326,
+   "end": 28.911
+  },
+  {
+   "say": "And in 1926, he gave them weekends off, too.",
+   "start": 29.031,
+   "end": 31.751
+  },
+  {
+   "say": "Would you work the line for $5 a day?",
+   "start": 31.871,
+   "end": 33.879
+  }
+ ]
+}

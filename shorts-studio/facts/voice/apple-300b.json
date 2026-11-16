@@ -1,0 +1,55 @@
+{
+ "duration": 26.854,
+ "beats": [
+  {
+   "say": "This man gave up $300 billion\u2026 for 800 bucks.",
+   "start": 0.05,
+   "end": 3.592
+  },
+  {
+   "say": "In 1976, he started Apple with Steve Jobs and Steve Wozniak.",
+   "start": 3.712,
+   "end": 8.052
+  },
+  {
+   "say": "His name was Ronald Wayne. He owned 10%.",
+   "start": 8.172,
+   "end": 10.66
+  },
+  {
+   "say": "He even drew Apple's very first logo.",
+   "start": 10.78,
+   "end": 12.642
+  },
+  {
+   "say": "But just 12 days later, he panicked.",
+   "start": 12.762,
+   "end": 14.486
+  },
+  {
+   "say": "If Apple failed, he could lose everything he owned.",
+   "start": 14.606,
+   "end": 16.906
+  },
+  {
+   "say": "So he sold his 10%\u2026 for $800.",
+   "start": 17.026,
+   "end": 19.645
+  },
+  {
+   "say": "Today, Apple is one of the biggest companies on Earth.",
+   "start": 19.765,
+   "end": 22.219
+  },
+  {
+   "say": "That 10% could be worth up to $300 billion.",
+   "start": 22.339,
+   "end": 25.363
+  },
+  {
+   "say": "Would you have sold it?",
+   "start": 25.483,
+   "end": 26.384
+  }
+ ]
+}

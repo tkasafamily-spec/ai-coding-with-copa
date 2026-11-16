@@ -14,14 +14,15 @@ const server = http.createServer((req, res) => {
 });
 (async () => {
   await new Promise((r) => server.listen(0, r));
-  const { FACTS } = require(path.join(HERE, "facts.js"));
-  const fact = FACTS.find((f) => f.id === id);
+  const V2 = process.argv.includes("--v2");
+  const { FACTS } = require(path.join(HERE, "facts.js")); const { V2: V2S } = require(path.join(HERE, "v2.js"));
+  const fact = (V2 ? V2S : FACTS).find((f) => f.id === id);
   const voice = JSON.parse(fs.readFileSync(path.join(HERE, "voice", id + ".json")));
   const captions = JSON.parse(fs.readFileSync(path.join(HERE, "voice", id + "-captions.json")));
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
   const page = await browser.newPage({ viewport: { width: 1080, height: 1920 } });
   page.on("pageerror", (e) => console.error("PAGE ERROR", e.message));
-  await page.goto(`http://localhost:${server.address().port}/facts/player.html`);
+  await page.goto(`http://localhost:${server.address().port}/facts/${V2 ? "player2" : "player"}.html`);
   await page.waitForFunction(() => window.ready);
   await page.evaluate((d) => window.init(d), { fact, voice, captions, imgDir: arg("--imgdir", "images") });
   const stills = arg("--stills");
