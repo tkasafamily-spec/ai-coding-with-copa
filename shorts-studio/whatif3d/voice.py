@@ -9,7 +9,7 @@ HERE = os.path.dirname(os.path.abspath(__file__)); OUT = os.path.join(HERE, "voi
 V3 = json.loads(subprocess.run(["node", "-e", "process.stdout.write(JSON.stringify(require(process.argv[1]).V3))", os.path.join(HERE, "scripts.js")], capture_output=True, text=True, check=True).stdout)
 VOICE, PACE, SEED = os.environ.get("VOICE", "Russell"), os.environ.get("PACE", "-0.06"), int(os.environ.get("SEED", "7"))
 SPOKEN = {"1950": "nineteen fifty", "143,000": "a hundred and forty-three thousand", "3 a.m.": "three A M"}  # say numbers the way a narrator would
-tts = ptts.TTS("hf://gradium/phonon-31m-en", lang="en", quant="q8", seed=SEED)
+tts = ptts.TTS("hf://gradium/phonon-31m-en", lang="en", quant="q8", seed=SEED, temperature=float(os.environ.get("TEMP", "0.3")))
 tts.set_conditions({"num_speakers": "1", "duration_delta": PACE})
 wm = WhisperModel("small.en", device="cpu", compute_type="int8")
 norm = lambda w: re.sub(r"[^a-z0-9]", "", w.lower())

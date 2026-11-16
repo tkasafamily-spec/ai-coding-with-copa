@@ -66,11 +66,11 @@ export class Stick {
     const hipY = -(P.sit ? 0.5 : HIP) * PX + (P.bob || 0) * -PX;
     x.translate(0, hipY); if (P.rot) { x.translate(0, -hipY - 0.12 * PX); x.rotate(P.rot); }
     const pt = (ox, oy, a, len) => [ox + Math.sin(a) * len * PX, oy + Math.cos(a) * len * PX];
-    const lean = P.lean || 0, neck = pt(0, 0, Math.PI + lean, TORSO), head = pt(neck[0], neck[1], Math.PI + lean * 1.2, HEAD + 0.06);
+    const lean = P.lean || 0, neck = pt(0, 0, Math.PI + lean, TORSO), head = pt(neck[0], neck[1], Math.PI + lean * 1.2, HEAD * 1.25 * 0.78); // no neck: head sits right on the body
     const limb = (base, A, l1, l2, back) => { const k = pt(base[0], base[1], A[0] + (back ? 0 : 0), l1); const e = pt(k[0], k[1], A[0] + A[1], l2); return [base, k, e]; };
     // legs bend knee backwards (negative second angle), arms bend elbow forwards
     const L = [limb([0, 0], P.ll, THIGH, SHIN), limb([0, 0], P.rl, THIGH, SHIN)];
-    const sh = pt(0, 0, Math.PI + lean, TORSO - 0.08);
+    const sh = pt(0, 0, Math.PI + lean, TORSO - 0.1);
     const A = [limb(sh, [P.la[0] + lean, P.la[1]], UPPER, FORE), limb(sh, [P.ra[0] + lean, P.ra[1]], UPPER, FORE)];
     const stroke = (pts, w, c) => { x.beginPath(); x.moveTo(...pts[0]); for (let i = 1; i < pts.length; i++) x.lineTo(...pts[i]); x.lineWidth = w; x.strokeStyle = c; x.lineCap = "round"; x.lineJoin = "round"; x.stroke(); };
     const INK = this.ink, W = 0.042 * PX, SKIN = "#fbf6ea", shirt = this.shirt;
@@ -81,7 +81,7 @@ export class Stick {
     arm(A[0]);
     for (const l of L) { stroke(l, W, INK); shoe(l); }
     const dx = Math.sin(Math.PI + lean), dy = Math.cos(Math.PI + lean), nx = -dy, ny = dx; // torso direction + its normal
-    const top = [neck[0] - dx * 4, neck[1] - dy * 4], bot = [-dx * -0.1 * PX, -dy * -0.1 * PX], wt = 0.15 * PX, wb = 0.18 * PX;
+    const top = [neck[0] - dx * 4, neck[1] - dy * 4], bot = [-dx * -0.1 * PX, -dy * -0.1 * PX], wt = 0.17 * PX, wb = 0.19 * PX;
     x.beginPath(); x.moveTo(top[0] + nx * wt, top[1] + ny * wt); x.quadraticCurveTo(top[0], top[1] - dy * 10, top[0] - nx * wt, top[1] - ny * wt); x.lineTo(bot[0] - nx * wb, bot[1] - ny * wb); x.quadraticCurveTo(bot[0] + dx * -8, bot[1] + dy * -8, bot[0] + nx * wb, bot[1] + ny * wb); x.closePath();
     x.fillStyle = shirt; x.fill(); x.lineWidth = 6; x.strokeStyle = INK; x.stroke();
     if (this.coat) { x.beginPath(); x.moveTo(top[0], top[1]); x.lineTo(bot[0], bot[1]); x.lineWidth = 4; x.stroke(); }
@@ -94,7 +94,7 @@ export class Stick {
     if (P.hold === "both") bar(A[0][2], -0.3);
     if (P.hold === "phone") { x.save(); x.translate(...A[1][2]); x.rotate(-0.25); x.fillStyle = INK; x.beginPath(); x.roundRect(-11, -30, 22, 40, 5); x.fill(); x.fillStyle = this.screen || "#7fd3ff"; x.fillRect(-7, -26, 14, 30); x.restore(); }
     // head
-    const hr = HEAD * PX * 1.25, f = P.face; x.save(); x.translate(head[0], head[1] - hr * 0.2);
+    const hr = HEAD * PX * 1.25, f = P.face; x.save(); x.translate(head[0], head[1]);
     x.beginPath(); x.arc(0, 0, hr, 0, 7); x.fillStyle = f.green ? "#cfe8a9" : SKIN; x.fill(); x.lineWidth = 6; x.strokeStyle = INK; x.stroke();
     if (this.hood) { x.save(); x.beginPath(); x.arc(0, hr * 0.15, hr * 1.18, Math.PI * 0.75, Math.PI * 2.25); x.fillStyle = this.shirt; x.fill(); x.lineWidth = 6; x.stroke(); x.restore(); x.beginPath(); x.arc(0, 0, hr, 0, 7); x.fillStyle = f.green ? "#cfe8a9" : SKIN; x.fill(); x.lineWidth = 6; x.stroke(); }
     const hs = this.hairStyle || "bowl"; x.lineWidth = 5; x.strokeStyle = INK;
