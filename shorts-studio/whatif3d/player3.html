@@ -52,7 +52,7 @@ function drawBeat(i, t) {
   const gl = BUILT[i].S.render();
   const punch = (i === 0 ? 0.12 : 0.05) * (1 - easeOut(seg(lt, 0, 0.3)));
   const whip = (i === 0 ? 0 : 1) * (1 - easeOut(seg(lt, 0, 0.16))) * (i % 2 ? -140 : 140);
-  ctx.save(); ctx.translate(W / 2 + whip, H / 2); ctx.scale(1 + punch, 1 + punch); ctx.filter = (res.filter || "") + (D.video.style === "stick" ? " saturate(0.88) sepia(0.1) contrast(1.03)" : " contrast(1.06) saturate(1.15)");
+  ctx.save(); ctx.translate(W / 2 + whip, H / 2); ctx.scale(1 + punch, 1 + punch); ctx.filter = (res.filter || "") + (D.video.style === "stick" ? " saturate(0.8) sepia(0.12) contrast(1.0) brightness(1.03)" : " contrast(1.06) saturate(1.15)");
   ctx.drawImage(gl, -W / 2, -H / 2, W, H); ctx.restore(); ctx.filter = "none";
   // soft glow on bright parts (glossy cartoon look)
   if (D.video.style !== "stick") { BLOOM.x.filter = "brightness(0.85) contrast(2.4) blur(6px)"; BLOOM.x.drawImage(cv, 0, 0, 270, 480); BLOOM.x.filter = "none";
@@ -172,7 +172,7 @@ window.frame = (t, q = 0.92) => {
   const { lt } = drawBeat(i, t);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.8); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.4)"); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
-  ctx.save(); ctx.globalAlpha = 0.04; ctx.globalCompositeOperation = "overlay"; ctx.drawImage(GRAIN[Math.floor(t * 24) % GRAIN.length], 0, 0, W, H); ctx.restore();
+  ctx.save(); ctx.globalAlpha = D.video.style === "stick" ? 0.09 : 0.04; ctx.globalCompositeOperation = "overlay"; ctx.drawImage(GRAIN[Math.floor(t * 24) % GRAIN.length], 0, 0, W, H); ctx.restore();
   const cg = ctx.createLinearGradient(0, H * 0.62, 0, H * 0.88); cg.addColorStop(0, "rgba(0,0,0,0)"); cg.addColorStop(0.5, "rgba(0,0,0,.25)"); cg.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = cg; ctx.fillRect(0, H * 0.62, W, H * 0.26);
   if (!(g && g.until && lt > g.until)) drawGfx(g, lt, i);
   drawHook(t);

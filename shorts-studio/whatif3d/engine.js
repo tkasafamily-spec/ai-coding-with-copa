@@ -111,7 +111,7 @@ function windowTex(seed, kind) {
 }
 
 const TOON = new Map();
-const GRAD = (() => { const d = new Uint8Array([120, 120, 120, 255, 190, 190, 190, 255, 255, 255, 255, 255]); const t = new THREE.DataTexture(d, 3, 1); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+const GRAD = (() => { const d = new Uint8Array([165, 165, 165, 255, 232, 232, 232, 255, 255, 255, 255, 255]); const t = new THREE.DataTexture(d, 3, 1); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
 const OUTM = {};
 function outlineMat(ink, w) {
   const k = ink + w.toFixed(4); if (OUTM[k]) return OUTM[k];
