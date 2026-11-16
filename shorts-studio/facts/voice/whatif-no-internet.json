@@ -1,0 +1,60 @@
+{
+ "duration": 33.652,
+ "beats": [
+  {
+   "say": "What if the entire internet turned off\u2026 right now?",
+   "start": 0.05,
+   "end": 2.945
+  },
+  {
+   "say": "Over five billion people lose connection in the same second.",
+   "start": 3.395,
+   "end": 6.605
+  },
+  {
+   "say": "No messages. No maps. No videos.",
+   "start": 6.905,
+   "end": 9.23
+  },
+  {
+   "say": "Card machines stop working, so nobody can pay.",
+   "start": 9.53,
+   "end": 12.151
+  },
+  {
+   "say": "ATMs go dark. Banks lock their doors.",
+   "start": 12.451,
+   "end": 15.122
+  },
+  {
+   "say": "Traffic lights glitch, and the whole city jams.",
+   "start": 15.422,
+   "end": 17.885
+  },
+  {
+   "say": "Most supermarkets only keep a few days of food on the shelves.",
+   "start": 18.185,
+   "end": 21.445
+  },
+  {
+   "say": "By day three, they're empty.",
+   "start": 21.745,
+   "end": 23.45
+  },
+  {
+   "say": "People start trading phones for bottles of water.",
+   "start": 23.75,
+   "end": 26.397
+  },
+  {
+   "say": "And nobody knows what's happening\u2026 because there's no internet to tell them.",
+   "start": 26.697,
+   "end": 30.501
+  },
+  {
+   "say": "Would you survive one week offline?",
+   "start": 30.801,
+   "end": 32.852
+  }
+ ]
+}

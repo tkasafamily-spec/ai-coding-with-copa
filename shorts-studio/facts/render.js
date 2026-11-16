@@ -35,7 +35,9 @@ const server = http.createServer((req, res) => {
   fx(0, "impact", 0.7);
   voice.beats.forEach((vb, i) => {
     const st = i === 0 ? 0 : vb.start - 0.06; if (i > 0) fx(st - 0.05, "whoosh", 0.7);
+    const fxv = fact.beats[i].fx; if (fxv === "glitch") fx(st, "glitch", 0.8); if (fxv === "flicker") fx(st, "powerdown", 0.8);
     const g = fact.beats[i].gfx; if (!g) return;
+    if (g.type === "arrow") fx(st + 0.08, "swish", 0.7);
     if (g.type === "count") { fx(st + 0.1, "ticks", 0.6); fx(st + 1.2, "cash", 0.6); }
     if (g.type === "year" || g.type === "title") fx(st + 0.02, "impact");
     if (g.type === "stamp") fx(st + 0.08, "stamp");

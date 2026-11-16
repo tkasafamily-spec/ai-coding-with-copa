@@ -1,0 +1,65 @@
+{
+ "duration": 34.484,
+ "beats": [
+  {
+   "say": "What if every AI on Earth shut down\u2026 at the same time?",
+   "start": 0.05,
+   "end": 3.246
+  },
+  {
+   "say": "Your phone's assistant goes silent.",
+   "start": 3.696,
+   "end": 5.754
+  },
+  {
+   "say": "Self-driving cars stop dead in the middle of the road.",
+   "start": 6.054,
+   "end": 8.89
+  },
+  {
+   "say": "Most stock trades are made by computers. In seconds, markets crash.",
+   "start": 9.19,
+   "end": 13.143
+  },
+  {
+   "say": "Robot warehouses freeze. Deliveries stop.",
+   "start": 13.443,
+   "end": 16.015
+  },
+  {
+   "say": "Hospitals scramble as smart machines go dark.",
+   "start": 16.315,
+   "end": 19.109
+  },
+  {
+   "say": "Then the power grids flicker\u2026 and the lights go out, city by city.",
+   "start": 19.409,
+   "end": 23.032
+  },
+  {
+   "say": "Planes circle the sky with nowhere to land.",
+   "start": 23.332,
+   "end": 25.715
+  },
+  {
+   "say": "Humans have to do everything by hand again.",
+   "start": 26.015,
+   "end": 28.43
+  },
+  {
+   "say": "The problem?",
+   "start": 28.73,
+   "end": 29.669
+  },
+  {
+   "say": "Most of us forgot how.",
+   "start": 30.119,
+   "end": 31.663
+  },
+  {
+   "say": "Could you live without AI?",
+   "start": 31.963,
+   "end": 33.684
+  }
+ ]
+}

@@ -1,0 +1,65 @@
+{
+ "duration": 31.13,
+ "beats": [
+  {
+   "say": "What if every human on Earth vanished\u2026 tonight?",
+   "start": 0.05,
+   "end": 2.629
+  },
+  {
+   "say": "At first, the lights stay on.",
+   "start": 3.079,
+   "end": 4.74
+  },
+  {
+   "say": "But with no one to run them, power plants start shutting down.",
+   "start": 5.04,
+   "end": 8.12
+  },
+  {
+   "say": "The cities go dark.",
+   "start": 8.42,
+   "end": 9.87
+  },
+  {
+   "say": "Pets and zoo animals roam the empty streets.",
+   "start": 10.17,
+   "end": 12.648
+  },
+  {
+   "say": "Within a few years, plants crack through every road.",
+   "start": 12.948,
+   "end": 15.524
+  },
+  {
+   "say": "In a few decades, skyscrapers start to fall.",
+   "start": 15.824,
+   "end": 18.346
+  },
+  {
+   "say": "Forests swallow entire cities.",
+   "start": 18.646,
+   "end": 20.649
+  },
+  {
+   "say": "After thousands of years, what's left of us?",
+   "start": 20.949,
+   "end": 23.169
+  },
+  {
+   "say": "Things carved in stone, like the pyramids.",
+   "start": 23.619,
+   "end": 25.848
+  },
+  {
+   "say": "Earth heals\u2026 and forgets we were ever here.",
+   "start": 26.148,
+   "end": 28.29
+  },
+  {
+   "say": "Would the planet even miss us?",
+   "start": 28.59,
+   "end": 30.33
+  }
+ ]
+}

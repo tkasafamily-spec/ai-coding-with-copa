@@ -119,7 +119,14 @@ def music_doc(d, bpm=96):
             pl = beat * 8; pad = sum(fastlp(tone(f, pl, "saw"), 30) for f in chord) * env(int(pl * SR), 0.6, 0.8) * 0.06; seg_ = out[st:st + len(pad)]; seg_ += pad[:len(seg_)]
         b += 1; t += beat
     o = out[:n]; return o * env(n, 0.2, 0.8)
-LIB = {k: v for k, v in globals().items() if k in "impact stamp ticks swish riser whoosh pop confetti cheer step tick splash spray scratch ding boing squeak beep horn cash zoom sting whistle bubbles thunder honk poof rumble crumble click alarm rocket munch snore magic fireworks".split()}
+def glitch(d=0.5):
+    out = np.zeros(int(d * SR))
+    for k in range(10):
+        st = int(rng.uniform(0, d - 0.06) * SR); ln = int(rng.uniform(0.02, 0.06) * SR)
+        s = (np.sign(np.sin(2 * np.pi * rng.uniform(200, 2000) * t_(ln / SR))) * 0.3 + noise(ln / SR) * 0.4); out[st:st + len(s)] += s[: len(out[st:st + len(s)])]
+    return out
+def powerdown(d=0.9): t = t_(d); return (tone(400 * np.exp(-t * 3) + 40, d, "saw") * 0.35 + fastlp(noise(d), 20) * 0.5) * env(len(t), 0.005, 0.3)
+LIB = {k: v for k, v in globals().items() if k in "impact glitch powerdown stamp ticks swish riser whoosh pop confetti cheer step tick splash spray scratch ding boing squeak beep horn cash zoom sting whistle bubbles thunder honk poof rumble crumble click alarm rocket munch snore magic fireworks".split()}
 
 def music(d, bpm=124):
     """Bouncy chiptune-ish loop: bass, chords, hats, kick. Original, royalty-free."""
