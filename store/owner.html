@@ -33,6 +33,10 @@
       <input id="buffer" type="number" step="1" value="5"></label>
     <label>Sales per month (each item)
       <input id="volume" type="number" step="1" value="10"></label>
+    <label>Card fee (%) <span>Shopify 1.7 · Stripe 1.65</span>
+      <input id="feePct" type="number" step="0.05" value="1.7"></label>
+    <label>Monthly plan (A$) <span>Shopify Basic 56 · own site 0</span>
+      <input id="plan" type="number" step="1" value="56"></label>
   </div>
 
   <div class="wrap">
@@ -41,7 +45,7 @@
       <tr><th>Product</th><th>Your price</th><th>AliExpress cost<br><span class="small">incl. ship + GST</span></th><th>Stripe fee</th><th>Buffer</th><th>Ads</th><th>Profit / sale</th><th>Margin</th><th>Profit / month</th></tr>
     </thead>
     <tbody id="rows"></tbody>
-    <tfoot><tr><td colspan="8"><strong>Total per month</strong></td><td id="total"></td></tr></tfoot>
+    <tfoot><tr><td colspan="8"><strong>Total per month</strong> <span class="small">(after the monthly plan)</span></td><td id="total"></td></tr></tfoot>
   </table>
   </div>
 
@@ -58,7 +62,7 @@
 
 <script src="products.js"></script>
 <script>
-  const STRIPE_PCT = 0.0165, STRIPE_FIXED = 0.30; // Stripe Australia, domestic cards
+  const STRIPE_FIXED = 0.30; // both Shopify Payments and Stripe charge 30c per sale in Australia
   const items = [...PRODUCTS, BUNDLE];
   const f = n => (n < 0 ? "-$" : "$") + Math.abs(n).toFixed(2);
 
@@ -75,7 +79,8 @@
     const ads = +document.getElementById("ads").value || 0;
     const buffer = (+document.getElementById("buffer").value || 0) / 100;
     const vol = +document.getElementById("volume").value || 0;
-    let total = 0;
+    const STRIPE_PCT = (+document.getElementById("feePct").value || 0) / 100;
+    let total = -(+document.getElementById("plan").value || 0);
     items.forEach((p, i) => {
       const price = +document.querySelector(`[data-i="${i}"][data-k="price"]`).value || 0;
       const cost = +document.querySelector(`[data-i="${i}"][data-k="cost"]`).value || 0;

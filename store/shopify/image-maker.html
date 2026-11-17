@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!--
+  Draws the Shopify product images. make-images.js opens this page once per image
+  (e.g. image-maker.html?img=features-towel-bag) and saves a 2048 × 2048 PNG.
+  To change wording on an image, edit the DATA below and run:  node make-images.js
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1024px; height: 1024px; overflow: hidden; font-family: Inter, sans-serif; color: #1d2433; }
+  body.wide { width: 1600px; height: 640px; }
+  body.logo { width: 1200px; height: 360px; background: transparent; }
+  h1, h2, .display { font-family: "Bricolage Grotesque", sans-serif; letter-spacing: -.01em; }
+  .frame { width: 100%; height: 100%; position: relative; }
+  .full { width: 100%; height: 100%; display: block; }
+  .tag { position: absolute; left: 48px; bottom: 44px; display: flex; align-items: center; gap: 12px; font: 800 26px "Bricolage Grotesque"; }
+  .sun { width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffd27a, #ff6b4a); flex: none; }
+
+  /* features */
+  .feat { display: grid; grid-template-columns: 470px 1fr; gap: 44px; padding: 64px; height: 100%; align-items: center; }
+  .feat img { width: 470px; height: 470px; border-radius: 36px; box-shadow: 0 20px 50px rgba(0,0,0,.12); }
+  .feat h2 { font-size: 54px; line-height: 1.02; margin-bottom: 34px; }
+  .row { display: flex; gap: 18px; align-items: flex-start; margin-bottom: 28px; }
+  .dot { width: 54px; height: 54px; border-radius: 50%; flex: none; display: grid; place-items: center; }
+  .row b { display: block; font-size: 26px; margin-bottom: 2px; }
+  .row span { font-size: 21px; color: #5b6475; line-height: 1.35; }
+
+  /* size */
+  .size { padding: 70px 64px; height: 100%; display: flex; flex-direction: column; }
+  .size h2 { font-size: 60px; margin-bottom: 8px; }
+  .size p.sub { font-size: 24px; color: #5b6475; margin-bottom: 30px; }
+  .size svg { flex: 1; width: 100%; min-height: 0; }
+  .note { font-size: 24px; line-height: 1.5; color: #5b6475; text-align: center; margin-top: 10px; }
+
+  /* steps */
+  .steps { padding: 64px; height: 100%; display: flex; flex-direction: column; }
+  .steps h2 { font-size: 60px; margin-bottom: 30px; }
+  .steps .art { height: 420px; border-radius: 32px; overflow: hidden; margin-bottom: 40px; }
+  .steps .art img { width: 100%; height: 100%; object-fit: contain; }
+  .stepgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .step .n { width: 64px; height: 64px; border-radius: 50%; color: #fff; display: grid; place-items: center; font: 800 32px "Bricolage Grotesque"; margin-bottom: 16px; }
+  .step b { display: block; font-size: 26px; line-height: 1.2; margin-bottom: 6px; }
+  .step span { font-size: 20px; color: #5b6475; line-height: 1.35; }
+
+  /* bundle */
+  .bundle { background: linear-gradient(135deg, #0d5c75, #1fa2c9); color: #fff; height: 100%; padding: 70px 64px; display: flex; flex-direction: column; }
+  .bundle h1 { font-size: 92px; line-height: .95; margin-bottom: 14px; }
+  .bundle .sub { font-size: 30px; color: #d6f0f7; margin-bottom: auto; }
+  .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .trio img { width: 100%; border-radius: 26px; box-shadow: 0 16px 40px rgba(0,0,0,.25); }
+  .pill { display: inline-block; background: #ffb547; color: #1d2433; font: 800 40px "Bricolage Grotesque"; padding: 16px 34px; border-radius: 999px; margin-top: 44px; align-self: flex-start; }
+  .inside { padding: 70px 64px; height: 100%; background: #fffaf3; }
+  .inside h2 { font-size: 64px; margin-bottom: 40px; }
+  .item { display: flex; gap: 28px; align-items: center; background: #fff; border: 2px solid #f0e4d2; border-radius: 28px; padding: 20px; margin-bottom: 22px; }
+  .item img { width: 170px; height: 170px; border-radius: 20px; }
+  .item b { font-size: 32px; display: block; }
+  .item span { font-size: 22px; color: #5b6475; }
+  .total { display: flex; justify-content: space-between; align-items: center; font-size: 30px; margin-top: 26px; }
+  .total strong { font: 800 46px "Bricolage Grotesque"; }
+  .save { background: #e5f6ea; color: #1d7a3e; padding: 10px 20px; border-radius: 999px; font-weight: 700; font-size: 24px; }
+
+  /* banner */
+  .banner { width: 1600px; height: 640px; background: linear-gradient(120deg, #ffe7c2 0%, #ffd9cc 55%, #d9f2f7 100%); position: relative; overflow: hidden; }
+  .banner .s { position: absolute; border-radius: 40px; box-shadow: 0 24px 60px rgba(29,36,51,.18); }
+  .bigsun { position: absolute; width: 520px; height: 520px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #ffd27a, #ffb547 60%, rgba(255,181,71,0) 72%); }
+
+  /* logo */
+  .lockup { display: flex; align-items: center; gap: 34px; height: 100%; padding: 0 30px; }
+  .lockup .sun { width: 150px; height: 150px; }
+  .lockup .t { font: 800 98px/0.9 "Bricolage Grotesque"; color: #1d2433; }
+  .lockup .t small { display: block; font: 600 34px Inter; color: #ff6b4a; letter-spacing: .14em; text-transform: uppercase; margin-top: 18px; }
+  .sq { width: 1024px; height: 1024px; background: #fffaf3; display: grid; place-items: center; text-align: center; }
+  .sq .sun { width: 380px; height: 380px; margin: 0 auto 50px; }
+  .sq .t { font: 800 96px/1 "Bricolage Grotesque"; }
+</style>
+</head>
+<body>
+<div id="out" class="frame"></div>
+<script>
+const DATA = {
+  "towel-bag": {
+    name: "2-in-1 Beach Towel Bag", color: "#1fa2c9", bg: "#e8f6fb", img: "../img/towel-bag.svg", art: "#FFE7C2",
+    headline: "One towel.<br>One bag.<br>Zero hassle.",
+    features: [
+      ["Big and quick-dry", "Microfibre, about 150 × 75 cm"],
+      ["Turns into a bag", "Zips into a tote with a shoulder strap"],
+      ["Sand shakes off", "Smooth weave doesn't hold onto sand"],
+      ["Packs down small", "Light enough to take every beach day"],
+    ],
+    steps: [
+      ["Lay it out", "A full-size towel for the sand"],
+      ["Fold it up", "Along the built-in seams"],
+      ["Zip it shut", "Now it's a tote bag. Off you go"],
+    ],
+    size: { shape: "rect", w: 150, h: 75, label: "Towel (open)", second: "Folds into a tote bag with a shoulder strap" },
+  },
+  "cooling-mat": {
+    name: "Chill Pad Self-Cooling Pet Mat", color: "#2aa9c4", bg: "#e6f6fa", img: "../img/cooling-mat.svg", art: "#D9F2F7",
+    headline: "A cool spot<br>for hot days.",
+    features: [
+      ["Cool to the touch", "Ice-silk fabric that feels cool to lie on"],
+      ["No gel, no leaks", "Nothing inside to leak if it gets chewed"],
+      ["Machine washable", "Throw it in the wash when it gets furry"],
+      ["Folds flat", "For the crate, the car or holidays"],
+    ],
+    steps: [
+      ["Lay it down", "Somewhere shady inside or out"],
+      ["Let them flop", "No power, fridge or water needed"],
+      ["Wash it", "Machine wash, then hang to dry"],
+    ],
+    size: { shape: "rect", w: 70, h: 55, label: "Medium", second: "Fits most cats and small-to-medium dogs" },
+  },
+  "sun-umbrella": {
+    name: "Pop Shade Windscreen Umbrella", color: "#ff6b4a", bg: "#fff0ea", img: "../img/sun-umbrella.svg", art: "#FFE1D6",
+    headline: "Shade your<br>car in<br>3 seconds.",
+    features: [
+      ["Cooler car", "Reflective silver coating bounces the sun back"],
+      ["3-second setup", "Opens just like an umbrella"],
+      ["Tiny when folded", "About 35 cm, fits the door pocket"],
+      ["Fits most cars", "Opens to about 140 × 80 cm"],
+    ],
+    steps: [
+      ["Pop it open", "Inside the car, like an umbrella"],
+      ["Push it forward", "Flat against the windscreen"],
+      ["Visors down", "They hold it in place. Done!"],
+    ],
+    size: { shape: "screen", w: 140, h: 80, label: "Open", second: "Folded: about 35 cm long. Measure your windscreen first" },
+  },
+};
+const ORDER = ["towel-bag", "cooling-mat", "sun-umbrella"];
+const PRICES = { "towel-bag": 39.95, "cooling-mat": 34.95, "sun-umbrella": 39.95 };
+const BUNDLE_PRICE = 99;
+
+const out = document.getElementById("out");
+const q = new URLSearchParams(location.search).get("img") || "features-towel-bag";
+const [kind, ...rest] = q.split("-");
+const id = rest.join("-");
+const d = DATA[id];
+const check = (c) => `<span class="dot" style="background:${c}22"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+const tag = `<div class="tag"><span class="sun"></span>Heatwave Supply Co.</div>`;
+
+function sizeSvg(s, c) {
+  // draw the shape to scale inside an 860 × 560 box, with dimension arrows
+  const maxW = 640, maxH = 380;
+  const k = Math.min(maxW / s.w, maxH / s.h);
+  const W = s.w * k, H = s.h * k, x = (896 - W) / 2, y = 70;
+  const shape = s.shape === "screen"
+    ? `<path d="M${x + W * .1} ${y} H${x + W * .9} L${x + W} ${y + H} H${x} Z" fill="${c}26" stroke="${c}" stroke-width="6" stroke-linejoin="round"/>`
+    : `<rect x="${x}" y="${y}" width="${W}" height="${H}" rx="22" fill="${c}26" stroke="${c}" stroke-width="6"/>`;
+  const arrow = (x1, y1, x2, y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#1d2433" stroke-width="4" marker-start="url(#a)" marker-end="url(#a)"/>`;
+  return `<svg viewBox="0 0 896 560">
+    <defs><marker id="a" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="#1d2433"/></marker></defs>
+    ${shape}
+    <text x="448" y="${y + H / 2 + 14}" text-anchor="middle" font-family="Inter" font-weight="600" font-size="34" fill="${c}">${s.label}</text>
+    ${arrow(x, y + H + 46, x + W, y + H + 46)}
+    <rect x="388" y="${y + H + 24}" width="120" height="44" fill="#fff"/>
+    <text x="448" y="${y + H + 58}" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="800" font-size="36">${s.w} cm</text>
+    ${arrow(x - 46, y, x - 46, y + H)}
+    <rect x="${x - 112}" y="${y + H / 2 - 24}" width="132" height="48" fill="#fff"/>
+    <text x="${x - 46}" y="${y + H / 2 + 12}" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="800" font-size="36">${s.h} cm</text>
+  </svg>`;
+}
+
+if (kind === "hero" && d) {
+  out.innerHTML = `<img class="full" src="${d.img}">`;
+} else if (kind === "features" && d) {
+  document.body.style.background = d.bg;
+  out.innerHTML = `<div class="feat"><img src="${d.img}"><div><h2>${d.headline}</h2>
+    ${d.features.map(([b, s]) => `<div class="row">${check(d.color)}<div><b>${b}</b><span>${s}</span></div></div>`).join("")}
+  </div></div>${tag}`;
+} else if (kind === "size" && d) {
+  document.body.style.background = "#fffaf3";
+  out.innerHTML = `<div class="size"><h2>Size guide</h2><p class="sub">${d.name}</p>${sizeSvg(d.size, d.color)}
+    <p class="note">${d.size.second}<br>All sizes are approximate.</p></div>`;
+} else if (kind === "steps" && d) {
+  document.body.style.background = "#fff";
+  out.innerHTML = `<div class="steps"><h2>How it works</h2><div class="art" style="background:${d.art}"><img src="${d.img}"></div><div class="stepgrid">
+    ${d.steps.map(([b, s], i) => `<div class="step"><div class="n" style="background:${d.color}">${i + 1}</div><b>${b}</b><span>${s}</span></div>`).join("")}
+  </div></div>`;
+} else if (q === "hero-bundle") {
+  out.innerHTML = `<div class="bundle"><h1>The Summer<br>Pack</h1><p class="sub">Beach, car and pets sorted. All three in one box.</p>
+    <div class="trio">${ORDER.map((k) => `<img src="${DATA[k].img}">`).join("")}</div>
+    <div class="pill">3 for $${BUNDLE_PRICE}</div></div>`;
+} else if (q === "inside-bundle") {
+  const full = ORDER.reduce((s, k) => s + PRICES[k], 0);
+  out.innerHTML = `<div class="inside"><h2>What's inside</h2>
+    ${ORDER.map((k) => `<div class="item"><img src="${DATA[k].img}"><div><b>${DATA[k].name}</b><span>${DATA[k].features[0][1]}</span></div></div>`).join("")}
+    <div class="total"><span class="save">Save $${(full - BUNDLE_PRICE).toFixed(2)} vs buying separately</span><strong>$${BUNDLE_PRICE}</strong></div></div>`;
+} else if (q === "banner") {
+  document.body.className = "wide";
+  out.innerHTML = `<div class="banner"><div class="bigsun" style="left:-120px;top:-180px"></div>
+    <img class="s" src="../img/towel-bag.svg" style="width:380px;left:820px;top:150px;transform:rotate(-6deg)">
+    <img class="s" src="../img/cooling-mat.svg" style="width:330px;left:1150px;top:40px;transform:rotate(5deg)">
+    <img class="s" src="../img/sun-umbrella.svg" style="width:330px;left:1200px;top:330px;transform:rotate(-3deg)"></div>`;
+} else if (q === "logo") {
+  document.body.className = "logo";
+  out.innerHTML = `<div class="lockup"><span class="sun"></span><div class="t">Heatwave<small>Supply Co.</small></div></div>`;
+} else if (q === "logo-square") {
+  out.innerHTML = `<div class="sq"><div><span class="sun"></span><div class="t">Heatwave<br>Supply Co.</div></div></div>`;
+}
+</script>
+</body>
+</html>

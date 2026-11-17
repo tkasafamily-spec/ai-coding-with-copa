@@ -1,5 +1,7 @@
 # Heatwave Supply Co.: dropshipping store
 
+> **Moving to Shopify?** Everything for Shopify (product import file, photos, logo, banner, page text and a click-by-click guide) is in [`shopify/`](shopify/SHOPIFY-SETUP.md). The product research, supplier checklist and "when someone orders" steps below still apply.
+
 A summer store for Australia that sells 3 products (plus a bundle) shipped straight from AliExpress to your customers.
 
 - **The shop:** `store/index.html` (once it's live: https://tkasafamily-spec.github.io/ai-coding-with-copa/store/)
