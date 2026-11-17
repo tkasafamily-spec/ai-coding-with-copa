@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="Windscreen sun shade umbrella in a car">
+  <rect width="600" height="600" fill="#FFE1D6"/>
+  <circle cx="110" cy="110" r="55" fill="#FFB547"/>
+  <g stroke="#FFB547" stroke-width="8" stroke-linecap="round">
+    <path d="M110 30 v-15 M110 205 v-15 M30 110 h-15 M205 110 h-15 M53 53 l-11 -11 M178 178 l-11 -11 M53 167 l-11 11 M178 42 l-11 11"/>
+  </g>
+  <!-- car body from inside: windscreen frame -->
+  <path d="M60 520 L120 250 Q130 215 170 215 H430 Q470 215 480 250 L540 520Z" fill="#33424F"/>
+  <path d="M95 490 L145 270 Q152 245 180 245 H420 Q448 245 455 270 L505 490Z" fill="#9FD3E8"/>
+  <!-- umbrella shade -->
+  <path d="M105 470 L150 285 Q300 225 450 285 L495 470 Q300 430 105 470Z" fill="#D7DDE3"/>
+  <g stroke="#AEB8C2" stroke-width="5">
+    <path d="M300 255 L300 445"/>
+    <path d="M300 255 L190 455"/>
+    <path d="M300 255 L410 455"/>
+    <path d="M300 255 L135 400"/>
+    <path d="M300 255 L465 400"/>
+  </g>
+  <circle cx="300" cy="255" r="10" fill="#33424F"/>
+  <!-- visors -->
+  <rect x="160" y="225" width="110" height="32" rx="8" fill="#22303B"/>
+  <rect x="330" y="225" width="110" height="32" rx="8" fill="#22303B"/>
+  <!-- dash -->
+  <path d="M0 520 H600 V600 H0Z" fill="#22303B"/>
+  <circle cx="300" cy="600" r="70" fill="none" stroke="#11181F" stroke-width="18"/>
+</svg>

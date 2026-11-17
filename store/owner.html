@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Owner: profit calculator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  .calc { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  .calc th, .calc td { padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  .calc th:first-child, .calc td:first-child { text-align: left; white-space: normal; }
+  .calc input { width: 84px; padding: 6px 8px; border: 1px solid #d8ccb9; border-radius: 8px; font: inherit; text-align: right; }
+  .wrap { overflow-x: auto; }
+  .pos { color: #1d7a3e; font-weight: 600; }
+  .neg { color: #c0392b; font-weight: 600; }
+  .settings { display: flex; gap: 20px; flex-wrap: wrap; margin: 16px 0 24px; }
+  .settings label { display: flex; flex-direction: column; font-size: .88rem; color: var(--muted); gap: 4px; }
+  .settings input { width: 120px; padding: 8px; border: 1px solid #d8ccb9; border-radius: 8px; font: inherit; }
+  .note { background: #fff3dc; border-radius: 12px; padding: 14px 16px; font-size: .92rem; }
+</style>
+</head>
+<body>
+<main class="page" style="max-width:1000px">
+  <h1>Profit calculator</h1>
+  <p class="small">Just for you (it isn't linked from the shop). Change any number and everything updates.</p>
+
+  <div class="settings">
+    <label>Ad cost per sale (A$)
+      <input id="ads" type="number" step="0.5" value="0"></label>
+    <label>Refund / lost parcel buffer (%)
+      <input id="buffer" type="number" step="1" value="5"></label>
+    <label>Sales per month (each item)
+      <input id="volume" type="number" step="1" value="10"></label>
+  </div>
+
+  <div class="wrap">
+  <table class="calc">
+    <thead>
+      <tr><th>Product</th><th>Your price</th><th>AliExpress cost<br><span class="small">incl. ship + GST</span></th><th>Stripe fee</th><th>Buffer</th><th>Ads</th><th>Profit / sale</th><th>Margin</th><th>Profit / month</th></tr>
+    </thead>
+    <tbody id="rows"></tbody>
+    <tfoot><tr><td colspan="8"><strong>Total per month</strong></td><td id="total"></td></tr></tfoot>
+  </table>
+  </div>
+
+  <p class="note"><strong>How to use it:</strong> put an item in your AliExpress cart (delivering to your own address) and go to checkout. Take the <em>total</em> in AUD, including shipping and GST, and type it into "AliExpress cost". Ad cost: start at $0 while you post your own TikToks and Reels. If you run paid ads, divide what you spent by how many sales you got.</p>
+
+  <h2>Rules of thumb</h2>
+  <ul>
+    <li>Keep profit per sale <strong>above $15</strong> with no ads. That leaves room to pay for ads later.</li>
+    <li>If paid ads cost more per sale than your profit, stop the ad, not the product. Try a new video first.</li>
+    <li>The Summer Pack bundle makes the most money per customer, so push it in your videos.</li>
+    <li>Check AliExpress prices every week. Suppliers change prices and run out of stock.</li>
+  </ul>
+</main>
+
+<script src="products.js"></script>
+<script>
+  const STRIPE_PCT = 0.0165, STRIPE_FIXED = 0.30; // Stripe Australia, domestic cards
+  const items = [...PRODUCTS, BUNDLE];
+  const f = n => (n < 0 ? "-$" : "$") + Math.abs(n).toFixed(2);
+
+  document.getElementById("rows").innerHTML = items.map((p, i) => `
+    <tr>
+      <td>${p.name}</td>
+      <td><input data-i="${i}" data-k="price" type="number" step="0.05" value="${p.price}"></td>
+      <td><input data-i="${i}" data-k="cost" type="number" step="0.05" value="${p.cost}"></td>
+      <td id="fee${i}"></td><td id="buf${i}"></td><td id="ad${i}"></td>
+      <td id="pro${i}"></td><td id="mar${i}"></td><td id="mon${i}"></td>
+    </tr>`).join("");
+
+  function calc() {
+    const ads = +document.getElementById("ads").value || 0;
+    const buffer = (+document.getElementById("buffer").value || 0) / 100;
+    const vol = +document.getElementById("volume").value || 0;
+    let total = 0;
+    items.forEach((p, i) => {
+      const price = +document.querySelector(`[data-i="${i}"][data-k="price"]`).value || 0;
+      const cost = +document.querySelector(`[data-i="${i}"][data-k="cost"]`).value || 0;
+      const fee = price * STRIPE_PCT + STRIPE_FIXED;
+      const buf = price * buffer;
+      const profit = price - cost - fee - buf - ads;
+      const month = profit * vol;
+      total += month;
+      const set = (id, txt, cls) => { const el = document.getElementById(id); el.textContent = txt; el.className = cls || ""; };
+      set("fee" + i, f(fee)); set("buf" + i, f(buf)); set("ad" + i, f(ads));
+      set("pro" + i, f(profit), profit >= 0 ? "pos" : "neg");
+      set("mar" + i, price ? Math.round(profit / price * 100) + "%" : "–");
+      set("mon" + i, f(month), month >= 0 ? "pos" : "neg");
+    });
+    const t = document.getElementById("total");
+    t.textContent = f(total); t.className = total >= 0 ? "pos" : "neg";
+  }
+  document.addEventListener("input", calc);
+  calc();
+</script>
+</body>
+</html>

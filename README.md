@@ -23,3 +23,8 @@ Keys are stored only on your device and are only sent to Google or Anthropic.
 Oreo speaks with the voices installed on your device. For the most natural sound, download a Premium voice in Settings → Accessibility → Spoken Content → Voices → English, then pick it in Oreo's Settings.
 
 Everything is in one file, `index.html`.
+
+## Also in this repo
+
+- `portfolio/`: thumbnail portfolio
+- `store/`: Heatwave Supply Co., a dropshipping store (see `store/README.md`)

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="Beach towel that folds into a bag">
+  <rect width="600" height="600" fill="#FFE7C2"/>
+  <circle cx="470" cy="120" r="60" fill="#FFB547"/>
+  <path d="M0 470 Q150 430 300 470 T600 470 V600 H0Z" fill="#F4D49B"/>
+  <!-- unfolded towel -->
+  <g transform="rotate(-8 210 330)">
+    <rect x="70" y="180" width="250" height="330" rx="14" fill="#1FA2C9"/>
+    <rect x="70" y="230" width="250" height="34" fill="#FFFFFF"/>
+    <rect x="70" y="300" width="250" height="34" fill="#FF6B4A"/>
+    <rect x="70" y="370" width="250" height="34" fill="#FFFFFF"/>
+    <rect x="70" y="440" width="250" height="34" fill="#FF6B4A"/>
+  </g>
+  <!-- bag -->
+  <path d="M390 300 Q390 230 445 230 Q500 230 500 300" fill="none" stroke="#0D5C75" stroke-width="12" stroke-linecap="round"/>
+  <path d="M350 300 H540 L520 470 Q518 485 503 485 H387 Q372 485 370 470Z" fill="#1FA2C9"/>
+  <rect x="356" y="340" width="178" height="26" fill="#FFFFFF"/>
+  <rect x="362" y="395" width="166" height="26" fill="#FF6B4A"/>
+  <line x1="350" y1="300" x2="540" y2="300" stroke="#0D5C75" stroke-width="8"/>
+  <circle cx="445" cy="300" r="7" fill="#FFB547"/>
+</svg>

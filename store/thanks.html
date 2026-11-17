@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Thanks for your order!</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="page" style="text-align:center;padding-top:80px">
+  <span class="sun" style="display:inline-block;width:64px;height:64px"></span>
+  <h1>Thanks for your order! ☀️</h1>
+  <p>Your receipt is on its way to your inbox. We'll email your tracking number as soon as your order ships.</p>
+  <p>Delivery usually takes <strong class="ship"></strong>.</p>
+  <p><a class="btn" href="index.html">Back to the shop</a></p>
+</main>
+<script src="products.js"></script>
+<script>document.querySelectorAll(".ship").forEach(el => el.textContent = STORE.shippingTime);</script>
+</body>
+</html>

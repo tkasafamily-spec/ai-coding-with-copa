@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="Dog resting on a cooling mat">
+  <rect width="600" height="600" fill="#D9F2F7"/>
+  <!-- snowflake hints -->
+  <g stroke="#9BD8E6" stroke-width="6" stroke-linecap="round">
+    <path d="M95 110 v60 M65 140 h60 M74 119 l42 42 M116 119 l-42 42"/>
+    <path d="M505 90 v44 M483 112 h44 M490 97 l30 30 M520 97 l-30 30"/>
+  </g>
+  <!-- mat -->
+  <path d="M90 400 L510 400 L560 500 L40 500Z" fill="#4CC3DD"/>
+  <path d="M90 400 L510 400 L560 500 L40 500Z" fill="url(#q)" opacity=".35"/>
+  <defs>
+    <pattern id="q" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="skewX(-20)">
+      <path d="M0 20 H40 M20 0 V40" stroke="#FFFFFF" stroke-width="3"/>
+    </pattern>
+  </defs>
+  <!-- dog -->
+  <ellipse cx="300" cy="400" rx="150" ry="52" fill="#C98B50"/>
+  <ellipse cx="430" cy="372" rx="62" ry="54" fill="#C98B50"/>
+  <path d="M455 330 Q500 320 492 380 Q470 372 455 350Z" fill="#8A5A2E"/>
+  <path d="M398 332 Q378 300 360 340 Q378 352 398 348Z" fill="#8A5A2E"/>
+  <path d="M410 378 q10 8 20 0" stroke="#3B2614" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M440 378 q10 8 20 0" stroke="#3B2614" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="478" cy="398" rx="14" ry="10" fill="#3B2614"/>
+  <ellipse cx="200" cy="440" rx="40" ry="16" fill="#C98B50"/>
+  <ellipse cx="390" cy="444" rx="40" ry="16" fill="#C98B50"/>
+  <path d="M152 392 Q100 380 110 340" stroke="#C98B50" stroke-width="22" fill="none" stroke-linecap="round"/>
+  <text x="300" y="300" text-anchor="middle" font-family="Arial, sans-serif" font-size="40" font-weight="700" fill="#1C7F96">z z z</text>
+</svg>

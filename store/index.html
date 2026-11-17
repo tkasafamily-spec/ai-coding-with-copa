@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Heatwave Supply Co. | Summer gear for the Aussie heat</title>
+<meta name="description" content="Beach towel bags, self-cooling pet mats and windscreen sun umbrellas. Free shipping Australia-wide.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">Free shipping Australia-wide · <span id="xmas"></span></div>
+
+<header class="nav">
+  <a class="logo" href="#top"><span class="sun"></span><span id="storeName">Heatwave Supply Co.</span></a>
+  <nav>
+    <a href="#shop">Shop</a>
+    <a href="#faq">FAQ</a>
+    <a href="policies.html">Shipping &amp; returns</a>
+  </nav>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="hero-text">
+      <p class="eyebrow">Summer 2026–27</p>
+      <h1>Beat the heat.<br>Beach, car and pets sorted.</h1>
+      <p class="lede">Three summer fixes we'd actually use, at fair prices, delivered free anywhere in Australia.</p>
+      <a class="btn btn-big" href="#shop">Shop the range</a>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <img src="img/towel-bag.svg" alt="">
+      <img src="img/cooling-mat.svg" alt="">
+      <img src="img/sun-umbrella.svg" alt="">
+    </div>
+  </section>
+
+  <section class="trust">
+    <div><strong>Free shipping</strong><span>Australia-wide, every order</span></div>
+    <div><strong>Secure checkout</strong><span>Cards, Apple Pay &amp; Google Pay</span></div>
+    <div><strong>30-day returns</strong><span>Plus your Australian Consumer Law rights</span></div>
+  </section>
+
+  <section id="shop" class="shop">
+    <h2>The range</h2>
+    <div id="grid" class="grid"></div>
+  </section>
+
+  <section id="bundle" class="bundle"></section>
+
+  <section id="faq" class="faq">
+    <h2>Questions</h2>
+    <details><summary>How long does delivery take?</summary><p>Orders usually arrive in <span class="ship"></span>. Regional and remote areas can take a few days longer. You'll get a tracking number by email as soon as your order ships.</p></details>
+    <details><summary>Will it get here before Christmas?</summary><p>Order by <span class="cutoff"></span> for the best chance. We can't promise exact dates in the Christmas rush, but we'll always give you your tracking number.</p></details>
+    <details><summary>Where do the products ship from?</summary><p>We work with overseas partner warehouses to keep prices low, which is why delivery takes a bit longer than buying in a shop. GST is included in every price.</p></details>
+    <details><summary>What if something's wrong with my order?</summary><p>Email us and we'll sort it out with a replacement or a refund. See <a href="policies.html">shipping &amp; returns</a>.</p></details>
+    <details><summary>Will the Pop Shade fit my car?</summary><p>It opens to about 140 × 80 cm, which fits most cars, hatches and small SUVs. Measure your windscreen first. Big 4WDs and utes may need a larger size.</p></details>
+  </section>
+</main>
+
+<footer class="footer">
+  <p><strong id="footName">Heatwave Supply Co.</strong></p>
+  <p id="contact"></p>
+  <p><a href="policies.html">Shipping, returns &amp; privacy</a></p>
+  <p class="small">Prices in AUD and include GST.</p>
+</footer>
+
+<!-- product detail popup -->
+<dialog id="detail" class="detail"></dialog>
+
+<script src="products.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

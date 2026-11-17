@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shipping, returns &amp; privacy</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="nav">
+  <a class="logo" href="index.html"><span class="sun"></span><span class="sn">Heatwave Supply Co.</span></a>
+  <nav><a href="index.html#shop">Shop</a></nav>
+</header>
+<main class="page">
+  <h1>Shipping, returns &amp; privacy</h1>
+
+  <h2>Shipping</h2>
+  <p>Shipping is free on every order within Australia.</p>
+  <p>We process orders within 1–2 business days. Delivery usually takes <strong class="ship"></strong> because our products ship from overseas partner warehouses. Regional and remote areas can take a few days longer. You'll get a tracking number by email as soon as your order ships.</p>
+  <p>If your order hasn't arrived within 30 days, email us and we'll send a replacement or give you a full refund.</p>
+
+  <h2>Returns &amp; refunds</h2>
+  <p><strong>Changed your mind?</strong> You can return unused items in their original packaging within 30 days of delivery. Email us first and we'll tell you where to send it. Once it arrives we refund the item price. Return postage for change-of-mind returns is paid by you.</p>
+  <p><strong>Faulty, damaged or not as described?</strong> Email us a photo within 30 days and we'll send a replacement or a full refund, and you won't need to send it back. This doesn't limit your rights under the Australian Consumer Law: our goods come with guarantees that can't be excluded.</p>
+
+  <h2>Privacy</h2>
+  <p>Payments are processed securely by Stripe. We never see or store your card details. We only use your name, address, email and phone number to send your order and contact you about it. We pass your delivery details to our shipping partner for that reason only, and we never sell your information.</p>
+
+  <h2>Contact</h2>
+  <p id="contact">Email us any time and we'll reply within 1 business day.</p>
+
+  <p class="small">Prices are in Australian dollars and include GST.</p>
+</main>
+<script src="products.js"></script>
+<script>
+  document.querySelectorAll(".ship").forEach(el => el.textContent = STORE.shippingTime);
+  document.querySelectorAll(".sn").forEach(el => el.textContent = STORE.name);
+  document.title = "Shipping, returns & privacy | " + STORE.name;
+  if (STORE.email) document.getElementById("contact").innerHTML =
+    `Email <a href="mailto:${STORE.email}">${STORE.email}</a> and we'll reply within 1 business day.`;
+</script>
+</body>
+</html>
