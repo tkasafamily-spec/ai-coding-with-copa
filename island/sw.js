@@ -1,6 +1,6 @@
 // Keeps a copy of the game on the iPad so it plays with bad or no internet.
-const CACHE = 'sunset-key-v1';
-const FILES = ['./', 'index.html', 'game.js', 'three.module.min.js', 'icon.png', 'manifest.json'];
+const CACHE = 'sunset-key-v2';
+const FILES = ['./', 'index.html', 'game.js', 'radio.js', 'three.module.min.js', 'icon.png', 'manifest.json'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
 });

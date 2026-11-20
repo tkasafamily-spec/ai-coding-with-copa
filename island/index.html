@@ -45,7 +45,20 @@ html,body{margin:0;height:100%;overflow:hidden;background:#000;color:#fff;font-f
 @keyframes fl{50%{color:rgba(255,255,255,.25)}}
 .bar{width:190px;height:12px;border:2px solid #000;background:rgba(0,0,0,.45);margin:6px 0 0 auto;border-radius:3px;overflow:hidden}
 .bar i{display:block;height:100%;width:100%;background:linear-gradient(#ff6d7e,#d81f3a);transition:width .2s}
-#carbar i{background:linear-gradient(#7ad7ff,#2a8fd8)}
+#carbar i{background:linear-gradient(#ffe27a,#e09a12)}
+#armorbar i{background:linear-gradient(#7ad7ff,#2a8fd8)}
+#clock{font-size:20px;font-weight:900;letter-spacing:1px;margin-top:4px;opacity:.95}
+#wpn{display:inline-block;margin-top:8px;pointer-events:auto;font-size:22px;font-weight:900;background:rgba(10,4,20,.55);border:2px solid rgba(255,255,255,.35);
+  border-radius:12px;padding:5px 12px;min-width:64px;text-align:center;text-shadow:none}
+#obj{position:absolute;left:50%;top:calc(max(16px,env(safe-area-inset-top)) + 46px);transform:translateX(-50%);font-size:20px;font-weight:800;color:#ffd23f;
+  background:rgba(10,4,20,.68);border:2px solid rgba(255,210,63,.5);padding:8px 16px;border-radius:12px;display:none;max-width:56vw;text-align:center}
+#shop{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(380px,80vw);pointer-events:auto;display:none;
+  background:rgba(14,6,26,.88);border:2px solid #ff3b4f;border-radius:20px;padding:16px;text-align:center}
+#shop h3{margin:0 0 10px;font-size:26px;font-style:italic;font-weight:900;color:#ff3b4f}
+.shopb{display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:8px;padding:12px 14px;border-radius:12px;border:2px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.1);color:#fff;font-family:var(--f);font-size:18px;font-weight:800;touch-action:none}
+.shopb b{color:var(--money)} .shopb.poor{opacity:.5} .shopb:active{transform:translateY(2px)}
+#shop small{display:block;margin-top:10px;opacity:.7;font-size:13px}
 .lbl{font-size:12px;font-weight:800;letter-spacing:1px;opacity:.9;margin-top:3px}
 
 /* center */
@@ -83,6 +96,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#000;color:#fff;font-f
 #bRob{right:0;bottom:0;width:118px;height:118px;background:radial-gradient(circle at 35% 30%,#ff7a8a,#d8193a);font-size:46px}
 #bCar{right:130px;bottom:6px;width:96px;height:96px;background:radial-gradient(circle at 35% 30%,#7ad7ff,#1a72c9);font-size:38px}
 #bJump{right:22px;bottom:132px;width:84px;height:84px;background:radial-gradient(circle at 35% 30%,#9dffa8,#1f9c3c);font-size:30px}
+#bRadio{right:22px;bottom:132px;width:84px;height:84px;background:radial-gradient(circle at 35% 30%,#d6a6ff,#7a3cd8);font-size:30px}
 #bHorn{right:125px;bottom:118px;width:72px;height:72px;background:radial-gradient(circle at 35% 30%,#ffe27a,#d89a12);font-size:26px}
 #bPause{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));pointer-events:auto;width:54px;height:40px;border-radius:12px;
   border:2px solid rgba(255,255,255,.4);background:rgba(10,4,20,.55);color:#fff;font-weight:900;font-size:16px;font-family:var(--f)}
@@ -109,6 +123,7 @@ h1{margin:0;font-size:68px;font-weight:900;font-style:italic;line-height:.95;let
   h1{font-size:48px} #money{font-size:30px} #stars{font-size:26px} .bar{width:140px}
   #mapwrap{width:124px;height:124px} #banner{font-size:56px}
   #btns{transform:scale(.82);transform-origin:right bottom} #stickhint{transform:scale(.85);transform-origin:left bottom}
+  #obj{font-size:15px;top:calc(max(16px,env(safe-area-inset-top)) + 40px)} #clock{font-size:16px}
   #prompt{font-size:17px;bottom:calc(120px + env(safe-area-inset-bottom))}
 }
 </style>
@@ -124,10 +139,15 @@ h1{margin:0;font-size:68px;font-weight:900;font-style:italic;line-height:.95;let
     <div id="pop">+$0</div>
     <div id="stars"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
     <div class="bar" id="hpbar"><i></i></div>
+    <div class="bar" id="armorbar" style="display:none"><i></i></div>
     <div class="bar" id="carbar" style="display:none"><i></i></div>
+    <div id="clock">17:00</div>
+    <div id="wpn">👊</div>
   </div>
   <div id="banner" class="txt"></div>
   <div id="msg"></div>
+  <div id="obj"></div>
+  <div id="shop"><h3>GUN SHOP</h3><div id="shopItems"></div><small>Walk out of the green circle to leave</small></div>
   <div id="prompt"></div>
   <div id="prog"><i></i></div>
   <div id="arrest" class="txt"><b>GETTING BUSTED!</b><div class="bar"><i></i></div></div>
@@ -138,6 +158,7 @@ h1{margin:0;font-size:68px;font-weight:900;font-style:italic;line-height:.95;let
     <button class="b" id="bCar"><em>🚗</em><span>CAR</span></button>
     <button class="b" id="bJump"><em>⤒</em><span>JUMP</span></button>
     <button class="b" id="bHorn" style="display:none"><em>📯</em><span>HORN</span></button>
+    <button class="b" id="bRadio" style="display:none"><em>📻</em><span>RADIO</span></button>
   </div>
   <button id="bPause">❚❚</button>
 </div>
@@ -148,16 +169,20 @@ h1{margin:0;font-size:68px;font-weight:900;font-style:italic;line-height:.95;let
     <div class="tag">Steal cars. Rob people. Outrun the cops.</div>
     <button class="go" id="play">PLAY</button>
     <div id="pauseBtns" style="display:none">
+      <div class="small" id="progress" style="font-size:16px;opacity:.95;margin:4px 0 2px"></div>
       <button class="sec" id="sound">🔊 Sound: ON</button>
+      <button class="sec" id="gfx">✨ Graphics: HIGH</button>
       <button class="sec" id="reset">Start over ($0)</button>
     </div>
     <div class="how">
-      <b>Left thumb:</b> drag anywhere to walk (push far to run) or drive.<br>
+      <b>Left thumb:</b> drag anywhere to walk (push far to run), swim or drive.<br>
       <b>Right thumb:</b> drag to look around.<br>
-      <b>🚗</b> get in or out of a car. Stealing one with a driver makes the cops mad.<br>
-      <b>👊</b> rob people, punch, and <b>hold</b> it at the glowing <b style="color:#ffd23f">$</b> circles to rob shops and the bank.<br>
-      <b>★ Stars</b> = how hard the cops chase you. Hide from them until the stars run out,
-      or drive into the pink <b style="color:#ff4fa0">Spray Shack</b> to lose them ($200).
+      <b>🚗</b> get in or out of cars, motorbikes, boats and jet skis. Stealing one with a driver makes the cops mad.<br>
+      <b>👊</b> rob people and punch. <b>Hold</b> it at the glowing <b style="color:#ffd23f">$</b> circles to rob shops and the bank.<br>
+      <b>🔫</b> buy guns at the <b style="color:#ff3b4f">GUN SHOP</b>, then tap the weapon box (under your money) to switch.<br>
+      <b style="color:#ffd23f">M</b> on the map = a mission. Walk into the yellow light to start it.<br>
+      <b>★ Stars</b> = how hard the cops chase you. Hide until they run out, jump in the sea,
+      or drive into the pink <b style="color:#ff4fa0">Spray Shack</b> ($200).
     </div>
     <div class="small">Tip: tap Share → <b>Add to Home Screen</b>. Then it plays full screen, even with no internet.</div>
   </div>

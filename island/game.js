@@ -1,5 +1,6 @@
 // Sunset Key: a small open-world island game. Everything is made in code, so nothing extra downloads.
 import * as THREE from './three.module.min.js';
+import { makeRadio } from './radio.js';
 
 // ================================================================ helpers
 const TAU = Math.PI * 2, PI = Math.PI;
@@ -29,18 +30,29 @@ const PZ1 = (() => { const t = Math.atan2(500, 60), s = sandR(t); return Math.sq
 const WORLD = 580;
 
 // ================================================================ renderer / scene
+let GFX = 'high'; try { GFX = localStorage.getItem('sunsetkey.gfx') || 'high'; } catch (e) { }
+const HIGH = GFX === 'high';
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, HIGH ? 1.5 : 1));
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.25;
+renderer.shadowMap.enabled = HIGH; renderer.shadowMap.type = THREE.PCFShadowMap;
 const scene = new THREE.Scene();
-const SKY = 0xbfe3ff;
-scene.background = new THREE.Color(SKY);
-scene.fog = new THREE.Fog(SKY, 150, 480);
+scene.fog = new THREE.Fog(0xbfe3ff, 150, 480);
+scene.background = scene.fog.color;
 const camera = new THREE.PerspectiveCamera(62, 1, 0.5, 1600);
-scene.add(new THREE.HemisphereLight(0xe6f4ff, 0x7d9a62, 1.55));
+const hemi = new THREE.HemisphereLight(0xe6f4ff, 0x7d9a62, 1.55);
+scene.add(hemi);
 const sunLight = new THREE.DirectionalLight(0xffe9cc, 2.1);
-sunLight.position.set(0.6, 1, 0.3);
-scene.add(sunLight);
+sunLight.castShadow = HIGH;
+if (HIGH) {
+  sunLight.shadow.mapSize.set(2048, 2048);
+  const sc = sunLight.shadow.camera; sc.left = sc.bottom = -75; sc.right = sc.top = 75; sc.near = 10; sc.far = 700;
+  sunLight.shadow.bias = -0.0005; sunLight.shadow.normalBias = 0.05;
+}
+scene.add(sunLight, sunLight.target);
+const headLight = new THREE.SpotLight(0xfff2d0, 0, 70, 0.55, 0.5, 1); // the player's car headlights at night
+scene.add(headLight, headLight.target);
 
 function resize() {
   renderer.setSize(innerWidth, innerHeight);
@@ -50,27 +62,74 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
-// sky dome with a sunset-ish gradient
-const sky = (() => {
-  const g = new THREE.SphereGeometry(1300, 24, 12);
-  const top = new THREE.Color(0x3d7fe0), mid = new THREE.Color(SKY), warm = new THREE.Color(0xffd0a8);
-  const cols = [], p = g.attributes.position, c = new THREE.Color();
-  for (let i = 0; i < p.count; i++) {
-    const y = p.getY(i) / 1300;
-    if (y > 0.05) c.copy(mid).lerp(top, Math.min(1, (y - 0.05) * 2.2));
-    else c.copy(mid).lerp(warm, Math.min(1, (0.05 - y) * 6));
-    cols.push(c.r, c.g, c.b);
-  }
-  g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
-  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
-  m.renderOrder = -1;
-  scene.add(m);
-  const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(60, 24), new THREE.MeshBasicMaterial({ color: 0xfff3c4, fog: false, depthWrite: false }));
-  sunDisc.position.set(600, 700, 300).normalize().multiplyScalar(1200);
-  sunDisc.lookAt(0, 0, 0);
-  m.add(sunDisc);
-  return m;
-})();
+// sky: gradient + sun + moon + stars, all in one shader
+const skyU = { top: { value: new THREE.Color(0x3d7fe0) }, hor: { value: new THREE.Color(0xbfe3ff) }, sunDir: { value: new THREE.Vector3(0.5, 0.6, 0.4).normalize() },
+  sunCol: { value: new THREE.Color(0xfff1d8) }, night: { value: 0 } };
+const sky = new THREE.Mesh(new THREE.SphereGeometry(1300, 32, 16), new THREE.ShaderMaterial({
+  uniforms: skyU, side: THREE.BackSide, depthWrite: false, fog: false,
+  vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform vec3 top; uniform vec3 hor; uniform vec3 sunDir; uniform vec3 sunCol; uniform float night; varying vec3 vP;
+    float h(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+    void main(){
+      vec3 d = normalize(vP); float y = d.y;
+      vec3 c = y > 0.0 ? mix(hor, top, pow(min(1.0, y * 2.0), 0.6)) : hor * (1.0 - min(1.0, -y * 3.0) * 0.35);
+      float s = max(dot(d, sunDir), 0.0);
+      c += sunCol * (smoothstep(0.9992, 0.9995, s) * 5.0 + pow(s, 14.0) * 0.5 + pow(s, 3.0) * 0.12);
+      float m = max(dot(d, -sunDir), 0.0);
+      c += vec3(0.85, 0.9, 1.0) * smoothstep(0.9993, 0.9996, m) * night * 1.6;
+      float st = step(0.9972, h(floor(d * 380.0))) * night * smoothstep(0.04, 0.3, y);
+      c += vec3(st) * 0.9;
+      gl_FragColor = vec4(c, 1.0);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }`,
+}));
+sky.renderOrder = -1; sky.frustumCulled = false; scene.add(sky);
+
+// time of day: hour, sky top, horizon, sun color, sun power, hemi sky, hemi ground, hemi power
+const DAY_KEYS = [
+  [0, 0x050a20, 0x1e2a5a, 0xa8bcff, 0.85, 0x6676b8, 0x2c3448, 1.35],
+  [5.2, 0x08102e, 0x262a58, 0xa8bcff, 0.85, 0x6676b8, 0x2c3448, 1.35],
+  [6.6, 0x3b4f9a, 0xff9a6a, 0xffa070, 1.1, 0xffc0a0, 0x6a6a55, 1.05],
+  [8.2, 0x3d7fe0, 0xbfe3ff, 0xfff1d8, 2.1, 0xe6f4ff, 0x7d9a62, 1.5],
+  [16.4, 0x3d7fe0, 0xbfe3ff, 0xfff1d8, 2.1, 0xe6f4ff, 0x7d9a62, 1.5],
+  [18.0, 0x4b4a9c, 0xffa86e, 0xffa860, 1.9, 0xffc8a8, 0x7a6a50, 1.3],
+  [19.0, 0x2c2470, 0xff6a6a, 0xff7050, 0.9, 0xd090b0, 0x403040, 0.95],
+  [20.2, 0x0b1030, 0x2c2a60, 0xa8bcff, 0.85, 0x6676b8, 0x2c3448, 1.35],
+  [24, 0x050a20, 0x1e2a5a, 0xa8bcff, 0.85, 0x6676b8, 0x2c3448, 1.35],
+].map(k => [k[0], new THREE.Color(k[1]), new THREE.Color(k[2]), new THREE.Color(k[3]), k[4], new THREE.Color(k[5]), new THREE.Color(k[6]), k[7]]);
+const DAY_LEN = 960; // real seconds for a whole day
+const sunDir = new THREE.Vector3(), lightDir = new THREE.Vector3();
+let nightF = 0;
+function updateSky(dt, P) {
+  G.clock = (G.clock + dt * 24 / DAY_LEN) % 24;
+  const h = G.clock;
+  let i = 0; while (DAY_KEYS[i + 1][0] <= h) i++;
+  const A = DAY_KEYS[i], B = DAY_KEYS[i + 1], t = (h - A[0]) / (B[0] - A[0]);
+  skyU.top.value.lerpColors(A[1], B[1], t); skyU.hor.value.lerpColors(A[2], B[2], t);
+  scene.fog.color.copy(skyU.hor.value);
+  sunLight.color.lerpColors(A[3], B[3], t); sunLight.intensity = lerp(A[4], B[4], t);
+  hemi.color.lerpColors(A[5], B[5], t); hemi.groundColor.lerpColors(A[6], B[6], t); hemi.intensity = lerp(A[7], B[7], t);
+  const a = (h - 6.5) / 12.5 * PI;
+  sunDir.set(Math.cos(a) * 0.85, Math.sin(a), 0.45).normalize();
+  skyU.sunDir.value.copy(sunDir);
+  skyU.sunCol.value.copy(sunLight.color).multiplyScalar(sunDir.y > -0.05 ? 1 : 0);
+  nightF = clamp((0.04 - sunDir.y) / 0.2, 0, 1);
+  skyU.night.value = nightF;
+  // light comes from the sun by day and the moon by night, never from under the ground
+  if (sunDir.y > -0.04) lightDir.set(sunDir.x, Math.max(sunDir.y, 0.16), sunDir.z).normalize();
+  else lightDir.set(-sunDir.x, Math.max(-sunDir.y, 0.3), -sunDir.z).normalize();
+  const sx = Math.round(P.x / 4) * 4, sz = Math.round(P.z / 4) * 4;
+  sunLight.position.set(sx + lightDir.x * 320, lightDir.y * 320, sz + lightDir.z * 320);
+  sunLight.target.position.set(sx, 0, sz);
+  matB.emissiveIntensity = nightF * 0.85;
+  lampMat.emissiveIntensity = nightF * 2;
+  poolMat.opacity = nightF * 0.55; poolMat.visible = nightF > 0.01;
+  carPoolMat.opacity = nightF * 0.6; carPoolMat.visible = nightF > 0.01;
+  foamMat.opacity = (0.38 + Math.sin(G.t * 1.3) * 0.16) * (1 - nightF * 0.6);
+  waterTex.offset.set(G.t * 0.004, G.t * 0.0025);
+  water.material.color.setHex(0x17a6d3).multiplyScalar(1 - nightF * 0.55);
+}
 
 // ================================================================ materials / colors
 const colCache = {};
@@ -78,7 +137,29 @@ const C = hex => colCache[hex] || (colCache[hex] = new THREE.Color(hex));
 const matCache = {};
 const M = hex => matCache[hex] || (matCache[hex] = new THREE.MeshLambertMaterial({ color: hex }));
 const matV = new THREE.MeshLambertMaterial({ vertexColors: true });
-const matB = new THREE.MeshLambertMaterial({ vertexColors: true, map: makeWindowTex() });
+const matB = new THREE.MeshLambertMaterial({ vertexColors: true, map: makeWindowTex(), emissive: 0xffd9a0, emissiveMap: makeLitTex(), emissiveIntensity: 0 });
+const lampMat = new THREE.MeshLambertMaterial({ color: 0xfff4d0, emissive: 0xffd890, emissiveIntensity: 0 });
+const glowTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 2, 32, 32, 31);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+})();
+const poolMat = new THREE.MeshBasicMaterial({ map: glowTex, color: 0xffc77a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+const carPoolMat = new THREE.MeshBasicMaterial({ map: glowTex, color: 0xfff0c8, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+function makeLitTex() { // random lit windows for night time
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const x = c.getContext('2d'); x.fillStyle = '#000'; x.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+    if (srnd() < 0.45) continue;
+    x.fillStyle = spick(['#ffd27a', '#fff0c0', '#ffb36b', '#cfe6ff', '#ffe29a']);
+    x.fillRect(i * 64 + 12, j * 64 + 14, 40, 40);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.repeat.set(0.25, 0.25);
+  return t;
+}
 
 function makeWindowTex() {
   const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -104,7 +185,7 @@ const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: tru
 const shadowGeo = new THREE.PlaneGeometry(1, 1).rotateX(-PI / 2);
 function addShadow(parent, w, l, y = 0.05) {
   const s = new THREE.Mesh(shadowGeo, shadowMat);
-  s.scale.set(w, 1, l); s.position.y = y; s.renderOrder = 1;
+  s.scale.set(w, 1, l); s.position.y = y; s.renderOrder = 1; s.visible = !HIGH;
   parent.add(s); return s;
 }
 
@@ -322,6 +403,8 @@ const mm = { rects: [], houses: [], parks: [], spray: null };
 const parkedSpots = [];    // where to put parked cars
 const treeSpots = [], palmSpots = [];
 const beachSpots = [];
+const healthSpots = [];
+let water = null, foamMat = null, waterTex = null;
 
 const PALETTE = [0xeadbc8, 0xcfd8dc, 0xf3c7a2, 0xa9c8e8, 0xf5e3a3, 0xdcbbe4, 0xbde5c9, 0xf7f3ec, 0xe7ac93, 0xa3bccd, 0xf2a7b8, 0x9fd6d2];
 const HOUSE_COLS = [0xffd1dc, 0xfff1b8, 0xc8f0e0, 0xbfe0ff, 0xffe0c2, 0xe6d4ff, 0xffffff];
@@ -371,7 +454,7 @@ function buildWorld() {
   const SPECIAL = {
     '2,5': 'police', '5,2': 'hospital', '3,3': 'bank', '6,6': 'spray',
     '1,1': 'store:QUICK MART', '6,1': 'store:DONUT SHACK', '1,6': 'store:GAS & GO', '4,6': 'store:JEWELRY',
-    '4,4': 'park', '0,3': 'park', '7,4': 'park', '3,7': 'park', '5,0': 'park'
+    '5,5': 'gunshop', '4,4': 'park', '0,3': 'park', '7,4': 'park', '3,7': 'park', '5,0': 'park'
   };
   const walk = C(0xcac4b6), curb = C(0x9e988c), lotGrass = C(0x6cba50), concrete = C(0xb3b0aa);
   for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) {
@@ -412,6 +495,7 @@ function buildWorld() {
       S.prism(fx, fz, 3.6, 3.6, SIDE_Y, 0.95, 12, C(0x3fb6dd), true);
       S.prism(fx, fz, 0.6, 0.4, 0.9, 3.2, 8, C(0xd8d2c4), true);
       addCirc(fx, fz, 4.2, 1.2);
+      healthSpots.push([fx + 7, fz]);
       for (let k = 0; k < 9; k++) {
         const tx = sr(lx0 + 3, lx1 - 3), tz = sr(lz0 + 3, lz1 - 3);
         if (d2(tx, tz, fx, fz) > 64) treeSpots.push([tx, tz, SIDE_Y]);
@@ -449,6 +533,15 @@ function buildWorld() {
       regular(lx0, (lz0 + lz1) / 2 + 1, (lx0 + lx1) / 2 - 1, lz1); regular((lx0 + lx1) / 2 + 1, (lz0 + lz1) / 2 + 1, lx1, lz1);
       const jew = name === 'JEWELRY';
       stores.push({ name, x: scx, z: front, hold: jew ? 4 : 3, min: jew ? 800 : 250, max: jew ? 1800 : 700, heat: jew ? 120 : 70, cool: 0 });
+    } else if (b.type === 'gunshop') {
+      const sx0 = lx0, sx1 = lx0 + 21, scx = (sx0 + sx1) / 2;
+      building(sx0, lz0, sx1, lz0 + 18, 7, 0x3a3f47);
+      S.box(sx0 + 0.5, 4.1, lz0 - 2.6, sx1 - 0.5, 4.5, lz0, C(0xd8192f));
+      S.quadN([sx1 - 2, 0.5, lz0 - 0.03], [sx0 + 2, 0.5, lz0 - 0.03], [sx0 + 2, 3.7, lz0 - 0.03], [sx1 - 2, 3.7, lz0 - 0.03], C(0x1b2430), [0, 0, -1]);
+      placeSign('GUN SHOP', scx, 5.8, lz0 - 0.06, 17, 2.2, '#111', '#ff3b4f');
+      regular(lx0 + 23, lz0, lx1, (lz0 + lz1) / 2 - 1);
+      regular(lx0, (lz0 + lz1) / 2 + 1, (lx0 + lx1) / 2 - 1, lz1); regular((lx0 + lx1) / 2 + 1, (lz0 + lz1) / 2 + 1, lx1, lz1);
+      special.gunshop = { x: scx, z: front };
     } else if (b.type === 'spray') {
       S.box(lx0 - 1, SIDE_Y, lz0 - 1, lx1 + 1, SIDE_Y + 0.02, lz1 + 1, concrete);
       building(lx0 + 4, lz0 + 24, lx1 - 4, lz1, 10, 0xff6fae);
@@ -532,13 +625,61 @@ function buildWorld() {
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (!nearRoad(x, z, 2) && !solidAt(x, z, 0)) palmSpots.push([x, z, ROAD_Y]);
   }
-  const ms = new THREE.Mesh(S.geo(), matV); scene.add(ms);
-  const mb = new THREE.Mesh(B.geo(), matB); scene.add(mb);
+  // street lamps (posts are static, heads glow at night, light pools on the road)
+  const LH = new GB(), pools = [], post = C(0x3b3f45);
+  const lamp = (x, z, ax, az) => { // ax,az: direction the arm points (toward the road)
+    S.box(x - 0.12, 0, z - 0.12, x + 0.12, 6.4, z + 0.12, post);
+    const hx = x + ax * 1.8, hz = z + az * 1.8;
+    S.box(Math.min(x, hx) - 0.08, 6.2, Math.min(z, hz) - 0.08, Math.max(x, hx) + 0.08, 6.4, Math.max(z, hz) + 0.08, post);
+    LH.box(hx - 0.35, 5.95, hz - 0.35, hx + 0.35, 6.2, hz + 0.35, C(0xffffff), { bottom: true });
+    pools.push([hx + ax * 1.5, hz + az * 1.5]);
+  };
+  for (let i = 0; i < NL; i++) for (let k = 0; k < NL - 1; k++) {
+    const L = LINES[i], m = (LINES[k] + LINES[k + 1]) / 2;
+    lamp(L - 7.6, m - 12, 1, 0); lamp(L + 7.6, m + 12, -1, 0);   // along roads running north-south
+    lamp(m + 12, L - 7.6, 0, 1); lamp(m - 12, L + 7.6, 0, -1);   // along roads running east-west
+  }
+  for (let k = 0; k < RING_N; k += 2) {
+    const a = (k + 0.5) / RING_N * TAU, x = Math.cos(a) * (RING_R + 8), z = Math.sin(a) * (RING_R + 8);
+    lamp(x, z, -Math.cos(a), -Math.sin(a));
+  }
+  const lampHeads = new THREE.Mesh(LH.geo(), lampMat); scene.add(lampHeads);
+  const poolI = new THREE.InstancedMesh(new THREE.PlaneGeometry(13, 13).rotateX(-PI / 2), poolMat, pools.length);
+  const dm = new THREE.Object3D();
+  pools.forEach(([x, z], i) => { dm.position.set(x, ROAD_Y + 0.05, z); dm.updateMatrix(); poolI.setMatrixAt(i, dm.matrix); });
+  poolI.renderOrder = 2; scene.add(poolI);
+
+  const ms = new THREE.Mesh(S.geo(), matV); ms.castShadow = ms.receiveShadow = true; scene.add(ms);
+  const mb = new THREE.Mesh(B.geo(), matB); mb.castShadow = mb.receiveShadow = true; scene.add(mb);
   buildTrees();
-  // water
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000).rotateX(-PI / 2),
-    new THREE.MeshLambertMaterial({ color: 0x17a6d3, transparent: true, opacity: 0.82 }));
-  water.position.y = -0.32; scene.add(water);
+  // water: shiny, with slowly moving ripples
+  waterTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const x = c.getContext('2d'); x.fillStyle = '#808080'; x.fillRect(0, 0, 128, 128);
+    for (let k = 0; k < 70; k++) {
+      const cx = sr(0, 128), cy = sr(0, 128), r = sr(4, 16), v = srnd() < 0.5 ? 255 : 0;
+      for (const ox of [-128, 0, 128]) for (const oy of [-128, 0, 128]) {
+        const g = x.createRadialGradient(cx + ox, cy + oy, 0, cx + ox, cy + oy, r);
+        g.addColorStop(0, `rgba(${v},${v},${v},.35)`); g.addColorStop(1, `rgba(${v},${v},${v},0)`);
+        x.fillStyle = g; x.fillRect(cx + ox - r, cy + oy - r, r * 2, r * 2);
+      }
+    }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(260, 260);
+    return t;
+  })();
+  water = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000).rotateX(-PI / 2),
+    new THREE.MeshPhongMaterial({ color: 0x17a6d3, specular: 0x8899aa, shininess: 70, transparent: true, opacity: 0.84, bumpMap: waterTex, bumpScale: 0.7 }));
+  water.position.y = -0.32; water.receiveShadow = HIGH; scene.add(water);
+  // foam where the waves hit the beach
+  {
+    const F = new GB(), wcol = C(0xffffff), N = 200;
+    for (let k = 0; k < N; k++) {
+      const t0 = k / N * TAU, t1 = (k + 1) / N * TAU, a0 = sandR(t0) + 1.8, a1 = sandR(t1) + 1.8, b0 = a0 + 3.5, b1 = a1 + 3.5;
+      F.quadN([Math.cos(t0) * a0, -0.29, Math.sin(t0) * a0], [Math.cos(t1) * a1, -0.29, Math.sin(t1) * a1], [Math.cos(t1) * b1, -0.29, Math.sin(t1) * b1], [Math.cos(t0) * b0, -0.29, Math.sin(t0) * b0], wcol, UP);
+    }
+    foamMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, depthWrite: false });
+    const foam = new THREE.Mesh(F.geo(), foamMat); foam.renderOrder = 1; scene.add(foam);
+  }
   // glowing markers
   const ringGeo = new THREE.RingGeometry(2.1, 2.9, 28).rotateX(-PI / 2);
   for (const s of stores) {
@@ -546,6 +687,11 @@ function buildWorld() {
     m.position.set(s.x, SIDE_Y + 0.06, s.z); scene.add(m); s.marker = m; markers.push(m);
     const dollar = makeSign('$', 1.6, 1.6, '#ffd23f', '#1a0b2e'); dollar.position.set(s.x, 4.6, s.z); scene.add(dollar); s.icon = dollar;
   }
+  if (special.gunshop) {
+    const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x4fdc5a, transparent: true, opacity: 0.85, depthWrite: false }));
+    m.position.set(special.gunshop.x, SIDE_Y + 0.06, special.gunshop.z); scene.add(m); special.gunshop.marker = m;
+  }
+  healthSpots.push([special.hospital.x + 6, special.hospital.z], [PX0 + 4, PZ0 + 10]);
 }
 
 function buildTrees() {
@@ -562,6 +708,7 @@ function buildTrees() {
     cI.setColorAt(i, col.setHSL(sr(0.25, 0.33), sr(0.45, 0.65), sr(0.32, 0.45)));
     addCirc(x, z, 0.55 * s, 7);
   });
+  tI.castShadow = cI.castShadow = true;
   scene.add(tI, cI);
   // palms: leaning trunk + drooping leaves (two instanced meshes)
   const PT = new GB(), PL = new GB(), white = C(0xffffff);
@@ -582,6 +729,7 @@ function buildTrees() {
     plI.setColorAt(i, col.setHSL(sr(0.24, 0.32), 0.6, sr(0.34, 0.44)));
     addCirc(x, z, 0.45 * s, 8);
   });
+  ptI.castShadow = plI.castShadow = true;
   scene.add(ptI, plI);
 }
 
@@ -601,7 +749,7 @@ const PANTS = [0x2d3a5a, 0x3b3b3b, 0xc9b38a, 0x5a3b2a, 0x4a6b8a, 0xe8e2d0];
 const HAIRS = [0x1b1209, 0x3a2412, 0x7a4a1c, 0xd8b45a, 0x111111, 0xb0441c];
 function makePerson(o) {
   const g = new THREE.Group(); g.rotation.order = 'YXZ';
-  const mk = (geo, hex, x, y, z) => { const m = new THREE.Mesh(geo, M(hex)); m.position.set(x, y, z); g.add(m); return m; };
+  const mk = (geo, hex, x, y, z) => { const m = new THREE.Mesh(geo, M(hex)); m.position.set(x, y, z); m.castShadow = HIGH; g.add(m); return m; };
   const p = {
     g,
     legL: mk(PG.leg, o.pants, -0.18, 0.92, 0), legR: mk(PG.leg, o.pants, 0.18, 0.92, 0),
@@ -628,6 +776,9 @@ const CAR_TYPES = {
   van: { L: 5.4, W: 2.3, max: 27, acc: 10, turn: 1.8, mass: 1.7, hp: 160 },
   taxi: { L: 4.6, W: 2.0, max: 36, acc: 16, turn: 2.3, mass: 1, hp: 100 },
   police: { L: 4.7, W: 2.05, max: 43, acc: 21, turn: 2.4, mass: 1.25, hp: 150 },
+  bike: { L: 2.3, W: 0.8, max: 48, acc: 26, turn: 3.0, mass: 0.5, hp: 70, open: true, seat: 0.95 },
+  boat: { L: 6.0, W: 2.4, max: 36, acc: 13, turn: 1.5, mass: 1.6, hp: 220, boat: true, open: true, seat: 0.9 },
+  jetski: { L: 2.9, W: 1.1, max: 40, acc: 20, turn: 2.4, mass: 0.6, hp: 90, boat: true, open: true, seat: 0.75 },
 };
 const CAR_COLS = [0xe63946, 0x1d6fe0, 0xf1f1f1, 0x222831, 0xffb703, 0x2a9d8f, 0x8338ec, 0xff6fae, 0x9aa5b1, 0x52b788, 0xfb5607];
 const carGeoCache = {};
@@ -635,6 +786,36 @@ function carGeo(type, color) {
   const key = type + color; if (carGeoCache[key]) return carGeoCache[key];
   const T = CAR_TYPES[type], g = new GB(), L = T.L, W = T.W, hw = W / 2, hl = L / 2;
   const body = C(color), glass = C(0x1e2a38), dark = C(0x1a1a1a), light = C(0xfff3c2), tail = C(0xd61f2c), grey = C(0x777777);
+  if (type === 'bike') {
+    const wh = (z) => { g.box(-0.12, 0, z - 0.36, 0.12, 0.72, z + 0.36, dark); g.box(-0.13, 0.25, z - 0.12, 0.13, 0.47, z + 0.12, grey); };
+    wh(0.85); wh(-0.85);
+    g.box(-0.22, 0.45, -0.7, 0.22, 0.85, 0.65, body);               // tank + frame
+    g.box(-0.24, 0.85, -0.75, 0.24, 1.0, 0.05, dark);               // seat
+    g.box(-0.2, 0.7, 0.55, 0.2, 1.15, 0.8, body);                   // front fairing
+    g.box(-0.45, 1.12, 0.55, 0.45, 1.2, 0.62, grey);                // handlebar
+    g.box(-0.1, 0.75, 0.8, 0.1, 0.9, 0.86, light); g.box(-0.1, 0.6, -0.85, 0.1, 0.72, -0.8, tail);
+    return (carGeoCache[key] = g.geo());
+  }
+  if (type === 'boat' || type === 'jetski') {
+    const white = C(0xf4f4f4), hullD = C(0x2a3644);
+    if (type === 'boat') {
+      g.box(-hw, -0.4, -hl, hw, 0.7, hl - 1.6, white, { top: C(0xd9c7a5) });
+      g.quadN([-hw, 0.7, hl - 1.6], [hw, 0.7, hl - 1.6], [0.15, 0.7, hl], [-0.15, 0.7, hl], C(0xd9c7a5), UP);
+      g.quadN([-hw, -0.4, hl - 1.6], [-hw, 0.7, hl - 1.6], [-0.15, 0.7, hl], [-0.1, 0.1, hl], white, [-1, 0, 0.5]);
+      g.quadN([hw, -0.4, hl - 1.6], [hw, 0.7, hl - 1.6], [0.15, 0.7, hl], [0.1, 0.1, hl], white, [1, 0, 0.5]);
+      g.box(-hw - 0.01, 0.2, -hl, hw + 0.01, 0.45, hl - 1.6, body);   // stripe
+      g.box(-hw + 0.3, 0.7, 0.2, hw - 0.3, 1.5, 0.35, glass);         // windshield
+      g.box(-0.5, 0.7, -0.8, 0.5, 1.15, -0.2, C(0xeeeeee));           // seat
+      g.box(-0.4, -0.2, -hl - 0.5, 0.4, 0.9, -hl, hullD);             // motor
+    } else {
+      g.box(-hw, -0.3, -hl, hw, 0.35, hl - 0.6, body, { top: white });
+      g.quadN([-hw, 0.35, hl - 0.6], [hw, 0.35, hl - 0.6], [0.1, 0.3, hl], [-0.1, 0.3, hl], white, UP);
+      g.box(-0.25, 0.35, -1.0, 0.25, 0.75, 0.2, hullD);              // seat
+      g.box(-0.4, 0.75, 0.45, 0.4, 0.85, 0.55, grey);                 // handlebar
+      g.box(-0.08, 0.35, 0.3, 0.08, 0.8, 0.5, hullD);
+    }
+    return (carGeoCache[key] = g.geo());
+  }
   if (type === 'van') {
     g.box(-hw, 0.4, -hl, hw, 1.4, hl, body);
     g.box(-hw + 0.05, 1.4, -hl + 0.2, hw - 0.05, 2.35, hl - 1.1, glass, { top: body });
@@ -670,12 +851,15 @@ const sirenR = new THREE.MeshBasicMaterial({ color: 0xff2030 }), sirenB = new TH
 const sirenGeo = new THREE.BoxGeometry(0.5, 0.22, 0.32);
 
 const cars = [];
+const poolGeo = new THREE.PlaneGeometry(4, 4).rotateX(-PI / 2);
 function spawnCar(type, x, z, h, color) {
   const T = CAR_TYPES[type];
   if (color == null) color = type === 'police' ? 0x15161a : type === 'taxi' ? 0xffc300 : pick(CAR_COLS);
   const g = new THREE.Group();
-  const mesh = new THREE.Mesh(carGeo(type, color), matV); g.add(mesh);
-  addShadow(g, T.W + 1.2, T.L + 1.4, 0.04);
+  g.rotation.order = 'YXZ';
+  const mesh = new THREE.Mesh(carGeo(type, color), matV); mesh.castShadow = HIGH; mesh.receiveShadow = HIGH; g.add(mesh);
+  if (!T.boat) addShadow(g, T.W + 1.2, T.L + 1.4, 0.04);
+  const pool = new THREE.Mesh(poolGeo, carPoolMat); pool.position.set(0, 0.1 - (T.boat ? 0 : 0), T.L / 2 + 5); pool.scale.set(T.W * 1.4, 1, 3.2); pool.renderOrder = 2; g.add(pool);
   const c = { g, mesh, type, T, color, x, z, h, y: groundY(x, z), speed: 0, steer: 0, hp: T.hp, driver: 'none', police: type === 'police',
     from: -1, to: -1, tgt: -1, route: 0, blockT: 0, stuckT: 0, revT: 0, fire: 0, wreck: false, smokeT: 0, lastHit: 0, copsInside: 0, perm: false };
   if (c.police) {
@@ -687,7 +871,14 @@ function spawnCar(type, x, z, h, color) {
   return c;
 }
 function removeCar(c) { scene.remove(c.g); const i = cars.indexOf(c); if (i >= 0) cars.splice(i, 1); }
-function syncCar(c) { c.g.position.set(c.x, c.y, c.z); c.g.rotation.y = c.h; }
+function syncCar(c) {
+  c.g.position.set(c.x, c.y, c.z); c.g.rotation.y = c.h;
+  if (c.type === 'bike' || c.T.boat) { // bikes and boats lean into turns
+    const lean = clamp(-c.steer * Math.abs(c.speed) / c.T.max * (c.T.boat ? 0.35 : 0.7), -0.6, 0.6);
+    c.lean = lerp(c.lean || 0, lean, 0.15); c.g.rotation.z = c.lean;
+    if (c.T.boat) c.g.rotation.x = -Math.min(0.12, Math.abs(c.speed) / c.T.max * 0.12);
+  }
+}
 function carFwd(c) { return [Math.sin(c.h), Math.cos(c.h)]; }
 
 function carPhysics(c, thr, str, dt, hb = false) {
@@ -704,6 +895,7 @@ function carPhysics(c, thr, str, dt, hb = false) {
   c.h = wrapA(c.h - turn * dt);
   const [fx, fz] = carFwd(c);
   c.x += fx * c.speed * dt; c.z += fz * c.speed * dt;
+  if (c.T.boat) { boatWorld(c); c.y = -0.3 + Math.sin(G.t * 2.2 + c.x * 0.3) * 0.08 + Math.min(0.25, Math.abs(c.speed) * 0.008); return; }
   carWorld(c);
   c.y = lerp(c.y, groundY(c.x, c.z), Math.min(1, dt * 12));
 }
@@ -731,6 +923,26 @@ function carWorld(c) {
       }
     }
   }
+}
+function boatWorld(c) { // boats stay in the sea, bump off the beach and the pier
+  const [fx, fz] = carFwd(c), off = c.T.L / 2 - c.T.W / 2, r = c.T.W / 2 + 0.2;
+  let hit = null;
+  for (const sOff of [off, -off]) {
+    const ox = c.x + fx * sOff, oz = c.z + fz * sOff, rr = Math.hypot(ox, oz), t = Math.atan2(oz, ox), lim = sandR(t) + 4 + r;
+    let px = 0, pz = 0;
+    if (rr < lim) { px = Math.cos(t) * (lim - rr); pz = Math.sin(t) * (lim - rr); hit = { nx: Math.cos(t), nz: Math.sin(t) }; }
+    if (rr > 1100) { px = -ox / rr * (rr - 1100); pz = -oz / rr * (rr - 1100); hit = { nx: -ox / rr, nz: -oz / rr }; }
+    if (ox > PX0 - r && ox < PX1 + r && oz > PZ0 && oz < PZ1 + r) { // pier
+      const dl = ox - (PX0 - r), dr = (PX1 + r) - ox, db = (PZ1 + r) - oz, m = Math.min(dl, dr, db);
+      if (m === dl) { px = -dl; hit = { nx: -1, nz: 0 }; } else if (m === dr) { px = dr; hit = { nx: 1, nz: 0 }; } else { pz = db; hit = { nx: 0, nz: 1 }; }
+    }
+    c.x += px; c.z += pz;
+  }
+  if (hit) {
+    const dot = fx * hit.nx + fz * hit.nz, vin = -dot * c.speed;
+    if (vin > 0) { c.speed *= 1 - 0.8 * Math.abs(dot); if (vin > 14) damageCar(c, (vin - 14)); if (vin > 8 && c.driver === 'player') { sfx('crash', 0.4); shake = 0.3; } }
+  }
+  if (Math.abs(c.speed) > 8 && c.g.visible && Math.random() < 0.5) emit(c.x - fx * c.T.L / 2, -0.1, c.z - fz * c.T.L / 2, 0xffffff, 1, { spd: 1.5, up: 2, life: 0.6, size: 0.35, grav: 6 });
 }
 function damageCar(c, amt) {
   if (c.wreck) return;
@@ -771,15 +983,16 @@ function updateParts(dt) {
   }
 }
 const zaps = [];
-for (let i = 0; i < 4; i++) {
+for (let i = 0; i < 10; i++) {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0], 3));
   const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x7fd8ff })); l.visible = false; l.frustumCulled = false; scene.add(l);
   zaps.push({ l, t: 0 });
 }
-function zap(ax, ay, az, bx, by, bz) {
+function zap(ax, ay, az, bx, by, bz, col = 0x7fd8ff) {
   const z = zaps.find(z => z.t <= 0) || zaps[0];
+  z.l.material.color.setHex(col);
   const p = z.l.geometry.attributes.position; p.setXYZ(0, ax, ay, az); p.setXYZ(1, bx, by, bz); p.needsUpdate = true;
-  z.l.visible = true; z.t = 0.15;
+  z.l.visible = true; z.t = 0.09;
 }
 const pickups = [];
 const cashGeo = new THREE.BoxGeometry(0.7, 0.4, 0.35), cashMat = new THREE.MeshBasicMaterial({ color: 0x4fdc5a });
@@ -805,6 +1018,8 @@ function audioInit() {
     const sl = ctx.createBiquadFilter(); sl.type = 'lowpass'; sl.frequency.value = 1800;
     AU.sirG = ctx.createGain(); AU.sirG.gain.value = 0;
     AU.sir.connect(sl); sl.connect(AU.sirG); AU.sirG.connect(AU.master); AU.sir.start();
+    AU.radio = makeRadio(ctx, AU.master, AU.noise);
+    AU.radio.setStation(save.radio);
     ctx.resume();
   } catch (e) { AU.ctx = null; }
 }
@@ -822,17 +1037,23 @@ function sfx(kind, vol = 1) {
   else if (kind === 'door') { g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.12); noise(0.12, 1200); }
   else if (kind === 'star') { g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.5); tone('triangle', 660, 660, 0.12); tone('triangle', 880, 880, 0.2, 0.12); }
   else if (kind === 'bad') { g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.001, t + 1.2); tone('sawtooth', 300, 80, 1.1); }
+  else if (kind === 'shot') { g.gain.setValueAtTime(0.7 * vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22); noise(0.22, 2600); tone('square', 220, 60, 0.08); }
+  else if (kind === 'click') { g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.05); tone('square', 1800, 1800, 0.03); }
+  else if (kind === 'pass') { g.gain.setValueAtTime(0.22, t); g.gain.exponentialRampToValueAtTime(0.001, t + 1.3); tone('triangle', 523, 523, 0.18); tone('triangle', 659, 659, 0.18, 0.18); tone('triangle', 784, 784, 0.18, 0.36); tone('triangle', 1047, 1047, 0.7, 0.54); }
+  else if (kind === 'cp') { g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3); tone('sine', 880, 1760, 0.25); }
   else if (kind === 'jump') { g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.15); tone('sine', 300, 600, 0.12); }
 }
 function setSound(on) { AU.on = on; if (AU.master) AU.master.gain.value = on ? 0.55 : 0; }
 
 // ================================================================ game state
 const SAVE_KEY = 'sunsetkey.v1';
-let save = { money: 0, best: 0 };
+let save = { money: 0, best: 0, mission: 0, armor: 0, radio: 0 };
 try { save = Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); } catch (e) { }
+save.guns = Object.assign({ pistol: false, smg: false }, save.guns);
+save.ammo = Object.assign({ pistol: 0, smg: 0 }, save.ammo);
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
 
-const G = { mode: 'menu', paused: true, t: 0, heat: 0, stars: 0, unseen: 0, seen: false, arrest: 0, deadT: 0, copSpawnT: 0, sprayCool: 0, heli: null };
+const G = { mode: 'menu', paused: true, t: 0, clock: 16.6, lastRob: null, heat: 0, stars: 0, unseen: 0, seen: false, arrest: 0, deadT: 0, copSpawnT: 0, sprayCool: 0, heli: null };
 let shake = 0;
 const HEAT_STEPS = [0, 1, 50, 120, 220, 350];
 function starsFor(h) { let s = 0; for (let i = 1; i < 6; i++) if (h >= HEAT_STEPS[i]) s = i; return s; }
@@ -854,7 +1075,27 @@ function addMoney(n) {
 const player = {
   x: 9, z: 9, y: SIDE_Y, vy: 0, h: PI, hp: 100, car: null, speed: 0, anim: 0, punchT: 0, downT: 0, onGround: true,
   m: makePerson({ shirt: 0x19c3b0, pants: 0xd9c49a, skin: 0xe0ac69, hat: 0xff4fa0, shades: true }),
+  weapon: 'fist', fireT: 0, aimT: 0, swim: false, firePress: false,
 };
+const gunMesh = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.22, 0.55).translate(0, -0.78, 0.18), M(0x1d1f24));
+gunMesh.visible = false; player.m.armR.add(gunMesh);
+function hurt(n) { // armor soaks up most of the damage first
+  if (save.armor > 0) { const a = Math.min(save.armor, n * 0.7); save.armor -= a; n -= a; }
+  player.hp -= n;
+}
+const WEAPONS = {
+  fist: { name: 'Fists', icon: '👊' },
+  pistol: { name: 'Pistol', icon: '🔫', rate: 0.3, range: 42, price: 300, pack: 48, packPrice: 60 },
+  smg: { name: 'SMG', icon: '💥', rate: 0.09, range: 36, price: 1200, pack: 150, packPrice: 150, auto: true },
+};
+function setWeapon(w) { player.weapon = w; gunMesh.visible = w !== 'fist'; gunMesh.scale.z = w === 'smg' ? 1.5 : 1; }
+function cycleWeapon() {
+  if (player.car) return;
+  const list = ['fist', ...['pistol', 'smg'].filter(w => save.guns[w])];
+  if (list.length === 1) { toast('No guns yet. Buy one at the GUN SHOP 🔫'); return; }
+  setWeapon(list[(list.indexOf(player.weapon) + 1) % list.length]);
+  toast(WEAPONS[player.weapon].icon + ' ' + WEAPONS[player.weapon].name);
+}
 function playerPos() { return player.car ? player.car : player; }
 
 // ---------------------------------------------------------------- pedestrians
@@ -954,6 +1195,8 @@ btn('bRob', () => { input.rob = true; robPress(); }, () => { input.rob = false; 
 btn('bCar', () => toggleCar());
 btn('bJump', () => jump());
 btn('bHorn', () => horn());
+btn('bRadio', () => nextStation());
+$('wpn').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); cycleWeapon(); });
 $('bPause').addEventListener('click', () => openMenu(true));
 
 addEventListener('keydown', e => {
@@ -964,6 +1207,8 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR' || e.code === 'KeyQ') { input.rob = true; robPress(); }
   if (e.code === 'Space') { if (!player.car) jump(); }
   if (e.code === 'KeyH') horn();
+  if (e.code === 'KeyG' || e.code === 'Tab') { e.preventDefault(); cycleWeapon(); }
+  if (e.code === 'KeyT') nextStation();
   if (e.code === 'Escape' || e.code === 'KeyP') openMenu(true);
 });
 addEventListener('keyup', e => { input.keys[e.code] = false; if (e.code === 'KeyR' || e.code === 'KeyQ') input.rob = false; });
@@ -1013,7 +1258,8 @@ function toggleCar() {
     panic(c.x, c.z, 20);
   } else if (c.police) toast('Police car! Sirens are on you 🚨');
   c.driver = 'player'; c.speed *= 0.3; player.car = c;
-  player.m.g.visible = false;
+  player.m.g.visible = !!c.T.open; player.swim = false; gunMesh.visible = false;
+  if (AU.radio && !c.T.boat && c.type !== 'bike') toast('📻 ' + AU.radio.name);
   sfx('door');
 }
 function exitCar() {
@@ -1027,11 +1273,13 @@ function exitCar() {
   if (!placed) { player.x = c.x; player.z = c.z; }
   player.y = groundY(player.x, player.z); player.h = c.h; player.vy = 0;
   c.driver = 'none'; player.car = null; player.m.g.visible = true;
+  player.m.g.rotation.x = 0; player.m.g.rotation.z = 0; setWeapon(player.weapon);
   sfx('door');
 }
 function robPress() {
-  if (G.mode !== 'play' || player.car || player.downT > 0) return;
+  if (G.mode !== 'play' || player.car || player.downT > 0 || player.swim) return;
   if (nearStore()) return; // holding handled in update
+  if (player.weapon !== 'fist') { player.firePress = true; return; }
   player.punchT = 0.3;
   const p = nearestPed(2.4);
   if (!p) { sfx('punch', 0.3); return; }
@@ -1052,8 +1300,49 @@ function robPress() {
   }
 }
 function jump() {
-  if (G.mode !== 'play' || player.car || !player.onGround || player.downT > 0) return;
+  if (G.mode !== 'play' || player.car || !player.onGround || player.downT > 0 || player.swim) return;
   player.vy = 7.5; player.onGround = false; sfx('jump');
+}
+function nextStation() {
+  if (!player.car || !AU.radio) return;
+  const n = AU.radio.next(); save.radio = AU.radio.station; persist();
+  toast('📻 ' + n); sfx('click');
+}
+function shoot() {
+  const w = player.weapon, W = WEAPONS[w];
+  if (save.ammo[w] <= 0) { toast('Out of ammo! Buy more at the GUN SHOP'); sfx('click'); player.fireT = 0.4; return; }
+  save.ammo[w]--; player.fireT = W.rate; player.aimT = 1.0;
+  const aim = cam.yaw;
+  let best = null, bs = 1e9, bp = null;
+  const consider = (o, x, z, y, bias) => {
+    const dx = x - player.x, dz = z - player.z, d = Math.hypot(dx, dz);
+    if (d > W.range || d < 0.5) return;
+    const ang = Math.abs(wrapA(Math.atan2(dx, dz) - aim)); if (ang > 0.8) return;
+    const sc = d * (1 + ang * 2.5) * bias;
+    if (sc < bs && clearLine(player.x, player.z, x, z)) { bs = sc; best = o; bp = [x, y, z]; }
+  };
+  for (const p of peds) if (p.state !== 'down') consider(p, p.x, p.z, p.y + 1.3, p.cop && G.stars > 0 ? 0.6 : 1);
+  for (const c of cars) if (!c.wreck && c !== player.car) consider(c, c.x, c.z, c.y + 0.9, 1.5);
+  player.h = best ? Math.atan2(bp[0] - player.x, bp[2] - player.z) : aim;
+  const fx = Math.sin(player.h), fz = Math.cos(player.h);
+  const gx = player.x + fx * 0.9 + fz * -0.48 * -1, gz = player.z + fz * 0.9 - fx * 0.48, gy = player.y + 1.55;
+  let ex, ey, ez;
+  if (best && Math.random() < 0.85) {
+    [ex, ey, ez] = bp;
+    if (best.m) { // a person
+      knockPed(best, fx * 6, fz * 6, 4); best.t = best.cop ? 4 : R(4, 6);
+      if (best.cop) crime(55, 2); else { crime(20, 1); if (Math.random() < 0.5) dropCash(best.x, best.z, Math.round(R(10, 60))); }
+      emit(ex, ey, ez, 0xffffff, 3, { spd: 2, life: 0.3, size: 0.15 });
+    } else { damageCar(best, w === 'smg' ? 7 : 12); emit(ex, ey, ez, 0xffd23f, 4, { spd: 4, life: 0.3, size: 0.12 }); if (best.police && best.driver === 'cop') crime(25, 2); }
+  } else {
+    const a = player.h + R(-0.08, 0.08); let l = W.range;
+    for (let k = 2; k < W.range; k += 2) if (solidAt(player.x + Math.sin(a) * k, player.z + Math.cos(a) * k, 1.5)) { l = k; break; }
+    ex = player.x + Math.sin(a) * l; ez = player.z + Math.cos(a) * l; ey = gy + R(-0.4, 0.4);
+  }
+  zap(gx, gy, gz, ex, ey, ez, 0xfff2a0);
+  emit(gx + fx * 0.3, gy, gz + fz * 0.3, 0xffd23f, 2, { spd: 1.5, life: 0.12, size: 0.25, grav: 0 });
+  sfx('shot', w === 'smg' ? 0.6 : 1); shake = Math.max(shake, 0.12);
+  crime(5, 1); panic(player.x, player.z, 40);
 }
 function horn() {
   if (!player.car) return; sfx('horn');
@@ -1101,10 +1390,18 @@ function populate() {
   buildWorld();
   buildMinimap();
   for (const s of parkedSpots) {
-    const type = s.type || pick(['sedan', 'sedan', 'sports', 'van', 'taxi', 'sedan']);
+    const type = s.type || pick(['sedan', 'sedan', 'sports', 'van', 'taxi', 'sedan', 'bike', 'bike']);
     const c = spawnCar(type, s.x, s.z, s.h); c.perm = true;
   }
   const hero = spawnCar('sports', 22, 5.8, PI / 2, 0xff4fa0); hero.perm = true;
+  spawnCar('bike', 31, 5.8, PI / 2, 0x19d3c5).perm = true;
+  // boats and jet skis tied up at the pier, plus a couple out on the water
+  spawnCar('boat', PX1 + 2.6, PZ1 - 12, 0, 0xff4fa0).perm = true;
+  spawnCar('jetski', PX1 + 2.0, PZ1 - 24, 0, 0xffd23f).perm = true;
+  spawnCar('boat', PX0 - 2.6, PZ1 - 16, 0, 0x1d6fe0).perm = true;
+  spawnCar('jetski', PX0 - 2.0, PZ1 - 28, 0, 0x19d3c5).perm = true;
+  for (const a of [0.3, 2.9, -1.2]) { const r = sandR(a) + 16; spawnCar(pick(['boat', 'jetski']), Math.cos(a) * r, Math.sin(a) * r, a + PI / 2).perm = true; }
+  makeHealthPacks();
   const p0 = PI * 0.62, pr = grassR(p0) + 10; spawnCar('sports', Math.cos(p0) * pr, Math.sin(p0) * pr, 0, 0xffd23f).perm = true;
   for (let i = 0; i < 16; i++) spawnTrafficCar(null);
   for (let i = 0; i < 2; i++) { const c = spawnTrafficCar(null); if (c) { removeCar(c); const cc = spawnCar('police', c.x, c.z, c.h); cc.driver = 'ai'; cc.from = c.from; cc.to = c.to; cc.patrol = true; } }
@@ -1156,6 +1453,8 @@ function drawMinimap() {
   for (const s of stores) blip(s.x, s.z, s.cool > 0 ? '#888' : '#7dff7a', 6 * u, true, s.bank ? '$$' : '$');
   if (special.spray) blip(special.spray.x, special.spray.z, '#ff4fa0', 6 * u, G.stars > 0, 'S');
   if (special.hospital) blip(special.hospital.x, special.hospital.z, '#ff3b4f', 6 * u, false, '+');
+  if (special.gunshop) blip(special.gunshop.x, special.gunshop.z, '#ff3b4f', 5 * u, true, '🔫');
+  if (MS.pos) blip(MS.pos[0], MS.pos[1], MS.active ? '#ffd23f' : '#ffd23f', 6.5 * u, true, MS.active ? '●' : 'M');
   if (special.police) blip(special.police.x, special.police.z, '#5aa0ff', 6 * u, false, '★');
   const flash = (G.t * 4 | 0) % 2;
   for (const c of cars) if (c.police && (c.driver === 'cop' || c.chase)) blip(c.x, c.z, flash ? '#ff3b4f' : '#4d8dff', 4.5 * u, false);
@@ -1170,6 +1469,13 @@ function drawMinimap() {
 }
 
 // ================================================================ update: player
+function seabedY(x, z) {
+  const r = Math.hypot(x, z); if (r < 425) return 0;
+  const t = Math.atan2(z, x), sR = sandR(t); if (r <= sR) return 0;
+  if (r < sR + 8) return lerp(-0.12, -0.6, (r - sR) / 8);
+  return lerp(-0.6, -3, clamp((r - sR - 8) / 32, 0, 1));
+}
+const onPier = (x, z) => x >= PX0 && x <= PX1 && z >= PZ0 && z <= PZ1;
 function updatePlayer(dt) {
   const [mx, my] = moveInput();
   if (player.car) { driveCar(player.car, mx, my, dt); return; }
@@ -1184,13 +1490,25 @@ function updatePlayer(dt) {
   let spd = 0;
   if (mag > 0.08 && p.downT <= 0) {
     const run = mag > 0.82;
-    spd = run ? 10 : 2.5 + mag * 4;
+    spd = p.swim ? (run ? 5.5 : 2 + mag * 2.5) : run ? 10 : 2.5 + mag * 4;
     const l = Math.hypot(dx, dz); dx /= l; dz /= l;
-    p.h = angLerp(p.h, Math.atan2(dx, dz), Math.min(1, dt * 12));
+    if (p.aimT <= 0) p.h = angLerp(p.h, Math.atan2(dx, dz), Math.min(1, dt * 12));
     p.x += dx * spd * dt; p.z += dz * spd * dt;
   }
   p.speed = spd;
-  resolve(p, 0.45); boundary(p, 1);
+  resolve(p, 0.45);
+  { // the sea is open for swimming; far out there's an invisible wall
+    const r = Math.hypot(p.x, p.z); if (r > 1100) { p.x *= 1100 / r; p.z *= 1100 / r; }
+    if (p.swim && p.x > PX0 - 0.6 && p.x < PX1 + 0.6 && p.z > PZ0 && p.z < PZ1 + 0.6) { // can't climb onto the pier from the water
+      const dl = p.x - (PX0 - 0.6), dr = PX1 + 0.6 - p.x, db = PZ1 + 0.6 - p.z, m = Math.min(dl, dr, db);
+      if (m === dl) p.x -= dl; else if (m === dr) p.x += dr; else p.z += db;
+    }
+  }
+  const pier = onPier(p.x, p.z) && p.y > 0.2;
+  const wasSwim = p.swim;
+  p.swim = !pier && seabedY(p.x, p.z) < -0.85;
+  if (p.swim && !wasSwim) { emit(p.x, -0.2, p.z, 0xffffff, 8, { spd: 3, up: 4, life: 0.6, size: 0.3 }); setWeapon(p.weapon); gunMesh.visible = false; p.aimT = 0; }
+  if (!p.swim && wasSwim) setWeapon(p.weapon);
   // cars push the player
   for (const c of cars) {
     if (d2(c.x, c.z, p.x, p.z) > 16) continue;
@@ -1198,7 +1516,7 @@ function updatePlayer(dt) {
     const lz = ox * cfx + oz * cfz, lx = ox * cfz - oz * cfx, hw = c.T.W / 2 + 0.45, hl = c.T.L / 2 + 0.45;
     if (Math.abs(lx) < hw && Math.abs(lz) < hl && p.y < c.y + 1.6) {
       if (Math.abs(c.speed) > 6 && p.downT <= 0) {
-        p.downT = 1.6; p.m.g.rotation.x = -PI / 2; p.hp -= Math.abs(c.speed) * 1.1; sfx('punch'); shake = 0.5;
+        p.downT = 1.6; p.m.g.rotation.x = -PI / 2; hurt(Math.abs(c.speed) * 1.1); sfx('punch'); shake = 0.5;
         p.vy = 4; p.onGround = false;
       }
       const px = hw - Math.abs(lx), pz = hl - Math.abs(lz);
@@ -1207,17 +1525,31 @@ function updatePlayer(dt) {
     }
   }
   // vertical
-  const gy = groundY(p.x, p.z);
+  const gy = p.swim ? (spd > 0.5 ? -0.62 : -1.4) + Math.sin(G.t * 2.5) * 0.05 : groundY(p.x, p.z);
   if (!p.onGround) { p.vy -= 22 * dt; p.y += p.vy * dt; if (p.y <= gy) { p.y = gy; p.vy = 0; p.onGround = true; } }
-  else p.y = lerp(p.y, gy, Math.min(1, dt * 15));
+  else p.y = lerp(p.y, gy, Math.min(1, dt * (p.swim ? 6 : 15)));
+  // shooting
+  p.fireT -= dt; p.aimT -= dt;
+  if (p.weapon !== 'fist' && !p.swim && p.downT <= 0 && G.mode === 'play' && !nearStore()) {
+    const W = WEAPONS[p.weapon];
+    if (p.fireT <= 0 && (p.firePress || (W.auto && input.rob))) shoot();
+  }
+  p.firePress = false;
   // anim
   const m = p.m;
   m.g.position.set(p.x, p.y + (p.downT > 0 ? 0.25 : 0), p.z); m.g.rotation.y = p.h;
   if (p.downT > 0) { poseWalk(m, 0, 0); }
-  else {
+  else if (p.swim) {
+    p.anim += dt * (spd > 3 ? 7 : 4);
+    m.g.rotation.x = lerp(m.g.rotation.x, spd > 0.5 ? 1.25 : 0.1, Math.min(1, dt * 5));
+    m.armL.rotation.x = -p.anim % TAU; m.armR.rotation.x = -(p.anim + PI) % TAU;
+    m.legL.rotation.x = Math.sin(p.anim * 2) * 0.4; m.legR.rotation.x = -Math.sin(p.anim * 2) * 0.4;
+  } else {
+    m.g.rotation.x = 0;
     p.anim += dt * (spd > 6 ? 13 : 9);
     poseWalk(m, p.anim, spd > 0.1 ? (spd > 6 ? 1 : 0.6) : 0);
     if (!p.onGround) { m.legL.rotation.x = -0.6; m.legR.rotation.x = 0.4; }
+    if (p.aimT > 0 && p.weapon !== 'fist') { m.armR.rotation.x = -PI / 2; if (p.weapon === 'smg') m.armL.rotation.x = -1.3; }
   }
   if (p.punchT > 0) { p.punchT -= dt; m.armR.rotation.x = -PI / 2 * Math.sin(Math.max(0, p.punchT) / 0.3 * PI); }
   // pickups
@@ -1225,12 +1557,24 @@ function updatePlayer(dt) {
     const k = pickups[i];
     if (d2(k.x, k.z, p.x, p.z) < 2.2) { addMoney(k.amt); scene.remove(k.m); pickups.splice(i, 1); }
   }
+  for (const h of hpPacks) {
+    if (h.t > 0 || p.hp >= 100) continue;
+    if (d2(h.x, h.z, p.x, p.z) < 2.6) { p.hp = Math.min(100, p.hp + 50); h.t = 45; h.m.visible = false; sfx('star'); toast('+50 health ❤️'); }
+  }
 }
 function driveCar(c, mx, my, dt) {
   const hb = !!input.keys.Space;
   carPhysics(c, c.fire ? 0 : my, mx, dt, hb);
   syncCar(c);
   player.x = c.x; player.z = c.z; player.y = c.y;
+  if (c.T.open) { // you can see the rider on bikes, boats and jet skis
+    const m = player.m, [fx, fz] = carFwd(c), back = c.type === 'boat' ? -0.5 : -0.4;
+    m.g.visible = true;
+    m.g.position.set(c.x + fx * back, c.y + c.T.seat - 0.9, c.z + fz * back);
+    m.g.rotation.set(c.g.rotation.x, c.h, c.g.rotation.z);
+    m.legL.rotation.x = m.legR.rotation.x = -1.35; m.armL.rotation.x = m.armR.rotation.x = -1.15;
+    m.armL.rotation.z = m.armR.rotation.z = 0;
+  }
   for (let i = pickups.length - 1; i >= 0; i--) {
     const k = pickups[i];
     if (d2(k.x, k.z, c.x, c.z) < 9) { addMoney(k.amt); scene.remove(k.m); pickups.splice(i, 1); }
@@ -1304,6 +1648,9 @@ function copCarAI(c, dt) {
   else if (thr > 0 && Math.abs(c.speed) < 1.5) { c.stuckT += dt; if (c.stuckT > 1.2) { c.revT = 1.1; c.stuckT = 0; } }
   else c.stuckT = 0;
   carPhysics(c, thr, str, dt);
+  // at 4+ stars the cop riding along shoots from the window
+  c.shootT = (c.shootT || R(1, 2)) - dt;
+  if (G.stars >= 4 && direct && dist < 30 && c.shootT <= 0) { c.shootT = R(1.2, 2); copShot(c.x, c.y + 1.4, c.z, 0.4, 5); }
   // get out and chase on foot
   if (!player.car && dist < 16 && Math.abs(c.speed) < 2.5) {
     const n = G.stars >= 2 ? 2 : 1;
@@ -1408,8 +1755,8 @@ function explode(c) {
   emit(c.x, c.y + 1, c.z, 0x444444, 10, { spd: 3, up: 5, grav: -2, life: 1.8, size: 0.6, grow: 0.7 });
   const pd = d2(c.x, c.z, player.x, player.z);
   if (pd < 400) { sfx('boom'); shake = 1; }
-  if (c.driver === 'player') { exitCar(); player.hp -= 45; player.downT = 1.5; player.m.g.rotation.x = -PI / 2; }
-  else if (pd < 49 && !player.car) { player.hp -= 25; player.downT = 1.2; player.m.g.rotation.x = -PI / 2; }
+  if (c.driver === 'player') { exitCar(); hurt(45); player.downT = 1.5; player.m.g.rotation.x = -PI / 2; }
+  else if (pd < 49 && !player.car) { hurt(25); player.downT = 1.2; player.m.g.rotation.x = -PI / 2; }
   if (c.driver === 'ai' || c.driver === 'cop') c.driver = 'none';
   for (const p of peds) { const d = d2(p.x, p.z, c.x, c.z); if (d < 100 && p.state !== 'down') { const l = Math.sqrt(d) || 1; knockPed(p, (p.x - c.x) / l * 8, (p.z - c.z) / l * 8, 7); } }
   for (const o of cars) if (o !== c && !o.wreck && d2(o.x, o.z, c.x, c.z) < 64) damageCar(o, 40);
@@ -1526,11 +1873,15 @@ function copPed(p, dt, dd) {
     if (!player.car && dist < 1.7 && player.downT <= 0) { G.arrest += dt * 0.42; p.m.armR.rotation.x = -PI / 2; p.m.armL.rotation.x = -PI / 2; }
     else if (player.car && dist < 3.4 && Math.abs(player.car.speed) < 2) { G.arrest += dt * 0.35; p.m.armR.rotation.x = -PI / 2; }
     p.zapT -= dt;
-    if (G.stars >= 3 && !player.car && dist > 2.5 && dist < 12 && p.zapT <= 0 && clearLine(p.x, p.z, P.x, P.z)) {
-      p.zapT = R(2, 3);
+    if (G.stars === 2 && !player.car && !player.swim && dist > 2.5 && dist < 12 && p.zapT <= 0 && clearLine(p.x, p.z, P.x, P.z)) {
+      p.zapT = R(2.2, 3.2); // taser
       zap(p.x, p.y + 1.6, p.z, player.x, player.y + 1.2, player.z); sfx('zap');
-      player.hp -= 7; shake = 0.3;
+      hurt(6); shake = 0.3;
       if (Math.random() < 0.3 && player.downT <= 0) { player.downT = 0.9; player.m.g.rotation.x = -PI / 2; }
+    } else if (G.stars >= 3 && dist > 2 && dist < 30 && p.zapT <= 0 && clearLine(p.x, p.z, P.x, P.z)) {
+      p.zapT = R(1.1, 1.9); // pistol
+      p.h = Math.atan2(P.x - p.x, P.z - p.z); p.m.armR.rotation.x = -PI / 2;
+      copShot(p.x, p.y + 1.5, p.z, 0.5, 5);
     }
   }
   syncPed(p);
@@ -1538,6 +1889,16 @@ function copPed(p, dt, dd) {
 }
 
 // ================================================================ wanted / police manager
+function copShot(x, y, z, chance, dmg) {
+  const P = playerPos(), hit = Math.random() < chance;
+  const tx = P.x + (hit ? 0 : R(-2.5, 2.5)), tz = P.z + (hit ? 0 : R(-2.5, 2.5)), ty = (P.y || 0) + (player.car ? 0.9 : player.swim ? 0.2 : 1.3);
+  zap(x, y, z, tx, ty, tz, 0xffb36b);
+  const d = Math.sqrt(d2(x, z, P.x, P.z));
+  sfx('shot', Math.max(0.15, 0.6 - d / 60));
+  if (!hit) return;
+  if (player.car) { damageCar(player.car, dmg * 1.2); emit(tx, ty, tz, 0xffd23f, 3, { spd: 3, life: 0.3, size: 0.12 }); }
+  else { hurt(dmg); shake = Math.max(shake, 0.25); }
+}
 function updateWanted(dt) {
   if (G.mode !== 'play') return;
   const P = playerPos();
@@ -1629,6 +1990,7 @@ function clearCops() {
 function busted() {
   if (G.mode !== 'play') return;
   G.mode = 'dead'; G.deadT = 3.2; G.deadKind = 'busted';
+  if (MS.active) failMission('', true);
   const fine = Math.min(save.money, 150 * Math.max(1, G.stars) + Math.floor(save.money * 0.05));
   banner('BUSTED', '#4d8dff', fine ? `You paid ${fmt(fine)} bail` : 'The cops let you off this time');
   if (fine) addMoney(-fine);
@@ -1639,6 +2001,7 @@ function busted() {
 function wasted() {
   if (G.mode !== 'play') return;
   G.mode = 'dead'; G.deadT = 3.2; G.deadKind = 'wasted';
+  if (MS.active) failMission('', true);
   const bill = Math.min(save.money, 100);
   banner('WASTED', '#ff3b4f', bill ? `Hospital bill: ${fmt(bill)}` : 'Patched up for free');
   if (bill) addMoney(-bill);
@@ -1650,9 +2013,178 @@ function respawn() {
   const sp = G.deadKind === 'busted' ? special.police : special.hospital;
   clearCops();
   player.x = sp.x; player.z = sp.z; player.y = SIDE_Y; player.h = sp.h; player.hp = 100; player.downT = 0;
-  player.m.g.rotation.x = 0; player.m.g.visible = true; player.car = null;
+  player.m.g.rotation.x = 0; player.m.g.rotation.z = 0; player.m.g.visible = true; player.car = null; player.swim = false;
   cam.yaw = sp.h; G.mode = 'play';
 }
+
+// ================================================================ missions
+const storePos = name => { const st = stores.find(s => s.name === name); return [st.x + 7, st.z]; };
+const lightAngle = -2.35;
+const MISSIONS = [
+  { name: 'Wheels', intro: 'Every hustler on Sunset Key needs a ride.', reward: 500, start: () => cornerPos(4, 4, 1),
+    steps: [{ type: 'incar', text: 'Get a car. Any car.' }, { type: 'goto', text: 'Drive to Sunset Pier', pos: () => [60, PZ0 - 10], car: true, r: 8 }] },
+  { name: 'Corner Store', intro: 'Time to make some real money.', reward: 1000, start: () => [60, PZ0 - 10],
+    steps: [{ type: 'rob', store: 'QUICK MART', text: 'Rob the QUICK MART', pos: () => storePos('QUICK MART') }, { type: 'lose', text: 'Lose the cops' }] },
+  { name: 'Gold Rush', intro: 'A rich guy left his gold sports car out by the lighthouse. Take it.', reward: 2000, start: () => storePos('QUICK MART'),
+    steps: [{ type: 'spawn' }, { type: 'enter', text: 'Steal the gold sports car' },
+      { type: 'goto', text: "Bring it to the Spray Shack. Don't wreck it!", pos: () => [special.spray.x, special.spray.z], target: true, r: 7 }] },
+  { name: 'Sea Drop', intro: 'A package fell off a boat near the lighthouse. Go get it before anyone else does.', reward: 2500, start: () => [60, PZ0 + 6],
+    steps: [{ type: 'goto', text: 'Grab a boat or jet ski at the end of the pier', pos: () => [60, PZ1 - 6], r: 6 },
+      { type: 'goto', text: 'Find the package in the water by the lighthouse', pkg: true, r: 7, pos: () => { const r = sandR(lightAngle) + 32; return [Math.cos(lightAngle) * r, Math.sin(lightAngle) * r]; } },
+      { type: 'goto', text: 'Bring the package back to the pier', pos: () => [PX1 + 4, PZ1 - 16], r: 9 }] },
+  { name: 'Island Race', intro: 'Race around the whole island before the clock runs out!', reward: 3000, start: () => [nodes[rid[12]].x + 12, nodes[rid[12]].z],
+    steps: [{ type: 'incar', text: 'Get a fast car or a motorbike' }, { type: 'goto', text: 'Drive to the start line', car: true, pos: () => [nodes[rid[12]].x, nodes[rid[12]].z], r: 9 },
+      { type: 'race', text: 'Go! Hit every checkpoint', time: 100, cps: () => [18, 24, 30, 36, 42, 0, 6, 12].map(k => [nodes[rid[k]].x, nodes[rid[k]].z]) }] },
+  { name: 'The Big Score', intro: 'The bank. The big one. Get a gun first.', reward: 10000, start: () => [special.spray.x, special.spray.z0 - 2],
+    steps: [{ type: 'gun', text: 'Buy a gun at the GUN SHOP', pos: () => [special.gunshop.x, special.gunshop.z] }, { type: 'rob', store: 'the BANK', text: 'Rob the BANK', pos: () => storePos('the BANK') },
+      { type: 'goto', text: 'Escape to the hideout by the lighthouse', pos: () => { const r = grassR(lightAngle) - 12; return [Math.cos(lightAngle) * r, Math.sin(lightAngle) * r]; }, r: 8 },
+      { type: 'lose', text: 'Lose the cops' }] },
+];
+const MS = { wasIn: true, active: null, step: 0, idx: 0, target: null, cps: null, cp: 0, timer: 0, pkg: null, pos: null };
+const beamMat = new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+const beam = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 70, 20, 1, true).translate(0, 35, 0), beamMat);
+const beamRing = new THREE.Mesh(new THREE.RingGeometry(3.2, 4.2, 30).rotateX(-PI / 2), new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.8, depthWrite: false }));
+beam.renderOrder = beamRing.renderOrder = 3; beam.visible = beamRing.visible = false; scene.add(beam, beamRing);
+const objEl = () => $('obj');
+function showBeam(pos, color, r = 3) {
+  beam.visible = beamRing.visible = !!pos;
+  if (!pos) return;
+  const y = Math.max(groundY(pos[0], pos[1]), -0.3);
+  beam.position.set(pos[0], y, pos[1]); beamRing.position.set(pos[0], y + 0.08, pos[1]);
+  beam.scale.set(r / 3, 1, r / 3); beamRing.scale.set(r / 3, 1, r / 3);
+  beamMat.color.setHex(color); beamRing.material.color.setHex(color);
+}
+function startMission(i) {
+  MS.active = MISSIONS[i]; MS.idx = i; MS.step = -1;
+  banner(MS.active.name.toUpperCase(), '#ffd23f', MS.active.intro); sfx('star');
+  nextStep();
+}
+function nextStep() {
+  MS.step++;
+  const st = MS.active.steps[MS.step];
+  if (!st) { passMission(); return; }
+  MS.pos = st.pos ? st.pos() : null; G.lastRob = null;
+  if (st.type === 'spawn') {
+    const r = grassR(lightAngle) - 30, x = Math.cos(lightAngle) * r, z = Math.sin(lightAngle) * r;
+    MS.target = spawnCar('sports', x, z, 0.6, 0xd4af37); MS.target.perm = true; MS.target.hp = 160;
+    nextStep(); return;
+  }
+  if (st.type === 'enter') MS.pos = null;
+  if (st.type === 'gun' && (save.guns.pistol || save.guns.smg)) { nextStep(); return; }
+  if (st.type === 'race') { MS.cps = st.cps(); MS.cp = 0; MS.timer = st.time; MS.pos = MS.cps[0]; }
+  if (st.pkg && !MS.pkg) {
+    MS.pkg = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1, 1.4), M(0xc8893c)); scene.add(MS.pkg);
+  }
+  if (st.type !== 'race' && MS.step > 0) sfx('cp');
+}
+function cleanupMission() {
+  if (MS.pkg) { scene.remove(MS.pkg); MS.pkg = null; }
+  if (MS.target) { MS.target.perm = false; MS.target = null; }
+  MS.active = null; MS.wasIn = true; showBeam(null); objEl().style.display = 'none';
+}
+function passMission() {
+  const m = MS.active; cleanupMission();
+  save.mission = Math.max(save.mission, MS.idx + 1); persist();
+  addMoney(m.reward); sfx('pass');
+  banner('MISSION PASSED', '#ffd23f', `${m.name}: +${fmt(m.reward)}`);
+  if (save.mission >= MISSIONS.length) setTimeout(() => toast('You beat every mission. Sunset Key is yours! 🌴'), 3200);
+}
+function failMission(reason, quiet) {
+  cleanupMission();
+  if (!quiet) { banner('MISSION FAILED', '#ff3b4f', reason); sfx('bad'); }
+}
+function updateMission(dt) {
+  const P = playerPos();
+  if (!MS.active) {
+    const next = save.mission < MISSIONS.length ? MISSIONS[save.mission] : null;
+    MS.pos = next ? next.start() : null;
+    showBeam(G.mode === 'play' ? MS.pos : null, 0xffd23f, 2.6);
+    const inside = next && G.mode === 'play' && d2(P.x, P.z, MS.pos[0], MS.pos[1]) < 16;
+    if (inside && !MS.wasIn) { // you have to step into the light, not just be standing there
+      if (G.stars > 0) toast('Lose the cops before starting a mission');
+      else startMission(save.mission);
+    }
+    MS.wasIn = !!inside;
+    return;
+  }
+  const st = MS.active.steps[MS.step];
+  if (MS.target && MS.target.wreck) { failMission('The gold car got wrecked!'); return; }
+  let done = false;
+  const near = (pos, r) => d2(P.x, P.z, pos[0], pos[1]) < r * r;
+  switch (st.type) {
+    case 'incar': done = !!player.car && !player.car.T.boat; break;
+    case 'enter': done = player.car === MS.target; MS.pos = MS.target ? [MS.target.x, MS.target.z] : null; break;
+    case 'goto': done = near(MS.pos, st.r || 6) && (!st.car || player.car) && (!st.target || player.car === MS.target); break;
+    case 'rob': done = G.lastRob === st.store; break;
+    case 'lose': done = G.stars === 0; MS.pos = null; break;
+    case 'gun': done = save.guns.pistol || save.guns.smg; break;
+    case 'race':
+      MS.timer -= dt;
+      if (near(MS.cps[MS.cp], 11)) { MS.cp++; sfx('cp'); if (MS.cp >= MS.cps.length) done = true; else MS.pos = MS.cps[MS.cp]; }
+      if (!done && MS.timer <= 0) { failMission('Out of time!'); return; }
+      break;
+  }
+  if (st.pkg && MS.pkg) {
+    MS.pkg.position.set(MS.pos[0], -0.1 + Math.sin(G.t * 2) * 0.1, MS.pos[1]); MS.pkg.rotation.y = G.t * 0.5;
+    if (done) { scene.remove(MS.pkg); MS.pkg = null; toast('Got the package! 📦'); }
+  }
+  // objective text
+  const o = objEl(); o.style.display = 'block';
+  let txt = st.text;
+  if (st.type === 'race') txt = `Checkpoint ${MS.cp + 1}/${MS.cps.length}  ⏱ ${Math.ceil(Math.max(0, MS.timer))}s`;
+  if (st.target && player.car !== MS.target) txt = 'Get back in the gold car!';
+  if (o.textContent !== txt) o.textContent = txt;
+  showBeam(st.type === 'goto' && st.target && player.car !== MS.target ? null : MS.pos, st.type === 'race' ? 0x19d3c5 : 0xffd23f, st.type === 'race' ? 9 : 3.5);
+  if (done) nextStep();
+}
+
+// ================================================================ health packs + gun shop
+const hpPacks = [];
+function makeHealthPacks() {
+  const geoA = new THREE.BoxGeometry(1.0, 0.32, 0.32), geoB = new THREE.BoxGeometry(0.32, 1.0, 0.32), mat = new THREE.MeshBasicMaterial({ color: 0xff3b4f });
+  for (const [x, z] of healthSpots) {
+    const g = new THREE.Group(); g.add(new THREE.Mesh(geoA, mat), new THREE.Mesh(geoB, mat));
+    g.position.set(x, groundY(x, z) + 1.1, z); scene.add(g);
+    hpPacks.push({ x, z, m: g, t: 0 });
+  }
+}
+function updatePickupsAnim(dt) {
+  for (const h of hpPacks) {
+    if (h.t > 0) { h.t -= dt; if (h.t <= 0) h.m.visible = true; }
+    h.m.rotation.y += dt * 2; h.m.position.y = groundY(h.x, h.z) + 1.1 + Math.sin(G.t * 3) * 0.15;
+  }
+  if (special.gunshop) special.gunshop.marker.material.opacity = 0.55 + Math.sin(G.t * 5) * 0.3;
+}
+let shopOpen = false;
+function updateShop() {
+  const gs = special.gunshop;
+  const inside = gs && !player.car && G.mode === 'play' && d2(gs.x, gs.z, player.x, player.z) < 3.4 * 3.4;
+  if (inside !== shopOpen) { shopOpen = inside; $('shop').style.display = inside ? 'block' : 'none'; if (inside) renderShop(); }
+}
+function renderShop() {
+  const items = [];
+  for (const w of ['pistol', 'smg']) {
+    const W = WEAPONS[w];
+    if (!save.guns[w]) items.push([`buy:${w}`, `${W.icon} ${W.name}`, W.price]);
+    else items.push([`ammo:${w}`, `${W.icon} ${W.name} ammo +${W.pack}`, W.packPrice]);
+  }
+  items.push(['armor', '🦺 Body armor', 200]);
+  $('shopItems').innerHTML = items.map(([id, label, price]) =>
+    `<button class="shopb${save.money < price ? ' poor' : ''}" data-id="${id}"><span>${label}</span><b>${fmt(price)}</b></button>`).join('');
+}
+$('shop').addEventListener('pointerdown', e => {
+  const b = e.target.closest('.shopb'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const [kind, w] = b.dataset.id.split(':');
+  const price = kind === 'buy' ? WEAPONS[w].price : kind === 'ammo' ? WEAPONS[w].packPrice : 200;
+  if (save.money < price) { toast("Not enough money. Go rob something! 💸"); sfx('click'); return; }
+  if (kind === 'armor' && save.armor >= 100) { toast('Your armor is already full'); return; }
+  addMoney(-price);
+  if (kind === 'buy') { save.guns[w] = true; save.ammo[w] += WEAPONS[w].pack; setWeapon(w); toast(`Got the ${WEAPONS[w].name}! Tap 🔫 to shoot`); }
+  else if (kind === 'ammo') { save.ammo[w] += WEAPONS[w].pack; toast('Ammo bought'); }
+  else { save.armor = 100; toast('Armor on 🦺'); }
+  persist(); renderShop(); sfx('cash');
+});
 
 // ================================================================ camera
 function updateCamera(dt) {
@@ -1693,7 +2225,9 @@ function updateCamera(dt) {
 let hudT = 0, robbing = null;
 const hud = { money: $('money'), stars: $('stars'), hp: $('hpbar').firstElementChild, carbar: $('carbar'), carI: $('carbar').firstElementChild,
   prompt: $('prompt'), prog: $('prog'), progI: $('prog').firstElementChild, arrest: $('arrest'), arrestI: $('arrest').querySelector('i'),
-  bRob: $('bRob'), bCar: $('bCar'), bJump: $('bJump'), bHorn: $('bHorn') };
+  bRob: $('bRob'), bCar: $('bCar'), bJump: $('bJump'), bHorn: $('bHorn'), bRadio: $('bRadio'),
+  clock: $('clock'), wpn: $('wpn'), armor: $('armorbar'), armorI: $('armorbar').firstElementChild };
+let lastWpn = '';
 let lastStars = -1, lastFlash = null, lastMoney = -1;
 function updateHUD(dt) {
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('msg').classList.remove('show'); }
@@ -1703,6 +2237,12 @@ function updateHUD(dt) {
   if (G.stars !== lastStars) { [...hud.stars.children].forEach((s, i) => s.classList.toggle('on', i < G.stars)); lastStars = G.stars; }
   const fl = G.stars > 0 && !G.seen; if (fl !== lastFlash) { hud.stars.classList.toggle('flash', fl); lastFlash = fl; }
   hud.hp.style.width = clamp(player.hp, 0, 100) + '%';
+  hud.armor.style.display = save.armor > 0 ? '' : 'none'; hud.armorI.style.width = clamp(save.armor, 0, 100) + '%';
+  const hh = Math.floor(G.clock), mm2 = Math.floor((G.clock - hh) * 60);
+  hud.clock.textContent = String(hh).padStart(2, '0') + ':' + String(mm2).padStart(2, '0');
+  const W = WEAPONS[player.weapon], wl = W.icon + (player.weapon === 'fist' ? '' : ' ' + save.ammo[player.weapon]);
+  if (wl !== lastWpn) { hud.wpn.textContent = wl; lastWpn = wl; }
+  hud.bRob.firstElementChild.textContent = W.icon; hud.bRob.lastElementChild.textContent = player.weapon === 'fist' ? 'ROB' : 'SHOOT';
   if (player.car) { hud.carbar.style.display = ''; hud.carI.style.width = clamp(player.car.hp / player.car.T.hp * 100, 0, 100) + '%'; }
   else hud.carbar.style.display = 'none';
   hud.arrest.style.display = G.arrest > 0.02 && G.mode === 'play' ? 'block' : 'none'; hud.arrestI.style.width = clamp(G.arrest * 100, 0, 100) + '%';
@@ -1718,14 +2258,17 @@ function updateHUD(dt) {
       const s = nearStore();
       const c = nearestCar(1.8), p = nearestPed(2.4);
       if (s) { robReady = s.cool <= 0; prompt = s.cool > 0 ? `${s.name} is empty. Come back in ${Math.ceil(s.cool)}s` : `Hold 👊 to rob ${s.name}`; }
-      else if (c) { carReady = true; prompt = c.driver === 'ai' ? 'Tap 🚗 to steal this car' : c.driver === 'cop' ? 'Tap 🚗 to steal the cop car!' : 'Tap 🚗 to get in'; }
-      else if (p) { robReady = true; prompt = p.cop ? 'Tap 👊 to punch the cop (bad idea!)' : p.robbed ? 'Tap 👊 to punch' : 'Tap 👊 to rob'; }
+      else if (c) { carReady = true; const what = c.T.boat ? (c.type === 'jetski' ? 'jet ski' : 'boat') : c.type === 'bike' ? 'motorbike' : 'car'; prompt = c.driver === 'ai' ? `Tap 🚗 to steal this ${what}` : c.driver === 'cop' ? 'Tap 🚗 to steal the cop car!' : `Tap 🚗 to get on the ${what}`; }
+      else if (p && player.weapon === 'fist') { robReady = true; prompt = p.cop ? 'Tap 👊 to punch the cop (bad idea!)' : p.robbed ? 'Tap 👊 to punch' : 'Tap 👊 to rob'; }
+      if (shopOpen) prompt = '';
+      if (player.swim && !c) prompt = 'Swimming! 🏊 Cops can\'t follow you in the water';
     }
   }
   if (robbing) prompt = `Robbing ${robbing.name}… keep holding!`;
   hud.prompt.style.display = prompt ? 'block' : 'none'; if (prompt) hud.prompt.textContent = prompt;
   hud.bRob.classList.toggle('ready', robReady); hud.bCar.classList.toggle('ready', carReady);
-  hud.bRob.classList.toggle('dim', !!player.car); hud.bJump.style.display = player.car ? 'none' : ''; hud.bHorn.style.display = player.car ? '' : 'none';
+  hud.bRob.classList.toggle('dim', !!player.car); hud.bJump.style.display = player.car ? 'none' : ''; hud.bJump.classList.toggle('dim', player.swim); hud.bHorn.style.display = player.car ? '' : 'none';
+  const radioOk = player.car && !player.car.T.boat && player.car.type !== 'bike'; hud.bRadio.style.display = radioOk ? '' : 'none';
 }
 function updateRobbery(dt) {
   const s = (!player.car && G.mode === 'play') ? nearStore() : null;
@@ -1736,7 +2279,7 @@ function updateRobbery(dt) {
     hud.prog.style.display = 'block'; hud.progI.style.width = clamp(s.prog / s.hold * 100, 0, 100) + '%';
     if (Math.random() < dt * 3) crime(0, s.bank ? 2 : 1);
     if (s.prog >= s.hold) {
-      const amt = Math.round(R(s.min, s.max)); addMoney(amt);
+      const amt = Math.round(R(s.min, s.max)); addMoney(amt); G.lastRob = s.name;
       crime(s.heat, s.bank ? 3 : 2); s.cool = s.bank ? 180 : 90; robbing = null; hud.prog.style.display = 'none';
       banner(fmt(amt), '#7dff7a', s.bank ? 'BANK HEIST! Get out of here!' : `You robbed ${s.name}!`);
       emit(s.x, 2, s.z, 0x4fdc5a, 16, { spd: 5, up: 7, life: 1.2, size: 0.35 });
@@ -1755,7 +2298,9 @@ function updateAudio() {
   if (!AU.ctx) return;
   const t = AU.ctx.currentTime;
   const c = player.car;
-  AU.engG.gain.setTargetAtTime(c && G.mode === 'play' ? 0.07 : 0, t, 0.1);
+  const radioOn = !!(c && G.mode === 'play' && !c.T.boat && c.type !== 'bike' && AU.radio && AU.radio.station >= 0);
+  if (AU.radio) { AU.radio.setPlaying(radioOn); AU.radio.tick(); }
+  AU.engG.gain.setTargetAtTime(c && G.mode === 'play' ? (radioOn ? 0.035 : 0.07) : 0, t, 0.1);
   if (c) AU.eng.frequency.setTargetAtTime(45 + Math.abs(c.speed) * 3.2, t, 0.08);
   let near = 1e9; const P = playerPos();
   if (G.stars > 0) for (const k of cars) if (k.police && k.driver === 'cop') near = Math.min(near, d2(k.x, k.z, P.x, P.z));
@@ -1779,6 +2324,9 @@ function frame(now) {
     updatePeds(dt);
     updateWanted(dt);
     updateRobbery(dt);
+    updateMission(dt);
+    updateShop();
+    updatePickupsAnim(dt);
     if (G.sprayCool > 0) G.sprayCool -= dt;
     for (const k of pickups) { k.m.rotation.y += dt * 3; k.t -= dt; }
     for (let i = pickups.length - 1; i >= 0; i--) if (pickups[i].t <= 0) { scene.remove(pickups[i].m); pickups.splice(i, 1); }
@@ -1789,7 +2337,16 @@ function frame(now) {
     updateAudio();
     saveT += dt; if (saveT > 5) { saveT = 0; persist(); }
   } else if (G.mode === 'menu') { updateCars(dt); updatePeds(dt); }
+  updateSky(G.paused ? 0 : dt, G.mode === 'menu' ? { x: 0, z: 0 } : playerPos());
   updateCamera(dt);
+  // the player's headlights at night
+  const hc = player.car;
+  if (hc && !hc.T.boat && nightF > 0.05 && G.mode === 'play') {
+    const [fx, fz] = carFwd(hc);
+    headLight.intensity = nightF * 90;
+    headLight.position.set(hc.x + fx * 2, hc.y + 1.1, hc.z + fz * 2);
+    headLight.target.position.set(hc.x + fx * 22, hc.y, hc.z + fz * 22);
+  } else headLight.intensity = 0;
   sky.position.copy(camera.position);
   renderer.render(scene, camera);
 }
@@ -1800,6 +2357,7 @@ function openMenu(pause) {
   if (G.mode === 'menu') return;
   G.paused = true; menu.classList.remove('hide');
   $('play').textContent = 'RESUME'; $('pauseBtns').style.display = 'block';
+  $('progress').textContent = `Missions passed: ${Math.min(save.mission, MISSIONS.length)} / ${MISSIONS.length}` + (save.mission >= MISSIONS.length ? ' 🏆' : '');
   if (AU.ctx) AU.ctx.suspend();
   input.jid = input.lid = null; input.jx = input.jy = 0; stickEl.style.display = 'none';
 }
@@ -1818,7 +2376,13 @@ $('play').addEventListener('click', closeMenu);
 $('sound').addEventListener('click', () => { setSound(!AU.on); $('sound').textContent = AU.on ? '🔊 Sound: ON' : '🔇 Sound: OFF'; });
 $('reset').addEventListener('click', () => {
   if (!confirm('Start over with $0?')) return;
-  save.money = 0; persist(); clearCops(); G.mode = 'dead'; G.deadKind = 'wasted'; respawn(); closeMenu();
+  save.money = 0; save.mission = 0; save.armor = 0; save.guns = { pistol: false, smg: false }; save.ammo = { pistol: 0, smg: 0 };
+  setWeapon('fist'); if (MS.active) failMission('', true); persist(); clearCops(); G.mode = 'dead'; G.deadKind = 'wasted'; respawn(); closeMenu();
+});
+$('gfx').textContent = HIGH ? '✨ Graphics: HIGH' : '⚡ Graphics: FAST';
+$('gfx').addEventListener('click', () => {
+  try { localStorage.setItem('sunsetkey.gfx', HIGH ? 'fast' : 'high'); } catch (e) { }
+  persist(); location.reload();
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode !== 'menu') openMenu(true); });
 
@@ -1826,6 +2390,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && G.m
 populate();
 player.m.g.position.set(player.x, player.y, player.z); player.m.g.rotation.y = player.h;
 $('loading').remove();
+if (save.guns.pistol) setWeapon('fist');
 sizeMinimap();
 requestAnimationFrame(frame);
-window.__game = { renderer, G, player, cars, peds, stores, special, save, crime, toggleCar, robPress, input, cam, nodes, closeMenu, addMoney };
+window.__game = { renderer, MS, MISSIONS, startMission, WEAPONS, setWeapon, shoot, get nightF() { return nightF; }, G, player, cars, peds, stores, special, save, crime, toggleCar, robPress, input, cam, nodes, closeMenu, addMoney };
