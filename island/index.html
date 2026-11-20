@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sunset Key">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a0b2e">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<title>Sunset Key</title>
+<style>
+:root{
+  --pink:#ff4fa0; --orange:#ff9a3c; --gold:#ffd23f; --teal:#19d3c5; --ink:#1a0b2e;
+  --money:#7dff7a; --red:#ff3b4f;
+  --f:"Avenir Next","Avenir","Futura",-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#000;color:#fff;font-family:var(--f);
+  touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+#touch{position:fixed;inset:0;z-index:2}
+#hud{position:fixed;inset:0;z-index:3;pointer-events:none}
+#hud.off{display:none}
+.txt{text-shadow:0 2px 0 #000,0 0 6px rgba(0,0,0,.6),2px 0 0 #000,-2px 0 0 #000,0 -2px 0 #000}
+
+/* minimap */
+#mapwrap{position:absolute;left:max(14px,env(safe-area-inset-left));top:max(14px,env(safe-area-inset-top));
+  width:168px;height:168px;border-radius:50%;border:4px solid rgba(0,0,0,.75);box-shadow:0 0 0 2px rgba(255,255,255,.35);overflow:hidden;background:#1ca7d0}
+#minimap{width:100%;height:100%;display:block}
+
+/* top right */
+#tr{position:absolute;right:max(16px,env(safe-area-inset-right));top:max(12px,env(safe-area-inset-top));text-align:right}
+#money{font-size:40px;font-weight:900;font-style:italic;color:var(--money);letter-spacing:.5px;line-height:1}
+#pop{font-size:26px;font-weight:900;font-style:italic;color:var(--money);opacity:0;height:30px}
+#pop.go{animation:pop 1.4s ease-out}
+@keyframes pop{0%{opacity:0;transform:translateY(14px)}12%{opacity:1;transform:none}70%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}
+#stars{font-size:34px;letter-spacing:2px;line-height:1;margin-top:2px}
+#stars span{color:rgba(255,255,255,.18);-webkit-text-stroke:1.5px rgba(0,0,0,.6)}
+#stars span.on{color:var(--gold);-webkit-text-stroke:1.5px #000}
+#stars.flash span.on{animation:fl .5s steps(2) infinite}
+@keyframes fl{50%{color:rgba(255,255,255,.25)}}
+.bar{width:190px;height:12px;border:2px solid #000;background:rgba(0,0,0,.45);margin:6px 0 0 auto;border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;width:100%;background:linear-gradient(#ff6d7e,#d81f3a);transition:width .2s}
+#carbar i{background:linear-gradient(#7ad7ff,#2a8fd8)}
+.lbl{font-size:12px;font-weight:800;letter-spacing:1px;opacity:.9;margin-top:3px}
+
+/* center */
+#banner{position:absolute;left:0;right:0;top:30%;text-align:center;font-size:84px;font-weight:900;font-style:italic;letter-spacing:2px;opacity:0;transition:opacity .3s}
+#banner.show{opacity:1}
+#banner small{display:block;font-size:24px;font-style:normal;letter-spacing:.5px;margin-top:6px;color:#fff}
+#msg{position:absolute;left:50%;top:max(16px,env(safe-area-inset-top));transform:translateX(-50%);font-size:20px;font-weight:800;
+  background:rgba(10,4,20,.6);padding:8px 16px;border-radius:12px;opacity:0;transition:opacity .3s;max-width:60vw;text-align:center}
+#msg.show{opacity:1}
+#prompt{position:absolute;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);font-size:22px;font-weight:800;
+  background:rgba(10,4,20,.65);padding:9px 18px;border-radius:14px;white-space:nowrap;display:none}
+#prog{position:absolute;left:50%;bottom:calc(205px + env(safe-area-inset-bottom));transform:translateX(-50%);width:300px;height:18px;border:3px solid #000;border-radius:9px;background:rgba(0,0,0,.5);overflow:hidden;display:none}
+#prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--orange))}
+#arrest{position:absolute;left:50%;top:22%;transform:translateX(-50%);width:260px;text-align:center;display:none}
+#arrest .bar{width:260px;margin:4px auto 0}
+#arrest .bar i{background:linear-gradient(90deg,#4d8dff,#ff3b4f)}
+#arrest b{font-size:20px;letter-spacing:2px}
+
+/* joystick */
+#stick{position:absolute;width:150px;height:150px;margin:-75px 0 0 -75px;border-radius:50%;
+  background:radial-gradient(rgba(255,255,255,.10),rgba(255,255,255,.04));border:3px solid rgba(255,255,255,.35);display:none}
+#knob{position:absolute;left:50%;top:50%;width:66px;height:66px;margin:-33px 0 0 -33px;border-radius:50%;background:rgba(255,255,255,.55);border:3px solid rgba(255,255,255,.8)}
+#stickhint{position:absolute;left:max(40px,env(safe-area-inset-left));bottom:calc(40px + env(safe-area-inset-bottom));width:150px;height:150px;border-radius:50%;
+  border:3px dashed rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:rgba(255,255,255,.75);text-align:center}
+
+/* buttons */
+#btns{position:absolute;right:max(22px,env(safe-area-inset-right));bottom:calc(22px + env(safe-area-inset-bottom));width:260px;height:250px;pointer-events:none}
+.b{position:absolute;pointer-events:auto;border-radius:50%;border:4px solid rgba(0,0,0,.6);color:#fff;font-family:var(--f);font-weight:900;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;box-shadow:0 4px 0 rgba(0,0,0,.45);touch-action:none;padding:0}
+.b span{font-size:13px;letter-spacing:1px;margin-top:3px}
+.b em{font-style:normal}
+.b:active,.b.down{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.45)}
+.b.dim{opacity:.45}
+.b.ready{box-shadow:0 0 0 4px var(--gold),0 4px 0 rgba(0,0,0,.45)}
+#bRob{right:0;bottom:0;width:118px;height:118px;background:radial-gradient(circle at 35% 30%,#ff7a8a,#d8193a);font-size:46px}
+#bCar{right:130px;bottom:6px;width:96px;height:96px;background:radial-gradient(circle at 35% 30%,#7ad7ff,#1a72c9);font-size:38px}
+#bJump{right:22px;bottom:132px;width:84px;height:84px;background:radial-gradient(circle at 35% 30%,#9dffa8,#1f9c3c);font-size:30px}
+#bHorn{right:125px;bottom:118px;width:72px;height:72px;background:radial-gradient(circle at 35% 30%,#ffe27a,#d89a12);font-size:26px}
+#bPause{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));pointer-events:auto;width:54px;height:40px;border-radius:12px;
+  border:2px solid rgba(255,255,255,.4);background:rgba(10,4,20,.55);color:#fff;font-weight:900;font-size:16px;font-family:var(--f)}
+
+/* menus */
+#menu{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,rgba(26,11,46,.55),rgba(255,79,160,.35) 55%,rgba(255,154,60,.45));padding:20px}
+#menu.hide{display:none}
+.card{width:min(560px,100%);max-height:100%;overflow:auto;text-align:center;background:rgba(18,8,32,.72);border:2px solid rgba(255,255,255,.18);
+  border-radius:26px;padding:26px 26px 22px;box-shadow:0 20px 60px rgba(0,0,0,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);touch-action:pan-y}
+h1{margin:0;font-size:68px;font-weight:900;font-style:italic;line-height:.95;letter-spacing:1px;
+  background:linear-gradient(180deg,#ffe36e 0%,#ff9a3c 45%,#ff4fa0 75%,#b04dff 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 4px 0 rgba(0,0,0,.6))}
+.tag{font-size:17px;font-weight:700;margin:10px 0 18px;opacity:.95}
+.go{display:block;width:100%;font-family:var(--f);font-size:30px;font-weight:900;font-style:italic;letter-spacing:1px;color:#1a0b2e;border:0;border-radius:18px;padding:16px;
+  background:linear-gradient(180deg,#ffe36e,#ff9a3c);box-shadow:0 5px 0 #a8501a;margin-top:6px}
+.go:active{transform:translateY(3px);box-shadow:0 2px 0 #a8501a}
+.sec{font-family:var(--f);font-size:17px;font-weight:800;color:#fff;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.2);border-radius:14px;padding:11px;margin-top:10px;width:100%}
+.how{text-align:left;font-size:15px;line-height:1.5;margin:16px 0 4px;background:rgba(255,255,255,.07);border-radius:14px;padding:12px 16px}
+.how b{color:var(--gold)}
+.small{font-size:13px;opacity:.75;margin-top:12px}
+#loading{position:fixed;inset:0;z-index:20;background:#1a0b2e;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;letter-spacing:1px}
+@media (max-width:700px),(max-height:520px){
+  h1{font-size:48px} #money{font-size:30px} #stars{font-size:26px} .bar{width:140px}
+  #mapwrap{width:124px;height:124px} #banner{font-size:56px}
+  #btns{transform:scale(.82);transform-origin:right bottom} #stickhint{transform:scale(.85);transform-origin:left bottom}
+  #prompt{font-size:17px;bottom:calc(120px + env(safe-area-inset-bottom))}
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="touch"></div>
+
+<div id="hud" class="off">
+  <div id="mapwrap"><canvas id="minimap" width="168" height="168"></canvas></div>
+  <div id="tr" class="txt">
+    <div id="money">$0</div>
+    <div id="pop">+$0</div>
+    <div id="stars"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+    <div class="bar" id="hpbar"><i></i></div>
+    <div class="bar" id="carbar" style="display:none"><i></i></div>
+  </div>
+  <div id="banner" class="txt"></div>
+  <div id="msg"></div>
+  <div id="prompt"></div>
+  <div id="prog"><i></i></div>
+  <div id="arrest" class="txt"><b>GETTING BUSTED!</b><div class="bar"><i></i></div></div>
+  <div id="stickhint">DRAG<br>TO MOVE</div>
+  <div id="stick"><div id="knob"></div></div>
+  <div id="btns">
+    <button class="b" id="bRob"><em>👊</em><span>ROB</span></button>
+    <button class="b" id="bCar"><em>🚗</em><span>CAR</span></button>
+    <button class="b" id="bJump"><em>⤒</em><span>JUMP</span></button>
+    <button class="b" id="bHorn" style="display:none"><em>📯</em><span>HORN</span></button>
+  </div>
+  <button id="bPause">❚❚</button>
+</div>
+
+<div id="menu">
+  <div class="card">
+    <h1>SUNSET<br>KEY</h1>
+    <div class="tag">Steal cars. Rob people. Outrun the cops.</div>
+    <button class="go" id="play">PLAY</button>
+    <div id="pauseBtns" style="display:none">
+      <button class="sec" id="sound">🔊 Sound: ON</button>
+      <button class="sec" id="reset">Start over ($0)</button>
+    </div>
+    <div class="how">
+      <b>Left thumb:</b> drag anywhere to walk (push far to run) or drive.<br>
+      <b>Right thumb:</b> drag to look around.<br>
+      <b>🚗</b> get in or out of a car. Stealing one with a driver makes the cops mad.<br>
+      <b>👊</b> rob people, punch, and <b>hold</b> it at the glowing <b style="color:#ffd23f">$</b> circles to rob shops and the bank.<br>
+      <b>★ Stars</b> = how hard the cops chase you. Hide from them until the stars run out,
+      or drive into the pink <b style="color:#ff4fa0">Spray Shack</b> to lose them ($200).
+    </div>
+    <div class="small">Tip: tap Share → <b>Add to Home Screen</b>. Then it plays full screen, even with no internet.</div>
+  </div>
+</div>
+<div id="loading">Loading the island…</div>
+
+<script type="module" src="game.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>

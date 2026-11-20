@@ -1,0 +1,10 @@
+{
+  "name": "Sunset Key",
+  "short_name": "Sunset Key",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1a0b2e",
+  "theme_color": "#1a0b2e",
+  "icons": [{ "src": "icon.png", "sizes": "512x512", "type": "image/png" }]
+}
